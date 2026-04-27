@@ -164,7 +164,18 @@ export class ConsignmentResolver {
 export class ConsignmentQuotationFieldResolver {
     @ResolveField()
     productVariantName(@Parent() quotation: ConsignmentQuotation): string {
-        return (quotation.productVariant as any)?.name ?? '';
+        const variant = quotation.productVariant as any;
+        if (!variant) {
+            return '';
+        }
+        const translatedName = variant.name;
+        if (translatedName) {
+            return translatedName;
+        }
+        if (Array.isArray(variant.translations) && variant.translations.length > 0) {
+            return variant.translations[0]?.name ?? '';
+        }
+        return '';
     }
 
     @ResolveField()
