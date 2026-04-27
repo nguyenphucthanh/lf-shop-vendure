@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { graphql } from '@/gql';
 
-import { EmptyState, formatMoney, SimplePage, StoreFilterCard, useStores } from './shared';
+import { EmptyState, formatMoney, SimplePage, StoreFilterCard } from './shared';
 
 const LIST_QUOTATIONS = graphql(`
     query ConsignmentQuotationList($storeId: ID!) {
@@ -19,7 +19,6 @@ const LIST_QUOTATIONS = graphql(`
 `);
 
 export function QuotationListPage() {
-    const { stores } = useStores();
     const [storeId, setStoreId] = useState('');
     const [rows, setRows] = useState<any[]>([]);
 
@@ -42,7 +41,7 @@ export function QuotationListPage() {
                 </Button>
             }
         >
-            <StoreFilterCard storeId={storeId} onStoreChange={setStoreId} stores={stores} />
+            <StoreFilterCard storeId={storeId} onStoreChange={setStoreId} />
             {!storeId ? (
                 <EmptyState title="Select a store" description="Choose a consignment store to view quotations." />
             ) : (

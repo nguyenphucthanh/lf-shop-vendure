@@ -2,8 +2,9 @@ import { api, Button, Card, Input } from '@vendure/dashboard';
 import { useEffect, useMemo, useState } from 'react';
 
 import { graphql } from '@/gql';
+import { CustomerSearchSelect, ProductVariantSearchSelect } from './shared-ui';
 
-import { EmptyState, formatMoney, SimplePage, StoreSelect, useProductVariants, useStores } from './shared';
+import { EmptyState, formatMoney, SimplePage, useProductVariants, useStores } from './shared';
 
 const GET_QUOTATION = graphql(`
     query ConsignmentQuotationDetail($id: ID!) {
@@ -125,23 +126,22 @@ export function QuotationDetailPage({ route }: { route: any }) {
             <Card className="space-y-4 p-4">
                 <div className="space-y-2">
                     <label className="text-sm font-medium">Consignment Store</label>
-                    <StoreSelect value={storeId} onChange={setStoreId} stores={stores} disabled={!isNew} />
+                    <CustomerSearchSelect
+                        value={storeId}
+                        onChange={setStoreId}
+                        filterOptions={{ isConsignment: true }}
+                        placeholder="Search consignment store..."
+                        disabled={!isNew}
+                    />
                 </div>
                 <div className="space-y-2">
                     <label className="text-sm font-medium">Product Variant</label>
-                    <select
-                        className="w-full rounded-md border px-3 py-2 text-sm"
+                    <ProductVariantSearchSelect
                         value={productVariantId}
-                        onChange={event => setProductVariantId(event.target.value)}
+                        onChange={setProductVariantId}
+                        placeholder="Search product variant..."
                         disabled={!isNew}
-                    >
-                        <option value="">Select a variant</option>
-                        {variants.map(variant => (
-                            <option key={variant.id} value={variant.id}>
-                                {variant.sku} — {variant.name}
-                            </option>
-                        ))}
-                    </select>
+                    />
                 </div>
                 <div className="space-y-2">
                     <label className="text-sm font-medium">Consignment Price</label>

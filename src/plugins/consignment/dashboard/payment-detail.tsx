@@ -2,8 +2,9 @@ import { api, Button, Card, Input } from '@vendure/dashboard';
 import { useEffect, useState } from 'react';
 
 import { graphql } from '@/gql';
+import { CustomerSearchSelect } from './shared-ui';
 
-import { LineItemsEditor, SimplePage, StoreSelect, formatMoney, isoDate, toDateTimeInput, useStores } from './shared';
+import { LineItemsEditor, SimplePage, formatMoney, isoDate, toDateTimeInput } from './shared';
 
 const GET_PAYMENT = graphql(`
     query ConsignmentPaymentDetail($id: ID!) {
@@ -52,7 +53,6 @@ export function PaymentDetailPage({ route }: { route: any }) {
     const params = route.useParams();
     const isNew = params.id === 'new';
     const search = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-    const { stores } = useStores();
 
     const [storeId, setStoreId] = useState(search?.get('storeId') ?? '');
     const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
@@ -129,7 +129,13 @@ export function PaymentDetailPage({ route }: { route: any }) {
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Store</label>
-                        <StoreSelect value={storeId} onChange={setStoreId} stores={stores} disabled={!isNew} />
+                        <CustomerSearchSelect
+                            value={storeId}
+                            onChange={setStoreId}
+                            filterOptions={{ isConsignment: true }}
+                            placeholder="Search consignment store..."
+                            disabled={!isNew}
+                        />
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Payment date</label>

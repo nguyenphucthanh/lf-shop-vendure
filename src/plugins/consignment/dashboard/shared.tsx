@@ -2,6 +2,7 @@ import { api, Button, Card, Input, Table, TableBody, TableCell, TableHead, Table
 import { useEffect, useMemo, useState } from 'react';
 
 import { graphql } from '@/gql';
+import { CustomerSearchSelect } from './shared-ui';
 
 export const GET_STORES = graphql(`
     query ConsignmentStores {
@@ -215,17 +216,17 @@ export function SimplePage(props: {
 export function StoreFilterCard(props: {
     storeId: string;
     onStoreChange: (value: string) => void;
-    stores: StoreOption[];
     loading?: boolean;
 }) {
     return (
         <Card className="p-4">
             <div className="space-y-2">
                 <label className="text-sm font-medium">Consignment Store</label>
-                <StoreSelect
+                <CustomerSearchSelect
                     value={props.storeId}
                     onChange={props.onStoreChange}
-                    stores={props.stores}
+                    filterOptions={{ isConsignment: true }}
+                    placeholder="Search consignment store..."
                     disabled={props.loading}
                 />
             </div>
