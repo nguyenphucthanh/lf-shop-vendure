@@ -14,6 +14,7 @@ export const GET_STORES = graphql(`
                 customFields {
                     externalId
                     defaultDiscountPercent
+                    consignmentStore
                 }
             }
         }

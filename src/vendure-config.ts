@@ -84,6 +84,13 @@ export const config: VendureConfig = {
         nullable: true,
         label: [{ languageCode: "en" as any, value: "Default discount percent" }],
       },
+      {
+        name: "consignmentStore",
+        type: "boolean",
+        defaultValue: false,
+        label: [{ languageCode: "en" as any, value: "Consignment Store" }],
+        description: [{ languageCode: "en" as any, value: "Mark this customer as a consignment store" }],
+      },
     ],
     Order: [
       {
