@@ -39,7 +39,7 @@ export function ProductVariantSearchSelect({
   onChange,
   disabled,
   placeholder = "Search product variants...",
-}: ProductVariantSearchSelectProps) {
+}: Omit<ProductVariantSearchSelectProps, "onBlur" | "ref" | "name">) {
   const ref = useRef<HTMLDivElement>(null);
   // Create the configuration
   const variantConfig = createRelationSelectorConfig<
@@ -68,11 +68,7 @@ export function ProductVariantSearchSelect({
       </div>
     ),
     buildSearchFilter: (term: string) => ({
-      or: [
-        { name: { contains: term } },
-        { sku: { contains: term } },
-        { product: { name: { contains: term } } },
-      ],
+      _or: [{ name: { contains: term } }, { sku: { contains: term } }],
     }),
   });
 

@@ -1,10 +1,9 @@
 import { api, Button, Card, Input } from '@vendure/dashboard';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { graphql } from '@/gql';
-import { CustomerSearchSelect } from './shared-ui';
 
-import { LineItemsEditor, SimplePage, formatMoney, isoDate, toDateTimeInput } from './shared';
+import { LineItemsEditor, SimplePage, formatMoney, isoDate, toDateTimeInput, useStores } from './shared';
 
 const GET_PAYMENT = graphql(`
     query ConsignmentPaymentDetail($id: ID!) {
@@ -53,6 +52,7 @@ export function PaymentDetailPage({ route }: { route: any }) {
     const params = route.useParams();
     const isNew = params.id === 'new';
     const search = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const { stores } = useStores();
 
     const [storeId, setStoreId] = useState(search?.get('storeId') ?? '');
     const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
@@ -63,6 +63,8 @@ export function PaymentDetailPage({ route }: { route: any }) {
     const [paidAmount, setPaidAmount] = useState('0');
     const [items, setItems] = useState<Array<{ quotationId: string; quantity: number }>>([]);
     const [saving, setSaving] = useState(false);
+
+    const selectedStore = useMemo(() => stores.find(store => store.id === storeId), [stores, storeId]);
 
     useEffect(() => {
         if (isNew || !params.id) return;
@@ -128,14 +130,10 @@ export function PaymentDetailPage({ route }: { route: any }) {
             <Card className="space-y-4 p-4">
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Store</label>
-                        <CustomerSearchSelect
-                            value={storeId}
-                            onChange={setStoreId}
-                            filterOptions={{ isConsignment: true }}
-                            placeholder="Search consignment store..."
-                            disabled={!isNew}
-                        />
+                        <label className="text-sm font-medium">Consignment Store</label>
+                        <div className="rounded-md border px-3 py-2 text-sm">
+                            {selectedStore ? `${selectedStore.name}${selectedStore.emailAddress ? ` (${selectedStore.emailAddress})` : ''}` : (storeId ? `Store #${storeId}` : 'Not selected')}
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Payment date</label>
