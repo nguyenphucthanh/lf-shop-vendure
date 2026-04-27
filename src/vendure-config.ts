@@ -15,6 +15,7 @@ import { DashboardPlugin } from "@vendure/dashboard/plugin";
 import { GraphiqlPlugin } from "@vendure/graphiql-plugin";
 import "dotenv/config";
 import path from "path";
+import { ConsignmentPlugin } from "./plugins/consignment/consignment.plugin";
 import { ProductVariantCostPlugin } from "./plugins/product-variant-cost/product-variant-cost.plugin";
 import { ConditionalStockAllocationStrategy } from "./plugins/product-variant-cost/strategies/conditional-stock-allocation.strategy";
 
@@ -70,6 +71,20 @@ export const config: VendureConfig = {
   // When adding or altering custom field definitions, the database will
   // need to be updated. See the "Migrations" section in README.md.
   customFields: {
+    Customer: [
+      {
+        name: "externalId",
+        type: "string",
+        nullable: true,
+        label: [{ languageCode: "en" as any, value: "External ID" }],
+      },
+      {
+        name: "defaultDiscountPercent",
+        type: "int",
+        nullable: true,
+        label: [{ languageCode: "en" as any, value: "Default discount percent" }],
+      },
+    ],
     Order: [
       {
         name: "doNotUpdateStock",
@@ -134,6 +149,7 @@ export const config: VendureConfig = {
           "http://localhost:8080/verify-email-address-change",
       },
     }),
+    ConsignmentPlugin,
     ProductVariantCostPlugin,
     DashboardPlugin.init({
       route: "dashboard",
