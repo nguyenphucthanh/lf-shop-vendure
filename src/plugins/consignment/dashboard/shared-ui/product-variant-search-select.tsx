@@ -16,6 +16,13 @@ const productVariantListQuery = graphql(`
         name
         sku
         priceWithTax
+        featuredAsset {
+          id
+          preview
+          source
+          width
+          height
+        }
         product {
           id
           name
@@ -50,7 +57,16 @@ export function ProductVariantSearchSelect({
     labelKey: "name",
     placeholder,
     label: (variant) => (
-      <div className="flex items-center justify-between py-1 w-full">
+      <div className="flex items-start justify-between py-1 w-full gap-2">
+        {variant.featuredAsset ? (
+          <img
+            src={variant.featuredAsset.preview}
+            alt={variant.name}
+            className="w-16 h-16 object-cover rounded"
+          />
+        ) : (
+          <div className="w-16 h-16 bg-muted rounded" />
+        )}
         <div className="flex-1 min-w-0">
           <div className="font-medium truncate">{variant.product.name}</div>
           <div className="text-sm text-muted-foreground truncate">
