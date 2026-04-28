@@ -1,7 +1,13 @@
 import { PluginCommonModule, VendurePlugin } from '@vendure/core';
 
 import { adminApiExtensions } from './api/api-extensions';
-import { ConsignmentResolver, ConsignmentQuotationFieldResolver } from './api/consignment.resolver';
+import {
+    ConsignmentIntakeFieldResolver,
+    ConsignmentPaymentFieldResolver,
+    ConsignmentQuotationFieldResolver,
+    ConsignmentResolver,
+    ConsignmentReturnFieldResolver,
+} from './api/consignment.resolver';
 import { ConsignmentQuotation } from './entities/consignment-quotation.entity';
 import { ConsignmentIntake } from './entities/consignment-intake.entity';
 import { ConsignmentIntakeItem } from './entities/consignment-intake-item.entity';
@@ -35,7 +41,13 @@ import { ConsignmentReportService } from './services/consignment-report.service'
     ],
     adminApiExtensions: {
         schema: adminApiExtensions,
-        resolvers: [ConsignmentResolver, ConsignmentQuotationFieldResolver],
+        resolvers: [
+            ConsignmentResolver,
+            ConsignmentQuotationFieldResolver,
+            ConsignmentIntakeFieldResolver,
+            ConsignmentPaymentFieldResolver,
+            ConsignmentReturnFieldResolver,
+        ],
     },
     dashboard: './dashboard/index.tsx',
     compatibility: '^3.0.0',

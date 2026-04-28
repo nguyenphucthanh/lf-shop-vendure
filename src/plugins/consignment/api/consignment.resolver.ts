@@ -11,6 +11,23 @@ import { ConsignmentIntake } from '../entities/consignment-intake.entity';
 import { ConsignmentPayment } from '../entities/consignment-payment.entity';
 import { ConsignmentReturn } from '../entities/consignment-return.entity';
 
+function normalizeDateTime(value: Date | string | null | undefined): string {
+    if (!value) {
+        return new Date(0).toISOString();
+    }
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return `${value}T00:00:00.000Z`;
+    }
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString();
+    }
+    return `${value}T00:00:00.000Z`;
+}
+
 @Resolver()
 export class ConsignmentResolver {
     constructor(
@@ -186,5 +203,29 @@ export class ConsignmentQuotationFieldResolver {
     @ResolveField()
     productVariantFeaturedAsset(@Parent() quotation: ConsignmentQuotation) {
         return quotation.productVariant?.featuredAsset ?? null;
+    }
+}
+
+@Resolver('ConsignmentIntake')
+export class ConsignmentIntakeFieldResolver {
+    @ResolveField()
+    intakeDate(@Parent() intake: ConsignmentIntake): string {
+        return normalizeDateTime((intake as any).intakeDate);
+    }
+}
+
+@Resolver('ConsignmentPayment')
+export class ConsignmentPaymentFieldResolver {
+    @ResolveField()
+    paymentDate(@Parent() payment: ConsignmentPayment): string {
+        return normalizeDateTime((payment as any).paymentDate);
+    }
+}
+
+@Resolver('ConsignmentReturn')
+export class ConsignmentReturnFieldResolver {
+    @ResolveField()
+    returnedDate(@Parent() consignmentReturn: ConsignmentReturn): string {
+        return normalizeDateTime((consignmentReturn as any).returnedDate);
     }
 }
