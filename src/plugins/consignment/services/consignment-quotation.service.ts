@@ -18,7 +18,7 @@ export class ConsignmentQuotationService {
     async findAll(ctx: RequestContext, storeId: ID): Promise<ConsignmentQuotation[]> {
         return this.connection.getRepository(ctx, ConsignmentQuotation).find({
             where: { storeId },
-            relations: ['productVariant', 'productVariant.translations'],
+            relations: ['productVariant', 'productVariant.translations', 'productVariant.featuredAsset'],
             order: { createdAt: 'DESC' },
         });
     }
@@ -26,7 +26,7 @@ export class ConsignmentQuotationService {
     async findOne(ctx: RequestContext, id: ID): Promise<ConsignmentQuotation | null> {
         return this.connection.getRepository(ctx, ConsignmentQuotation).findOne({
             where: { id },
-            relations: ['productVariant', 'productVariant.translations', 'store'],
+            relations: ['productVariant', 'productVariant.translations', 'productVariant.featuredAsset', 'store'],
         });
     }
 

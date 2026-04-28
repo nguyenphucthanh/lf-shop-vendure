@@ -1,4 +1,4 @@
-import { api, Button, Card, Input } from "@vendure/dashboard";
+import { AnyRoute, api, Button, Card, Input } from "@vendure/dashboard";
 import { useEffect, useMemo, useState } from "react";
 
 import { graphql } from "@/gql";
@@ -52,17 +52,15 @@ const DELETE_QUOTATION = graphql(`
   }
 `);
 
-export function QuotationDetailPage({ route }: { route: any }) {
+export function QuotationDetailPage({ route }: { route: AnyRoute }) {
   const params = route.useParams();
-  const search =
-    typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search)
-      : null;
+  const navigate = route.useNavigate();
+  const search = route.useSearch();
   const isNew = params.id === "new";
   const { stores } = useStores();
   const variants = useProductVariants();
 
-  const [storeId, setStoreId] = useState(search?.get("storeId") ?? "");
+  const [storeId, setStoreId] = useState(search?.storeId ?? "");
   const [productVariantId, setProductVariantId] = useState("");
   const [consignmentPrice, setConsignmentPrice] = useState("0");
   const [note, setNote] = useState("");
@@ -113,13 +111,13 @@ export function QuotationDetailPage({ route }: { route: any }) {
         });
         const id = (result as any)?.createConsignmentQuotation?.id;
         if (id) {
-          window.location.href = `/dashboard/consignment/quotations/${id}`;
+          navigate({ to: `/consignment/quotations/${id}` });
         }
       } else {
         await api.mutate(UPDATE_QUOTATION, {
           input: { id: params.id, consignmentPrice: price, note: note || null },
         });
-        window.location.href = "/dashboard/consignment/quotations";
+        navigate({ to: "/consignment/quotations" });
       }
     } finally {
       setSaving(false);
@@ -130,7 +128,7 @@ export function QuotationDetailPage({ route }: { route: any }) {
     if (isNew) return;
     if (!window.confirm("Delete this quotation?")) return;
     await api.mutate(DELETE_QUOTATION, { id: params.id });
-    window.location.href = "/dashboard/consignment/quotations";
+    navigate({ to: "/consignment/quotations" });
   }
 
   return (

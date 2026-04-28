@@ -9,6 +9,7 @@ export const adminApiExtensions = gql`
         productVariantId: ID!
         productVariantName: String!
         productVariantSku: String!
+        productVariantFeaturedAsset: Asset
         consignmentPrice: Money!
         note: String
     }

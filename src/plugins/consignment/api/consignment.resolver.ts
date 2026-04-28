@@ -182,4 +182,9 @@ export class ConsignmentQuotationFieldResolver {
     productVariantSku(@Parent() quotation: ConsignmentQuotation): string {
         return quotation.productVariant?.sku ?? '';
     }
+
+    @ResolveField()
+    productVariantFeaturedAsset(@Parent() quotation: ConsignmentQuotation) {
+        return quotation.productVariant?.featuredAsset ?? null;
+    }
 }
