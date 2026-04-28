@@ -7,6 +7,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  VendureImage,
 } from "@vendure/dashboard";
 import { useEffect, useState } from "react";
 
@@ -14,14 +15,51 @@ import { graphql } from "@/gql";
 
 import { EmptyState, formatMoney, SimplePage, StoreFilterCard } from "./shared";
 
+// Helper to get translated name based on language code
+function getTranslatedName(
+  translations: Array<{ languageCode: string; name: string }> | undefined,
+  preferredLanguageCode?: string,
+): string {
+  if (!translations || translations.length === 0) return "";
+
+  // Try to find exact match for preferred language
+  if (preferredLanguageCode) {
+    const match = translations.find(
+      (t) => t.languageCode === preferredLanguageCode,
+    );
+    if (match) return match.name;
+  }
+
+  // Fallback to empty languageCode (context default)
+  const contextDefault = translations.find((t) => t.languageCode === "");
+  if (contextDefault) return contextDefault.name;
+
+  // Fallback to first available translation
+  return translations[0]?.name ?? "";
+}
+
 const GET_REPORT = graphql(`
   query ConsignmentReport($storeId: ID!) {
     consignmentReport(storeId: $storeId) {
       quotationId
       productVariantId
-      productName
+      productNameTranslations {
+        languageCode
+        name
+      }
+      variantNameTranslations {
+        languageCode
+        name
+      }
       sku
-      imageUrl
+      featuredAsset {
+        id
+        name
+        preview
+        source
+        width
+        height
+      }
       consignmentPrice
       intakeQty
       intakeValue
@@ -63,6 +101,13 @@ export function ConsignmentReportPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead colSpan={4}>Product</TableHead>
+                  <TableHead colSpan={2}>Intake</TableHead>
+                  <TableHead colSpan={2}>Paid</TableHead>
+                  <TableHead colSpan={2}>Returned</TableHead>
+                  <TableHead colSpan={2}>Debt</TableHead>
+                </TableRow>
+                <TableRow>
                   <TableHead>Image</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead>Product</TableHead>
@@ -81,18 +126,20 @@ export function ConsignmentReportPage() {
                 {rows.map((row) => (
                   <TableRow key={row.quotationId}>
                     <TableCell>
-                      {row.imageUrl ? (
-                        <img
-                          src={row.imageUrl}
-                          alt={row.productName}
+                      {row.featuredAsset ? (
+                        <VendureImage
                           className="h-12 w-12 rounded object-cover"
+                          asset={row.featuredAsset}
+                          preset="thumb"
                         />
                       ) : (
                         "—"
                       )}
                     </TableCell>
                     <TableCell>{row.sku}</TableCell>
-                    <TableCell>{row.productName}</TableCell>
+                    <TableCell>
+                      {getTranslatedName(row.productNameTranslations)}
+                    </TableCell>
                     <TableCell>{formatMoney(row.consignmentPrice)}</TableCell>
                     <TableCell>{row.intakeQty}</TableCell>
                     <TableCell>{formatMoney(row.intakeValue)}</TableCell>

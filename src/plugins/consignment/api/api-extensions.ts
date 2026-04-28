@@ -95,9 +95,10 @@ export const adminApiExtensions = gql`
     type ConsignmentReportRow {
         quotationId: ID!
         productVariantId: ID!
-        productName: String!
+        productNameTranslations: [TranslatedString!]!
+        variantNameTranslations: [TranslatedString!]!
         sku: String!
-        imageUrl: String
+        featuredAsset: Asset
         consignmentPrice: Money!
         intakeQty: Int!
         intakeValue: Money!
@@ -107,6 +108,11 @@ export const adminApiExtensions = gql`
         returnedValue: Money!
         debtQty: Int!
         debtValue: Money!
+    }
+
+    type TranslatedString {
+        languageCode: String!
+        name: String!
     }
 
     # ─── Inputs ────────────────────────────────────────────────────────────────
