@@ -33,6 +33,24 @@ export const GET_STORES = graphql(`
   }
 `);
 
+export const GET_STORE = graphql(`
+  query ConsignmentStore($id: String!) {
+    customers(options: { take: 1, filter: { id: { eq: $id } } }) {
+      items {
+        id
+        firstName
+        lastName
+        emailAddress
+        customFields {
+          externalId
+          defaultDiscountPercent
+          consignmentStore
+        }
+      }
+    }
+  }
+`);
+
 export const GET_PRODUCT_VARIANTS = graphql(`
   query ConsignmentProductVariants {
     productVariants(options: { take: 100, sort: { createdAt: DESC } }) {
@@ -144,6 +162,51 @@ export function useStores() {
   }, []);
 
   return { stores, loading };
+}
+
+export function useStore(storeId?: string | null) {
+  const [store, setStore] = useState<StoreOption | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    console.log("🚀 ~ useStore ~ storeId:", storeId)
+    if (!storeId) {
+      setStore(null);
+      setLoading(false);
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    void api
+      .query(GET_STORE, { id: storeId })
+      .then((result) => {
+        if (!active) return;
+        const item = result?.customers?.items?.[0];
+        if (!item) {
+          setStore(null);
+          return;
+        }
+        setStore({
+          id: item.id,
+          name:
+            [item.firstName, item.lastName].filter(Boolean).join(" ").trim() ||
+            item.emailAddress,
+          emailAddress: item.emailAddress,
+          externalId: item.customFields?.externalId ?? null,
+          defaultDiscountPercent:
+            item.customFields?.defaultDiscountPercent ?? null,
+        });
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [storeId]);
+
+  return { store, loading };
 }
 
 export function useProductVariants() {

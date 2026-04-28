@@ -1,5 +1,5 @@
 import { AnyRoute, api, Button, Card, Input } from "@vendure/dashboard";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
 
@@ -9,7 +9,7 @@ import {
   formatMoney,
   isoDate,
   toDateTimeInput,
-  useStores,
+  useStore,
 } from "./shared";
 
 const GET_PAYMENT = graphql(`
@@ -60,9 +60,9 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
   const params = route.useParams();
   const isNew = params.id === "new";
   const search = route.useSearch();
-  const { stores } = useStores();
 
-  const [storeId, setStoreId] = useState(search?.storeId ?? "");
+  const [storeId, setStoreId] = useState(search?.storeId?.toString() ?? "");
+  const { store: selectedStore } = useStore(storeId);
   const [paymentDate, setPaymentDate] = useState(
     new Date().toISOString().slice(0, 10),
   );
@@ -75,11 +75,6 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
     Array<{ quotationId: string; quantity: number }>
   >([]);
   const [saving, setSaving] = useState(false);
-
-  const selectedStore = useMemo(
-    () => stores.find((store) => store.id === storeId),
-    [stores, storeId],
-  );
 
   useEffect(() => {
     if (isNew || !params.id) return;

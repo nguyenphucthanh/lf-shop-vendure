@@ -9,7 +9,7 @@ import {
   formatMoney,
   SimplePage,
   useProductVariants,
-  useStores,
+  useStore,
 } from "./shared";
 
 const GET_QUOTATION = graphql(`
@@ -56,20 +56,17 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
   const params = route.useParams();
   const navigate = route.useNavigate();
   const search = route.useSearch();
+  console.log("🚀 ~ QuotationDetailPage ~ search:", search);
   const isNew = params.id === "new";
-  const { stores } = useStores();
   const variants = useProductVariants();
 
-  const [storeId, setStoreId] = useState(search?.storeId ?? "");
+  const [storeId, setStoreId] = useState(search?.storeId?.toString() ?? "");
+  const { store: selectedStore } = useStore(storeId);
   const [productVariantId, setProductVariantId] = useState("");
   const [consignmentPrice, setConsignmentPrice] = useState("0");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const selectedStore = useMemo(
-    () => stores.find((store) => store.id === storeId),
-    [stores, storeId],
-  );
   const selectedVariant = useMemo(
     () => variants.find((variant) => variant.id === productVariantId),
     [variants, productVariantId],
