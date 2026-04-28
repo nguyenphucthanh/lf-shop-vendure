@@ -2,6 +2,15 @@ import {
   api,
   Button,
   Card,
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+  ComboboxValue,
   Input,
   Table,
   TableBody,
@@ -73,6 +82,10 @@ export const GET_QUOTATIONS = graphql(`
       productVariantId
       productVariantName
       productVariantSku
+      productVariantFeaturedAsset {
+        id
+        preview
+      }
       consignmentPrice
       note
     }
@@ -100,6 +113,10 @@ export type QuotationOption = {
   productVariantId: string;
   productVariantName: string;
   productVariantSku: string;
+  productVariantFeaturedAsset?: {
+    id: string;
+    preview?: string | null;
+  } | null;
   consignmentPrice: number;
   note?: string | null;
 };
@@ -169,7 +186,7 @@ export function useStore(storeId?: string | null) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    console.log("🚀 ~ useStore ~ storeId:", storeId)
+    console.log("🚀 ~ useStore ~ storeId:", storeId);
     if (!storeId) {
       setStore(null);
       setLoading(false);
@@ -408,21 +425,94 @@ export function LineItemsEditor(props: {
             >
               <div className="col-span-7 space-y-1">
                 <label className="text-sm font-medium">Quotation</label>
-                <select
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                  value={line.quotationId}
-                  onChange={(event) =>
-                    update(index, { quotationId: event.target.value })
-                  }
+                <Combobox
+                  items={quotations}
+                  value={quotation ?? null}
                   disabled={loading}
+                  onValueChange={(nextValue) => {
+                    const selectedQuotation =
+                      (nextValue as QuotationOption | null) ?? null;
+                    update(index, { quotationId: selectedQuotation?.id ?? "" });
+                  }}
+                  itemToStringValue={(item) => item.id}
                 >
-                  <option value="">Select quotation</option>
-                  {quotations.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.productVariantSku} — {option.productVariantName}
-                    </option>
-                  ))}
-                </select>
+                  <ComboboxTrigger
+                    className={"w-full border p-2 px-4 flex items-center gap-2 rounded-sm"}
+                  >
+                    <ComboboxValue placeholder="Select quotation">
+                      {(quotation) => {
+                        return (
+                          <div className="flex grow items-start gap-3 justify-start text-left">
+                            <div className="h-8 w-8 shrink-0 overflow-hidden rounded border bg-muted">
+                              {quotation?.productVariantFeaturedAsset
+                                ?.preview ? (
+                                <img
+                                  src={
+                                    quotation.productVariantFeaturedAsset
+                                      .preview
+                                  }
+                                  alt={quotation.productVariantName}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : null}
+                            </div>
+                            <div className="min-w-0 flex-1 truncate text-sm">
+                              <div className="font-semibold">
+                                {quotation?.productVariantName}
+                              </div>
+                              <div className="text-gray-700">
+                                {quotation?.productVariantSku}
+                              </div>
+                            </div>
+                            <div className="shrink-0 text-sm text-muted-foreground">
+                              {formatMoney(quotation?.consignmentPrice)}
+                            </div>
+                          </div>
+                        );
+                      }}
+                    </ComboboxValue>
+                  </ComboboxTrigger>
+                  <ComboboxContent>
+                    <ComboboxInput
+                      placeholder="Select quotation"
+                      showClear
+                      showTrigger={false}
+                    />
+                    <ComboboxList>
+                      <ComboboxCollection>
+                        {(option: QuotationOption) => (
+                          <ComboboxItem value={option} key={option.id}>
+                            <div className="flex w-full items-center gap-3">
+                              <div className="h-8 w-8 shrink-0 overflow-hidden rounded border bg-muted">
+                                {option.productVariantFeaturedAsset?.preview ? (
+                                  <img
+                                    src={
+                                      option.productVariantFeaturedAsset.preview
+                                    }
+                                    alt={option.productVariantName}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : null}
+                              </div>
+                              <div className="min-w-0 flex-1 truncate text-sm">
+                                <div className="font-semibold">
+                                  {option.productVariantName}
+                                </div>
+                                <div className="text-gray-700">
+                                  {option.productVariantSku}
+                                </div>
+                              </div>
+                              <div className="shrink-0 text-sm text-muted-foreground">
+                                {formatMoney(option.consignmentPrice)}
+                              </div>
+                            </div>
+                          </ComboboxItem>
+                        )}
+                      </ComboboxCollection>
+                    </ComboboxList>
+                    <ComboboxEmpty>No quotations found.</ComboboxEmpty>
+                  </ComboboxContent>
+                </Combobox>
                 {quotation ? (
                   <p className="text-xs text-muted-foreground">
                     Consignment: {formatMoney(quotation.consignmentPrice)}
