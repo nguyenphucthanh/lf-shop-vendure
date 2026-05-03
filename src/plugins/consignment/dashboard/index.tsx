@@ -1,6 +1,7 @@
 import { defineDashboardExtension } from "@vendure/dashboard";
 import { BoxesIcon } from "lucide-react";
 
+import { ConsignmentShell } from "./consignment-shell";
 import { ConsignmentReportPage } from "./consignment-report";
 import { IntakeDetailPage } from "./intake-detail";
 import { IntakeListPage } from "./intake-list";
@@ -23,14 +24,30 @@ defineDashboardExtension({
   ],
   routes: [
     {
-      path: "/consignment/quotations",
-      component: () => <QuotationListPage />,
+      path: "/consignment",
+      component: (route) => (
+        <ConsignmentShell
+          route={route}
+          activeTab="quotations"
+          renderContent={(storeId) => <QuotationListPage storeId={storeId} />}
+        />
+      ),
       navMenuItem: {
         sectionId: "consignment",
-        id: "consignment-quotations",
-        title: "Quotations",
+        id: "consignment",
+        title: "Consignment",
         order: 100,
       },
+    },
+    {
+      path: "/consignment/quotations",
+      component: (route) => (
+        <ConsignmentShell
+          route={route}
+          activeTab="quotations"
+          renderContent={(storeId) => <QuotationListPage storeId={storeId} />}
+        />
+      ),
     },
     {
       path: "/consignment/quotations/$id",
@@ -38,13 +55,13 @@ defineDashboardExtension({
     },
     {
       path: "/consignment/intakes",
-      component: () => <IntakeListPage />,
-      navMenuItem: {
-        sectionId: "consignment",
-        id: "consignment-intakes",
-        title: "Intakes",
-        order: 200,
-      },
+      component: (route) => (
+        <ConsignmentShell
+          route={route}
+          activeTab="intakes"
+          renderContent={(storeId) => <IntakeListPage storeId={storeId} />}
+        />
+      ),
     },
     {
       path: "/consignment/intakes/$id",
@@ -52,13 +69,13 @@ defineDashboardExtension({
     },
     {
       path: "/consignment/payments",
-      component: () => <PaymentListPage />,
-      navMenuItem: {
-        sectionId: "consignment",
-        id: "consignment-payments",
-        title: "Payments",
-        order: 300,
-      },
+      component: (route) => (
+        <ConsignmentShell
+          route={route}
+          activeTab="payments"
+          renderContent={(storeId) => <PaymentListPage storeId={storeId} />}
+        />
+      ),
     },
     {
       path: "/consignment/payments/$id",
@@ -66,13 +83,13 @@ defineDashboardExtension({
     },
     {
       path: "/consignment/returns",
-      component: () => <ReturnListPage />,
-      navMenuItem: {
-        sectionId: "consignment",
-        id: "consignment-returns",
-        title: "Returns",
-        order: 400,
-      },
+      component: (route) => (
+        <ConsignmentShell
+          route={route}
+          activeTab="returns"
+          renderContent={(storeId) => <ReturnListPage storeId={storeId} />}
+        />
+      ),
     },
     {
       path: "/consignment/returns/$id",
@@ -80,13 +97,13 @@ defineDashboardExtension({
     },
     {
       path: "/consignment/report",
-      component: () => <ConsignmentReportPage />,
-      navMenuItem: {
-        sectionId: "consignment",
-        id: "consignment-report",
-        title: "Report",
-        order: 500,
-      },
+      component: (route) => (
+        <ConsignmentShell
+          route={route}
+          activeTab="report"
+          renderContent={(storeId) => <ConsignmentReportPage storeId={storeId} />}
+        />
+      ),
     },
   ],
 });

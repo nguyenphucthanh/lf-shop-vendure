@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
 
-import { EmptyState, formatMoney, SimplePage, StoreFilterCard } from "./shared";
+import { formatMoney } from "./shared";
 
 const LIST_RETURNS = graphql(`
   query ConsignmentReturnList($storeId: ID!) {
@@ -31,8 +31,8 @@ const LIST_RETURNS = graphql(`
   }
 `);
 
-export function ReturnListPage() {
-  const [storeId, setStoreId] = useState("");
+export function ReturnListPage(props: { storeId: string }) {
+  const { storeId } = props;
   const [rows, setRows] = useState<any[]>([]);
 
   useEffect(() => {
@@ -46,67 +46,58 @@ export function ReturnListPage() {
   }, [storeId]);
 
   return (
-    <SimplePage
-      title="Consignment Returns"
-      actions={
+    <div className="space-y-4">
+      <div className="flex justify-end">
         <Button
-          disabled={!storeId}
-          render={(props) => (
-            <Link to={`/consignment/returns/new?storeId=${storeId}`} {...props}>
+          render={(buttonProps) => (
+            <Link to={`/consignment/returns/new?storeId=${storeId}`} {...buttonProps}>
               New return
             </Link>
           )}
         />
-      }
-    >
-      <StoreFilterCard storeId={storeId} onStoreChange={setStoreId} />
-      {!storeId ? (
-        <EmptyState
-          title="Select a store"
-          description="Choose a consignment store to view return records."
-        />
-      ) : (
-        <Card className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead className="w-[140px]">Actions</TableHead>
+      </div>
+      <Card className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Reason</TableHead>
+              <TableHead>Total</TableHead>
+              <TableHead className="w-[140px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell>{String(row.returnedDate).slice(0, 10)}</TableCell>
+                <TableCell>{row.reason ?? "—"}</TableCell>
+                <TableCell>{formatMoney(row.total)}</TableCell>
+                <TableCell>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    render={(buttonProps) => (
+                      <Link to={`/consignment/returns/${row.id}`} {...buttonProps}>
+                        Edit
+                      </Link>
+                    )}
+                  />
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>{String(row.returnedDate).slice(0, 10)}</TableCell>
-                  <TableCell>{row.reason ?? "—"}</TableCell>
-                  <TableCell>{formatMoney(row.total)}</TableCell>
-                  <TableCell>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      render={props => (
-                        <Link to={`/consignment/returns/${row.id}`} {...props}>Edit</Link>
-                      )}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-              {rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="text-center text-sm text-muted-foreground"
-                  >
-                    No return records found.
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-        </Card>
-      )}
-    </SimplePage>
+            ))}
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={4}
+                  className="text-center text-sm text-muted-foreground"
+                >
+                  No return records found.
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
   );
 }
