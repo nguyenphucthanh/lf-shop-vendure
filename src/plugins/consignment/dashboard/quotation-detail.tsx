@@ -114,7 +114,9 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
         await api.mutate(UPDATE_QUOTATION, {
           input: { id: params.id, consignmentPrice: price, note: note || null },
         });
-        navigate({ to: "/consignment/quotations" });
+        navigate({
+          to: "/consignment/quotations",
+        });
       }
     } finally {
       setSaving(false);

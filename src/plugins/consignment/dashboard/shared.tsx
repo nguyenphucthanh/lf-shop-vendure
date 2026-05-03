@@ -408,7 +408,7 @@ export function LineItemsEditor(props: {
           Add item
         </Button>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-3 @container">
         {props.value.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Add at least one quotation item.
@@ -421,7 +421,7 @@ export function LineItemsEditor(props: {
           return (
             <div
               key={index}
-              className="grid grid-cols-12 gap-3 rounded-md border p-3"
+              className="@3xl:grid grid-cols-12 gap-3 rounded-md border p-3 space-y-3 @3xl:space-y-0"
             >
               <div className="col-span-7 space-y-1">
                 <label className="text-sm font-medium">Quotation</label>
@@ -437,13 +437,15 @@ export function LineItemsEditor(props: {
                   itemToStringValue={(item) => item.id}
                 >
                   <ComboboxTrigger
-                    className={"w-full border p-2 px-4 flex items-center gap-2 rounded-sm"}
+                    className={
+                      "w-full border p-2 flex items-center gap-2 rounded-sm"
+                    }
                   >
                     <ComboboxValue placeholder="Select quotation">
                       {(quotation) => {
                         return (
                           <div className="flex grow items-start gap-3 justify-start text-left">
-                            <div className="h-8 w-8 shrink-0 overflow-hidden rounded border bg-muted">
+                            <div className="h-6 w-6 shrink-0 overflow-hidden rounded border bg-muted">
                               {quotation?.productVariantFeaturedAsset
                                 ?.preview ? (
                                 <img
@@ -456,16 +458,16 @@ export function LineItemsEditor(props: {
                                 />
                               ) : null}
                             </div>
-                            <div className="min-w-0 flex-1 truncate text-sm">
-                              <div className="font-semibold">
+                            <div className="min-w-0 flex-1 truncate text-sm flex divide-x space-x-2">
+                              <div className="font-semibold pr-2">
                                 {quotation?.productVariantName}
                               </div>
-                              <div className="text-gray-700">
-                                {quotation?.productVariantSku}
+                              <div className="text-gray-700 pr-2">
+                                SKU: {quotation?.productVariantSku}
                               </div>
-                            </div>
-                            <div className="shrink-0 text-sm text-muted-foreground">
-                              {formatMoney(quotation?.consignmentPrice)}
+                              <div className="shrink-0 text-sm font-bold pr-2">
+                                {formatMoney(quotation?.consignmentPrice)}
+                              </div>
                             </div>
                           </div>
                         );
@@ -483,7 +485,7 @@ export function LineItemsEditor(props: {
                         {(option: QuotationOption) => (
                           <ComboboxItem value={option} key={option.id}>
                             <div className="flex w-full items-center gap-3">
-                              <div className="h-8 w-8 shrink-0 overflow-hidden rounded border bg-muted">
+                              <div className="h-16 w-16 shrink-0 overflow-hidden rounded border bg-muted">
                                 {option.productVariantFeaturedAsset?.preview ? (
                                   <img
                                     src={
@@ -499,11 +501,11 @@ export function LineItemsEditor(props: {
                                   {option.productVariantName}
                                 </div>
                                 <div className="text-gray-700">
-                                  {option.productVariantSku}
+                                  SKU: {option.productVariantSku}
                                 </div>
-                              </div>
-                              <div className="shrink-0 text-sm text-muted-foreground">
-                                {formatMoney(option.consignmentPrice)}
+                                <div className="shrink-0 text-sm font-bold">
+                                  {formatMoney(option.consignmentPrice)}
+                                </div>
                               </div>
                             </div>
                           </ComboboxItem>

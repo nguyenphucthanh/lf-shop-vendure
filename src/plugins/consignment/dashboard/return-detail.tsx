@@ -68,7 +68,7 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
   useEffect(() => {
     if (isNew || !params.id) return;
     void api.query(GET_RETURN, { id: params.id }).then((result) => {
-      const ret = (result as any)?.consignmentReturn;
+      const ret = result?.consignmentReturn;
       if (!ret) return;
       setStoreId(ret.storeId);
       setReturnedDate(isoDate(ret.returnedDate));

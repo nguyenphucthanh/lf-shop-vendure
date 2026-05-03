@@ -75,7 +75,7 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
   useEffect(() => {
     if (isNew || !params.id) return;
     void api.query(GET_INTAKE, { id: params.id }).then((result) => {
-      const intake = (result as any)?.consignmentIntake;
+      const intake = result?.consignmentIntake;
       if (!intake) return;
       setStoreId(intake.storeId);
       setIntakeDate(isoDate(intake.intakeDate));

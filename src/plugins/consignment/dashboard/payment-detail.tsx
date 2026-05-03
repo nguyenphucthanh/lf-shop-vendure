@@ -79,7 +79,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
   useEffect(() => {
     if (isNew || !params.id) return;
     void api.query(GET_PAYMENT, { id: params.id }).then((result) => {
-      const payment = (result as any)?.consignmentPayment;
+      const payment = result?.consignmentPayment;
       if (!payment) return;
       setStoreId(payment.storeId);
       setPaymentDate(isoDate(payment.paymentDate));

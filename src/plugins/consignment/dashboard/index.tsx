@@ -1,4 +1,4 @@
-import { defineDashboardExtension } from "@vendure/dashboard";
+import { defineDashboardExtension, z } from "@vendure/dashboard";
 import { BoxesIcon } from "lucide-react";
 
 import { ConsignmentShell } from "./consignment-shell";
@@ -11,6 +11,9 @@ import { QuotationDetailPage } from "./quotation-detail";
 import { QuotationListPage } from "./quotation-list";
 import { ReturnDetailPage } from "./return-detail";
 import { ReturnListPage } from "./return-list";
+const commonStoreSearchSchema = z.object({
+  storeId: z.union([z.string(), z.number()]).optional(),
+});
 
 defineDashboardExtension({
   navSections: [
@@ -32,6 +35,7 @@ defineDashboardExtension({
           renderContent={(storeId) => <QuotationListPage storeId={storeId} />}
         />
       ),
+      validateSearch: commonStoreSearchSchema,
       navMenuItem: {
         sectionId: "consignment",
         id: "consignment",
@@ -48,6 +52,7 @@ defineDashboardExtension({
           renderContent={(storeId) => <QuotationListPage storeId={storeId} />}
         />
       ),
+      validateSearch: commonStoreSearchSchema,
     },
     {
       path: "/consignment/quotations/$id",
@@ -62,6 +67,7 @@ defineDashboardExtension({
           renderContent={(storeId) => <IntakeListPage storeId={storeId} />}
         />
       ),
+      validateSearch: commonStoreSearchSchema,
     },
     {
       path: "/consignment/intakes/$id",
@@ -76,6 +82,7 @@ defineDashboardExtension({
           renderContent={(storeId) => <PaymentListPage storeId={storeId} />}
         />
       ),
+      validateSearch: commonStoreSearchSchema,
     },
     {
       path: "/consignment/payments/$id",
@@ -90,6 +97,7 @@ defineDashboardExtension({
           renderContent={(storeId) => <ReturnListPage storeId={storeId} />}
         />
       ),
+      validateSearch: commonStoreSearchSchema,
     },
     {
       path: "/consignment/returns/$id",
@@ -101,9 +109,12 @@ defineDashboardExtension({
         <ConsignmentShell
           route={route}
           activeTab="report"
-          renderContent={(storeId) => <ConsignmentReportPage storeId={storeId} />}
+          renderContent={(storeId) => (
+            <ConsignmentReportPage storeId={storeId} />
+          )}
         />
       ),
+      validateSearch: commonStoreSearchSchema,
     },
   ],
 });
