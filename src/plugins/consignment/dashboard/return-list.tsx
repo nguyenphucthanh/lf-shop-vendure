@@ -47,10 +47,14 @@ export function ReturnListPage(props: { storeId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-between">
+        <h2 className="text-lg font-semibold">Total returns: {rows.length}</h2>
         <Button
           render={(buttonProps) => (
-            <Link to={`/consignment/returns/new?storeId=${storeId}`} {...buttonProps}>
+            <Link
+              to={`/consignment/returns/new?storeId=${storeId}`}
+              {...buttonProps}
+            >
               New return
             </Link>
           )}
@@ -77,7 +81,10 @@ export function ReturnListPage(props: { storeId: string }) {
                     size="sm"
                     variant="secondary"
                     render={(buttonProps) => (
-                      <Link to={`/consignment/returns/${row.id}`} {...buttonProps}>
+                      <Link
+                        to={`/consignment/returns/${row.id}`}
+                        {...buttonProps}
+                      >
                         Edit
                       </Link>
                     )}

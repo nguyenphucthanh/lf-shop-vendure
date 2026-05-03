@@ -4,6 +4,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -77,6 +78,21 @@ export function ConsignmentReportPage(props: { storeId: string }) {
   const { storeId } = props;
   const [rows, setRows] = useState<any[]>([]);
 
+  const totals = rows.reduce(
+    (acc, row) => ({
+      intakeValue: acc.intakeValue + (row.intakeValue ?? 0),
+      paidValue: acc.paidValue + (row.paidValue ?? 0),
+      returnedValue: acc.returnedValue + (row.returnedValue ?? 0),
+      debtValue: acc.debtValue + (row.debtValue ?? 0),
+    }),
+    {
+      intakeValue: 0,
+      paidValue: 0,
+      returnedValue: 0,
+      debtValue: 0,
+    },
+  );
+
   useEffect(() => {
     if (!storeId) {
       setRows([]);
@@ -129,7 +145,9 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                   )}
                 </TableCell>
                 <TableCell>{row.sku}</TableCell>
-                <TableCell>{getTranslatedName(row.productNameTranslations)}</TableCell>
+                <TableCell>
+                  {getTranslatedName(row.productNameTranslations)}
+                </TableCell>
                 <TableCell>{formatMoney(row.consignmentPrice)}</TableCell>
                 <TableCell>{row.intakeQty}</TableCell>
                 <TableCell>{formatMoney(row.intakeValue)}</TableCell>
@@ -152,6 +170,28 @@ export function ConsignmentReportPage(props: { storeId: string }) {
               </TableRow>
             ) : null}
           </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={5} className="font-semibold">
+                Total
+              </TableCell>
+              <TableCell className="font-semibold">
+                {formatMoney(totals.intakeValue)}
+              </TableCell>
+              <TableCell></TableCell>
+              <TableCell className="font-semibold">
+                {formatMoney(totals.paidValue)}
+              </TableCell>
+              <TableCell></TableCell>
+              <TableCell className="font-semibold">
+                {formatMoney(totals.returnedValue)}
+              </TableCell>
+              <TableCell></TableCell>
+              <TableCell className="font-semibold">
+                {formatMoney(totals.debtValue)}
+              </TableCell>
+            </TableRow>
+          </TableFooter>
         </Table>
       </div>
     </Card>

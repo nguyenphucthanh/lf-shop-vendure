@@ -50,7 +50,10 @@ export function PaymentListPage(props: { storeId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-between">
+        <h2 className="text-lg font-semibold">
+          Total payments: {rows.length}
+        </h2>
         <Button
           render={(buttonProps) => (
             <Link to={`/consignment/payments/new?storeId=${storeId}`} {...buttonProps}>

@@ -50,7 +50,10 @@ export function IntakeListPage(props: { storeId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-between">
+        <h2 className="text-lg font-semibold">
+          Total intakes: {rows.length}
+        </h2>
         <Button
           render={(buttonProps) => (
             <Link to={`/consignment/intakes/new?storeId=${storeId}`} {...buttonProps}>
