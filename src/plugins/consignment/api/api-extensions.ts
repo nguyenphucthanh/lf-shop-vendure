@@ -133,6 +133,7 @@ export const adminApiExtensions = gql`
     input ConsignmentLineItemInput {
         quotationId: ID!
         quantity: Int!
+        consignmentPriceSnapshot: Money
     }
 
     input CreateConsignmentIntakeInput {

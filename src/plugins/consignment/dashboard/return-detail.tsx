@@ -21,6 +21,7 @@ const GET_RETURN = graphql(`
       items {
         quotationId
         quantity
+        consignmentPriceSnapshot
       }
     }
   }
@@ -61,7 +62,11 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
   );
   const [reason, setReason] = useState("");
   const [items, setItems] = useState<
-    Array<{ quotationId: string; quantity: number }>
+    Array<{
+      quotationId: string;
+      quantity: number;
+      consignmentPriceSnapshot: number;
+    }>
   >([]);
   const [saving, setSaving] = useState(false);
 
@@ -77,6 +82,7 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
         (ret.items ?? []).map((item: any) => ({
           quotationId: item.quotationId,
           quantity: item.quantity,
+          consignmentPriceSnapshot: item.consignmentPriceSnapshot ?? 0,
         })),
       );
     });

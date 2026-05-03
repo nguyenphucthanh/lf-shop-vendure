@@ -11,6 +11,7 @@ import { ConsignmentPaymentItem } from '../entities/consignment-payment-item.ent
 export interface ReturnItemInput {
     quotationId: ID;
     quantity: number;
+    consignmentPriceSnapshot?: number;
 }
 
 export interface CreateReturnInput {
@@ -113,12 +114,13 @@ export class ConsignmentReturnService {
         for (const itemInput of input.items) {
             const quotation = await quotationRepo.findOne({ where: { id: itemInput.quotationId }, relations: ['productVariant'] });
             if (!quotation) throw new UserInputError(`Quotation ${itemInput.quotationId} not found`);
-            const itemSubtotal = quotation.consignmentPrice * itemInput.quantity;
+            const consignmentPriceSnapshot = itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
+            const itemSubtotal = consignmentPriceSnapshot * itemInput.quantity;
             await itemRepo.save(itemRepo.create({
                 consignmentReturnId: saved.id,
                 quotationId: quotation.id,
                 productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
-                consignmentPriceSnapshot: quotation.consignmentPrice,
+                consignmentPriceSnapshot,
                 quantity: itemInput.quantity,
                 subtotal: itemSubtotal,
             }));
@@ -144,12 +146,13 @@ export class ConsignmentReturnService {
             for (const itemInput of input.items) {
                 const quotation = await quotationRepo.findOne({ where: { id: itemInput.quotationId }, relations: ['productVariant'] });
                 if (!quotation) throw new UserInputError(`Quotation ${itemInput.quotationId} not found`);
-                const itemSubtotal = quotation.consignmentPrice * itemInput.quantity;
+                const consignmentPriceSnapshot = itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
+                const itemSubtotal = consignmentPriceSnapshot * itemInput.quantity;
                 await itemRepo.save(itemRepo.create({
                     consignmentReturnId: ret.id,
                     quotationId: quotation.id,
                     productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
-                    consignmentPriceSnapshot: quotation.consignmentPrice,
+                    consignmentPriceSnapshot,
                     quantity: itemInput.quantity,
                     subtotal: itemSubtotal,
                 }));

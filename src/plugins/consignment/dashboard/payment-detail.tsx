@@ -28,6 +28,7 @@ const GET_PAYMENT = graphql(`
       items {
         quotationId
         quantity
+        consignmentPriceSnapshot
       }
     }
   }
@@ -72,7 +73,11 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
   const [discount, setDiscount] = useState("0");
   const [paidAmount, setPaidAmount] = useState("0");
   const [items, setItems] = useState<
-    Array<{ quotationId: string; quantity: number }>
+    Array<{
+      quotationId: string;
+      quantity: number;
+      consignmentPriceSnapshot: number;
+    }>
   >([]);
   const [saving, setSaving] = useState(false);
 
@@ -92,6 +97,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
         (payment.items ?? []).map((item: any) => ({
           quotationId: item.quotationId,
           quantity: item.quantity,
+          consignmentPriceSnapshot: item.consignmentPriceSnapshot ?? 0,
         })),
       );
     });

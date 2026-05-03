@@ -12,6 +12,7 @@ import { ConsignmentReturnItem } from '../entities/consignment-return-item.entit
 export interface PaymentItemInput {
     quotationId: ID;
     quantity: number;
+    consignmentPriceSnapshot?: number;
 }
 
 export interface CreatePaymentInput {
@@ -128,12 +129,13 @@ export class ConsignmentPaymentService {
         for (const itemInput of input.items) {
             const quotation = await quotationRepo.findOne({ where: { id: itemInput.quotationId }, relations: ['productVariant'] });
             if (!quotation) throw new UserInputError(`Quotation ${itemInput.quotationId} not found`);
-            const itemSubtotal = quotation.consignmentPrice * itemInput.quantity;
+            const consignmentPriceSnapshot = itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
+            const itemSubtotal = consignmentPriceSnapshot * itemInput.quantity;
             await itemRepo.save(itemRepo.create({
                 paymentId: saved.id,
                 quotationId: quotation.id,
                 productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
-                consignmentPriceSnapshot: quotation.consignmentPrice,
+                consignmentPriceSnapshot,
                 quantity: itemInput.quantity,
                 subtotal: itemSubtotal,
             }));
@@ -165,12 +167,13 @@ export class ConsignmentPaymentService {
             for (const itemInput of input.items) {
                 const quotation = await quotationRepo.findOne({ where: { id: itemInput.quotationId }, relations: ['productVariant'] });
                 if (!quotation) throw new UserInputError(`Quotation ${itemInput.quotationId} not found`);
-                const itemSubtotal = quotation.consignmentPrice * itemInput.quantity;
+                const consignmentPriceSnapshot = itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
+                const itemSubtotal = consignmentPriceSnapshot * itemInput.quantity;
                 await itemRepo.save(itemRepo.create({
                     paymentId: payment.id,
                     quotationId: quotation.id,
                     productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
-                    consignmentPriceSnapshot: quotation.consignmentPrice,
+                    consignmentPriceSnapshot,
                     quantity: itemInput.quantity,
                     subtotal: itemSubtotal,
                 }));

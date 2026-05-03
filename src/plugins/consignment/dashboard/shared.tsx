@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@vendure/dashboard";
 import { useEffect, useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 
 import { graphql } from "@/gql";
 import { CustomerSearchSelect } from "./shared-ui";
@@ -124,6 +125,7 @@ export type QuotationOption = {
 export type LineItemDraft = {
   quotationId: string;
   quantity: number;
+  consignmentPriceSnapshot: number;
 };
 
 export function formatMoney(value?: number | null) {
@@ -377,9 +379,14 @@ export function LineItemsEditor(props: {
   }
 
   function addLine() {
+    const firstQuotation = quotations[0];
     props.onChange([
       ...props.value,
-      { quotationId: quotations[0]?.id ?? "", quantity: 1 },
+      {
+        quotationId: firstQuotation?.id ?? "",
+        quantity: 1,
+        consignmentPriceSnapshot: firstQuotation?.consignmentPrice ?? 0,
+      },
     ]);
   }
 
@@ -388,9 +395,8 @@ export function LineItemsEditor(props: {
   }
 
   const total = props.value.reduce((sum, line) => {
-    const quotation = quotationMap[line.quotationId];
     return (
-      sum + (quotation?.consignmentPrice ?? 0) * (Number(line.quantity) || 0)
+      sum + (line.consignmentPriceSnapshot ?? 0) * (Number(line.quantity) || 0)
     );
   }, 0);
 
@@ -417,13 +423,13 @@ export function LineItemsEditor(props: {
         {props.value.map((line, index) => {
           const quotation = quotationMap[line.quotationId];
           const subtotal =
-            (quotation?.consignmentPrice ?? 0) * (Number(line.quantity) || 0);
+            (line.consignmentPriceSnapshot ?? 0) * (Number(line.quantity) || 0);
           return (
             <div
               key={index}
               className="@3xl:grid grid-cols-12 gap-3 rounded-md border p-3 space-y-3 @3xl:space-y-0"
             >
-              <div className="col-span-7 space-y-1">
+              <div className="col-span-5 space-y-1">
                 <label className="text-sm font-medium">Quotation</label>
                 <Combobox
                   items={quotations}
@@ -432,7 +438,11 @@ export function LineItemsEditor(props: {
                   onValueChange={(nextValue) => {
                     const selectedQuotation =
                       (nextValue as QuotationOption | null) ?? null;
-                    update(index, { quotationId: selectedQuotation?.id ?? "" });
+                    update(index, {
+                      quotationId: selectedQuotation?.id ?? "",
+                      consignmentPriceSnapshot:
+                        selectedQuotation?.consignmentPrice ?? 0,
+                    });
                   }}
                   itemToStringValue={(item) => item.id}
                 >
@@ -464,9 +474,6 @@ export function LineItemsEditor(props: {
                               </div>
                               <div className="text-gray-700 pr-2">
                                 SKU: {quotation?.productVariantSku}
-                              </div>
-                              <div className="shrink-0 text-sm font-bold pr-2">
-                                {formatMoney(quotation?.consignmentPrice)}
                               </div>
                             </div>
                           </div>
@@ -515,13 +522,26 @@ export function LineItemsEditor(props: {
                     <ComboboxEmpty>No quotations found.</ComboboxEmpty>
                   </ComboboxContent>
                 </Combobox>
-                {quotation ? (
-                  <p className="text-xs text-muted-foreground">
-                    Consignment: {formatMoney(quotation.consignmentPrice)}
-                  </p>
-                ) : null}
               </div>
-              <div className="col-span-3 space-y-1">
+
+              <div className="col-span-2 space-y-1">
+                <label className="text-sm font-medium">Price</label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={String((line.consignmentPriceSnapshot ?? 0) / 100)}
+                  onChange={(event) =>
+                    update(index, {
+                      consignmentPriceSnapshot: Math.round(
+                        Number(event.target.value || 0) * 100,
+                      ),
+                    })
+                  }
+                />
+              </div>
+
+              <div className="col-span-2 space-y-1">
                 <label className="text-sm font-medium">Quantity</label>
                 <Input
                   type="number"
@@ -532,17 +552,20 @@ export function LineItemsEditor(props: {
                   }
                 />
               </div>
-              <div className="col-span-2 flex flex-col justify-between items-end">
+              <div className="col-span-2 space-y-1 flex flex-col items-end">
+                <label className="text-sm font-medium">Subtotal</label>
                 <div className="text-sm font-medium">
                   {formatMoney(subtotal)}
                 </div>
+              </div>
+              <div className="col-span-1 text-right">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="destructive"
                   size="sm"
                   onClick={() => removeLine(index)}
                 >
-                  Remove
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>

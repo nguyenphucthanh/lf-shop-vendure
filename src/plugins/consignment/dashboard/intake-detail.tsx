@@ -25,6 +25,7 @@ const GET_INTAKE = graphql(`
       items {
         quotationId
         quantity
+        consignmentPriceSnapshot
       }
     }
   }
@@ -68,7 +69,11 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
   const [deliveryTrackingCode, setDeliveryTrackingCode] = useState("");
   const [deliveryCost, setDeliveryCost] = useState("0");
   const [items, setItems] = useState<
-    Array<{ quotationId: string; quantity: number }>
+    Array<{
+      quotationId: string;
+      quantity: number;
+      consignmentPriceSnapshot: number;
+    }>
   >([]);
   const [saving, setSaving] = useState(false);
 
@@ -87,6 +92,7 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
         (intake.items ?? []).map((item: any) => ({
           quotationId: item.quotationId,
           quantity: item.quantity,
+          consignmentPriceSnapshot: item.consignmentPriceSnapshot ?? 0,
         })),
       );
     });
