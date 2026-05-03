@@ -38,6 +38,17 @@ export function PaymentListPage(props: { storeId: string }) {
   const { storeId } = props;
   const [rows, setRows] = useState<any[]>([]);
 
+  function getStatusClass(status?: string) {
+    const normalized = (status ?? "").toLowerCase();
+    if (normalized === "pending") {
+      return "font-semibold text-orange-600";
+    }
+    if (normalized === "completed") {
+      return "font-semibold text-green-600";
+    }
+    return "font-semibold";
+  }
+
   useEffect(() => {
     if (!storeId) {
       setRows([]);
@@ -81,7 +92,9 @@ export function PaymentListPage(props: { storeId: string }) {
               <TableRow key={row.id}>
                 <TableCell>{String(row.paymentDate).slice(0, 10)}</TableCell>
                 <TableCell>{row.paymentMethod}</TableCell>
-                <TableCell>{row.paymentStatus}</TableCell>
+                <TableCell className={getStatusClass(row.paymentStatus)}>
+                  {row.paymentStatus}
+                </TableCell>
                 <TableCell>{formatMoney(row.total)}</TableCell>
                 <TableCell>{formatMoney(row.remainingAmount)}</TableCell>
                 <TableCell>
