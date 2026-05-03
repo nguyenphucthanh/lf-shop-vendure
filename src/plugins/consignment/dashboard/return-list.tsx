@@ -65,6 +65,7 @@ export function ReturnListPage(props: { storeId: string }) {
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
+              <TableHead>Items</TableHead>
               <TableHead>Reason</TableHead>
               <TableHead>Total</TableHead>
               <TableHead className="w-[140px]">Actions</TableHead>
@@ -74,6 +75,14 @@ export function ReturnListPage(props: { storeId: string }) {
             {rows.map((row) => (
               <TableRow key={row.id}>
                 <TableCell>{String(row.returnedDate).slice(0, 10)}</TableCell>
+                <TableCell>
+                  {`${
+                    row.items?.reduce(
+                      (sum: number, item: any) => sum + item.quantity,
+                      0,
+                    ) ?? 0
+                  } items of ${row.items?.length ?? 0} products`}
+                </TableCell>
                 <TableCell>{row.reason ?? "—"}</TableCell>
                 <TableCell>{formatMoney(row.total)}</TableCell>
                 <TableCell>
@@ -95,7 +104,7 @@ export function ReturnListPage(props: { storeId: string }) {
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={4}
+                  colSpan={5}
                   className="text-center text-sm text-muted-foreground"
                 >
                   No return records found.

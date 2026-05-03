@@ -78,10 +78,12 @@ export function IntakeListPage(props: { storeId: string }) {
               <TableRow key={row.id}>
                 <TableCell>{String(row.intakeDate).slice(0, 10)}</TableCell>
                 <TableCell>
-                  {row.items?.reduce(
-                    (sum: number, item: any) => sum + item.quantity,
-                    0,
-                  ) ?? 0}
+                  {`${
+                    row.items?.reduce(
+                      (sum: number, item: any) => sum + item.quantity,
+                      0,
+                    ) ?? 0
+                  } items of ${row.items?.length ?? 0} products`}
                 </TableCell>
                 <TableCell>{formatMoney(row.deliveryCost)}</TableCell>
                 <TableCell>{formatMoney(row.total)}</TableCell>
