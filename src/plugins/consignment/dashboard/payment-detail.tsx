@@ -94,10 +94,15 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
       currency: string;
     }>
   >([]);
+  const [initialPaymentQtyByQuotation, setInitialPaymentQtyByQuotation] =
+    useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (isNew || !params.id) return;
+    if (isNew || !params.id) {
+      setInitialPaymentQtyByQuotation({});
+      return;
+    }
     void api.query(GET_PAYMENT, { id: params.id }).then((result) => {
       const payment = result?.consignmentPayment;
       if (!payment) return;
@@ -116,6 +121,14 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
           currency: item.currency || "USD",
         })),
       );
+      const baseline = (payment.items ?? []).reduce<Record<string, number>>(
+        (acc, item) => {
+          acc[item.quotationId] = (acc[item.quotationId] ?? 0) + item.quantity;
+          return acc;
+        },
+        {},
+      );
+      setInitialPaymentQtyByQuotation(baseline);
     });
   }, [isNew, params.id]);
 
@@ -302,6 +315,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
         value={items}
         onChange={setItems}
         calculateMaxQty="in-payment"
+        initialDocumentQtyByQuotation={initialPaymentQtyByQuotation}
       />
     </SimplePage>
   );

@@ -81,10 +81,15 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
       currency: string;
     }>
   >([]);
+  const [initialReturnQtyByQuotation, setInitialReturnQtyByQuotation] =
+    useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (isNew || !params.id) return;
+    if (isNew || !params.id) {
+      setInitialReturnQtyByQuotation({});
+      return;
+    }
     void api.query(GET_RETURN, { id: params.id }).then((result) => {
       const ret = result?.consignmentReturn;
       if (!ret) return;
@@ -99,6 +104,14 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
           currency: item.currency || "USD",
         })),
       );
+      const baseline = (ret.items ?? []).reduce<Record<string, number>>(
+        (acc, item: any) => {
+          acc[item.quotationId] = (acc[item.quotationId] ?? 0) + item.quantity;
+          return acc;
+        },
+        {},
+      );
+      setInitialReturnQtyByQuotation(baseline);
     });
   }, [isNew, params.id]);
 
@@ -213,6 +226,7 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
         value={items}
         onChange={setItems}
         calculateMaxQty="in-return"
+        initialDocumentQtyByQuotation={initialReturnQtyByQuotation}
       />
     </SimplePage>
   );

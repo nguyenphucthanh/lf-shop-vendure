@@ -324,6 +324,7 @@ export function LineItemsEditor(props: {
   value: LineItemDraft[];
   onChange: (items: LineItemDraft[]) => void;
   calculateMaxQty?: false | "in-payment" | "in-return";
+  initialDocumentQtyByQuotation?: Record<string, number>;
 }) {
   const { formatCurrency } = useLocalFormat();
   const { quotations, loading } = useQuotations(props.storeId);
@@ -379,9 +380,14 @@ export function LineItemsEditor(props: {
     if (props.calculateMaxQty === false || !line.quotationId) return undefined;
     const aggregate = quantityByQuotationId[line.quotationId];
     if (!aggregate) return undefined;
+    const initialDocumentQty =
+      props.initialDocumentQtyByQuotation?.[line.quotationId] ?? 0;
     return Math.max(
       0,
-      aggregate.intakeQty - aggregate.paidQty - aggregate.returnedQty,
+      aggregate.intakeQty -
+        aggregate.paidQty -
+        aggregate.returnedQty +
+        initialDocumentQty,
     );
   }
 
