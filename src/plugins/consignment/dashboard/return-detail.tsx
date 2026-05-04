@@ -105,11 +105,16 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
   async function save() {
     setSaving(true);
     try {
+      const mutationItems = items.map((item) => ({
+        quotationId: item.quotationId,
+        quantity: item.quantity,
+        consignmentPriceSnapshot: item.consignmentPriceSnapshot,
+      }));
       const input = {
         storeId,
         returnedDate: toDateTimeInput(returnedDate),
         reason: reason || null,
-        items,
+        items: mutationItems,
       };
       if (isNew) {
         const result = await api.mutate(CREATE_RETURN, { input });
@@ -118,7 +123,8 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
           navigate({ to: `/consignment/returns/${id}` });
         }
       } else {
-        await api.mutate(UPDATE_RETURN, { input: { id: params.id, ...input } });
+        const { storeId, ...nextInput } = input;
+        await api.mutate(UPDATE_RETURN, { input: { id: params.id, ...nextInput } });
         navigate({ to: "/consignment/returns", search: { storeId } });
       }
     } finally {

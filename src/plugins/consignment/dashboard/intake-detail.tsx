@@ -115,6 +115,11 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
   async function save() {
     setSaving(true);
     try {
+      const mutationItems = items.map((item) => ({
+        quotationId: item.quotationId,
+        quantity: item.quantity,
+        consignmentPriceSnapshot: item.consignmentPriceSnapshot,
+      }));
       const input = {
         storeId,
         intakeDate: toDateTimeInput(intakeDate),
@@ -122,7 +127,7 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
         deliveryMethod: deliveryMethod || null,
         deliveryTrackingCode: deliveryTrackingCode || null,
         deliveryCost: Math.round(Number(deliveryCost || 0) * 100),
-        items,
+        items: mutationItems,
       };
       if (isNew) {
         const result = await api.mutate(CREATE_INTAKE, { input });
@@ -131,7 +136,10 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
           navigate({ to: `/consignment/intakes/${id}` });
         }
       } else {
-        await api.mutate(UPDATE_INTAKE, { input: { id: params.id, ...input } });
+        const { storeId, ...nextInput } = input;
+        await api.mutate(UPDATE_INTAKE, {
+          input: { id: params.id, ...nextInput },
+        });
         navigate({ to: "/consignment/intakes", search: { storeId } });
       }
     } finally {

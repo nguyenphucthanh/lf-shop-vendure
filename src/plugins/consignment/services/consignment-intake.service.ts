@@ -81,7 +81,7 @@ export class ConsignmentIntakeService {
             itemsSubtotal += subtotal;
         }
 
-        saved.total = itemsSubtotal + saved.deliveryCost;
+        saved.total = itemsSubtotal;
         await repo.save(saved);
 
         return (await this.findOne(ctx, saved.id))!;
@@ -120,7 +120,7 @@ export class ConsignmentIntakeService {
                 await itemRepo.save(item);
                 itemsSubtotal += subtotal;
             }
-            intake.total = itemsSubtotal + intake.deliveryCost;
+            intake.total = itemsSubtotal;
         }
 
         await repo.save(intake);

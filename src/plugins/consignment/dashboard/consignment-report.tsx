@@ -77,6 +77,15 @@ const GET_REPORT = graphql(`
   }
 `);
 
+const GET_INTAKE_SUMMARY = graphql(`
+  query ConsignmentReportIntakeSummary($storeId: ID!) {
+    consignmentIntakes(storeId: $storeId) {
+      id
+      total
+    }
+  }
+`);
+
 const GET_PAYMENT_SUMMARY = graphql(`
   query ConsignmentReportPaymentSummary($storeId: ID!) {
     consignmentPayments(storeId: $storeId) {
@@ -84,6 +93,15 @@ const GET_PAYMENT_SUMMARY = graphql(`
       paidAmount
       remainingAmount
       discount
+    }
+  }
+`);
+
+const GET_RETURNED_SUMMARY = graphql(`
+  query ConsignmentReportReturnedSummary($storeId: ID!) {
+    consignmentReturns(storeId: $storeId) {
+      id
+      total
     }
   }
 `);
@@ -101,32 +119,8 @@ export function ConsignmentReportPage(props: { storeId: string }) {
     discount: 0,
   });
 
-  const totals = rows.reduce(
-    (acc, row) => ({
-      intakeValue: acc.intakeValue + (row.intakeValue ?? 0),
-      paidValue: acc.paidValue + (row.paidValue ?? 0),
-      returnedValue: acc.returnedValue + (row.returnedValue ?? 0),
-      debtValue: acc.debtValue + (row.debtValue ?? 0),
-    }),
-    {
-      intakeValue: 0,
-      paidValue: 0,
-      returnedValue: 0,
-      debtValue: 0,
-    },
-  );
-
-  const summaryTotals = {
-    intakeValue: totals.intakeValue,
-    returnValue: totals.returnedValue,
-    paidValue: paymentSummary.paidAmount,
-    discount: paymentSummary.discount,
-    debtValue:
-      totals.intakeValue -
-      paymentSummary.paidAmount -
-      totals.returnedValue -
-      paymentSummary.discount,
-  };
+  const [returnSummary, setReturnSummary] = useState(0);
+  const [intakeSummary, setIntakeSummary] = useState(0);
 
   useEffect(() => {
     if (!storeId) {
@@ -137,14 +131,17 @@ export function ConsignmentReportPage(props: { storeId: string }) {
     }
     void Promise.all([
       api.query(GET_REPORT, { storeId }),
+      api.query(GET_INTAKE_SUMMARY, { storeId }),
       api.query(GET_PAYMENT_SUMMARY, { storeId }),
-    ]).then(([reportResult, paymentResult]) => {
+      api.query(GET_RETURNED_SUMMARY, { storeId }),
+    ]).then(([reportResult, intakeResult, paymentResult, returnResult]) => {
       setRows(reportResult?.consignmentReport ?? []);
 
       const payments = paymentResult?.consignmentPayments ?? [];
       const nextPartialPaymentCount = payments.filter(
         (payment) => (payment.remainingAmount ?? 0) > 0,
       ).length;
+      setPartialPaymentCount(nextPartialPaymentCount);
       const nextPaymentSummary = payments.reduce(
         (acc, payment) => ({
           paidAmount: acc.paidAmount + (payment.paidAmount ?? 0),
@@ -153,10 +150,25 @@ export function ConsignmentReportPage(props: { storeId: string }) {
         }),
         { paidAmount: 0, remainingAmount: 0, discount: 0 },
       );
-      setPartialPaymentCount(nextPartialPaymentCount);
       setPaymentSummary(nextPaymentSummary);
+      const nextIntakeSummary = intakeResult?.consignmentIntakes.reduce(
+        (acc, intake) => acc + (intake.total ?? 0),
+        0,
+      );
+      setIntakeSummary(nextIntakeSummary ?? 0);
+      const nextReturnSummary = returnResult?.consignmentReturns.reduce(
+        (acc, ret) => acc + (ret.total ?? 0),
+        0,
+      );
+      setReturnSummary(nextReturnSummary ?? 0);
     });
   }, [storeId]);
+
+  const debtSummary =
+    intakeSummary -
+    (paymentSummary.paidAmount ?? 0) -
+    (paymentSummary.discount ?? 0) -
+    returnSummary;
 
   return (
     <div className="space-y-4">
@@ -168,19 +180,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold text-right">
-                {formatCurrency(summaryTotals.intakeValue, "USD")}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-        <div>
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle>∑ Returned</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold text-right">
-                {formatCurrency(summaryTotals.returnValue, "USD")}
+                {formatCurrency(intakeSummary, "USD")}
               </p>
             </CardContent>
           </Card>
@@ -192,15 +192,27 @@ export function ConsignmentReportPage(props: { storeId: string }) {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold text-right">
-                {formatCurrency(summaryTotals.paidValue, "USD")}
+                {formatCurrency(paymentSummary.paidAmount, "USD")}
               </p>
             </CardContent>
             <CardFooter>
               <p className="text-md font-semibold text-right">
                 Discount in payments:{" "}
-                {formatCurrency(summaryTotals.discount, "USD")}
+                {formatCurrency(paymentSummary.discount, "USD")}
               </p>
             </CardFooter>
+          </Card>
+        </div>
+        <div>
+          <Card size="sm">
+            <CardHeader>
+              <CardTitle>∑ Returned</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold text-right">
+                {formatCurrency(returnSummary, "USD")}
+              </p>
+            </CardContent>
           </Card>
         </div>
         <div>
@@ -210,7 +222,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold text-right">
-                {formatCurrency(summaryTotals.debtValue, "USD")}
+                {formatCurrency(debtSummary, "USD")}
               </p>
             </CardContent>
           </Card>

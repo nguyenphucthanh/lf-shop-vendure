@@ -122,6 +122,11 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
   async function save() {
     setSaving(true);
     try {
+      const mutationItems = items.map((item) => ({
+        quotationId: item.quotationId,
+        quantity: item.quantity,
+        consignmentPriceSnapshot: item.consignmentPriceSnapshot,
+      }));
       const input = {
         storeId,
         paymentDate: toDateTimeInput(paymentDate),
@@ -130,7 +135,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
         paymentStatus,
         discount: Math.round(Number(discount || 0) * 100),
         paidAmount: Math.round(Number(paidAmount || 0) * 100),
-        items,
+        items: mutationItems,
       };
       if (isNew) {
         const result = await api.mutate(CREATE_PAYMENT, { input });
