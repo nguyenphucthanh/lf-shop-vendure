@@ -70,13 +70,9 @@ const GET_REPORT = graphql(`
       }
       consignmentPrice
       intakeQty
-      intakeValue
       paidQty
-      paidValue
       returnedQty
-      returnedValue
       debtQty
-      debtValue
     }
   }
 `);
