@@ -3,6 +3,12 @@ import {
   Badge,
   Button,
   Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Field,
+  FieldContent,
+  FieldLabel,
   Input,
   Link,
   Select,
@@ -222,7 +228,7 @@ const PRESETS = [
 
 export function SalesMarginReport() {
   const { formatCurrency } = useLocalFormat();
-  const [preset, setPreset] = useState("last-30");
+  const [preset, setPreset] = useState<string | null>("last-30");
   const initial = computeRange("last-30");
   const [from, setFrom] = useState(initial.from);
   const [to, setTo] = useState(initial.to);
@@ -252,8 +258,11 @@ export function SalesMarginReport() {
     [from, to],
   );
 
-  function handlePresetChange(value: string) {
+  function handlePresetChange(value: string | null) {
     setPreset(value);
+    if (value === null) {
+      return;
+    }
     const range = computeRange(value);
     setFrom(range.from);
     setTo(range.to);
@@ -291,52 +300,52 @@ export function SalesMarginReport() {
       </div>
 
       <Card className="p-4">
-        <div className="flex gap-4 items-end flex-wrap">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">
-              From
-            </label>
-            <Input
-              type="date"
-              value={from}
-              onChange={(e) => {
-                setFrom(e.target.value);
-                setPreset("");
-              }}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">
-              To
-            </label>
-            <Input
-              type="date"
-              value={to}
-              onChange={(e) => {
-                setTo(e.target.value);
-                setPreset("");
-              }}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">
-              Preset
-            </label>
-            <Select value={preset} onValueChange={handlePresetChange}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Custom">
-                  {PRESETS.find((p) => p.value === preset)?.label ?? "Custom"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {PRESETS.map((p) => (
-                  <SelectItem key={p.value} value={p.value}>
-                    {p.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex lg:grid grid-cols-4 gap-4 items-end flex-wrap">
+          <Field>
+            <FieldLabel>From</FieldLabel>
+            <FieldContent>
+              <Input
+                type="date"
+                value={from}
+                onChange={(e) => {
+                  setFrom(e.target.value);
+                  setPreset("");
+                }}
+              />
+            </FieldContent>
+          </Field>
+          <Field>
+            <FieldLabel>To</FieldLabel>
+            <FieldContent>
+              <Input
+                type="date"
+                value={to}
+                onChange={(e) => {
+                  setTo(e.target.value);
+                  setPreset("");
+                }}
+              />
+            </FieldContent>
+          </Field>
+          <Field>
+            <FieldLabel>Preset</FieldLabel>
+            <FieldContent>
+              <Select value={preset} onValueChange={handlePresetChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Custom">
+                    {PRESETS.find((p) => p.value === preset)?.label ?? "Custom"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {PRESETS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FieldContent>
+          </Field>
           <Button onClick={() => runReport()} disabled={loading}>
             {loading ? "Loading…" : "Run report"}
           </Button>
@@ -347,35 +356,58 @@ export function SalesMarginReport() {
         <>
           {/* Summary cards */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <Card className="p-4">
-              <div className="text-xs text-muted-foreground">Orders</div>
-              <div className="text-2xl font-bold">
-                {report.summary.orderCount}
-              </div>
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle>Orders</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-right">
+                  {report.summary.orderCount}
+                </div>
+              </CardContent>
             </Card>
-            <Card className="p-4">
-              <div className="text-xs text-muted-foreground">Revenue</div>
-              <div className="text-2xl font-bold">
-                {fmt(report.summary.totalRevenue, report.summary.currencyCode)}
-              </div>
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle>Revenue</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-right">
+                  {fmt(
+                    report.summary.totalRevenue,
+                    report.summary.currencyCode,
+                  )}
+                </div>
+              </CardContent>
             </Card>
-            <Card className="p-4">
-              <div className="text-xs text-muted-foreground">Cost</div>
-              <div className="text-2xl font-bold">
-                {fmt(report.summary.totalCost, report.summary.currencyCode)}
-              </div>
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle>Cost</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-right">
+                  {fmt(report.summary.totalCost, report.summary.currencyCode)}
+                </div>
+              </CardContent>
             </Card>
-            <Card className="p-4">
-              <div className="text-xs text-muted-foreground">Margin</div>
-              <div className="text-2xl font-bold">
-                {fmt(report.summary.totalMargin, report.summary.currencyCode)}
-              </div>
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle>Margin</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-right">
+                  {fmt(report.summary.totalMargin, report.summary.currencyCode)}
+                </div>
+              </CardContent>
             </Card>
-            <Card className="p-4">
-              <div className="text-xs text-muted-foreground">Margin %</div>
-              <div className="text-2xl font-bold">
-                {report.summary.marginPercent}%
-              </div>
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle>Margin %</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-right">
+                  {report.summary.marginPercent}%
+                </div>
+              </CardContent>
             </Card>
           </div>
 

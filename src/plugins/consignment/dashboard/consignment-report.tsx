@@ -165,7 +165,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
         <div>
-          <Card>
+          <Card size="sm">
             <CardHeader>
               <CardTitle>∑ Intake</CardTitle>
             </CardHeader>
@@ -177,7 +177,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
           </Card>
         </div>
         <div>
-          <Card>
+          <Card size="sm">
             <CardHeader>
               <CardTitle>∑ Returned</CardTitle>
             </CardHeader>
@@ -189,7 +189,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
           </Card>
         </div>
         <div>
-          <Card>
+          <Card size="sm">
             <CardHeader>
               <CardTitle>∑ Paid</CardTitle>
             </CardHeader>
@@ -206,7 +206,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
           </Card>
         </div>
         <div>
-          <Card>
+          <Card size="sm">
             <CardHeader>
               <CardTitle>∑ Debt</CardTitle>
             </CardHeader>

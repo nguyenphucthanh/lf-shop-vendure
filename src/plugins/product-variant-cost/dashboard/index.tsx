@@ -2,7 +2,6 @@ import { defineDashboardExtension } from "@vendure/dashboard";
 import { BarChartIcon } from "lucide-react";
 
 import { CreateOrderButton } from "./components/create-order-button";
-import { DoNotUpdateStockBlock } from "./components/do-not-update-stock-block";
 import { SalesMarginReport } from "./components/sales-margin-report";
 import { VariantCostBlock } from "./components/variant-cost-block";
 
@@ -44,19 +43,6 @@ defineDashboardExtension({
         pageId: "product-variant-detail",
         position: {
           blockId: "price-and-tax",
-          order: "after",
-        },
-        column: "main",
-      },
-    },
-    {
-      id: "do-not-update-stock",
-      title: "Stock Settings",
-      component: DoNotUpdateStockBlock,
-      location: {
-        pageId: "draft-order-detail",
-        position: {
-          blockId: "draft-order-status",
           order: "after",
         },
         column: "main",

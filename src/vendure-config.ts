@@ -17,7 +17,7 @@ import "dotenv/config";
 import path from "path";
 import { ConsignmentPlugin } from "./plugins/consignment/consignment.plugin";
 import { ProductVariantCostPlugin } from "./plugins/product-variant-cost/product-variant-cost.plugin";
-import { ConditionalStockAllocationStrategy } from "./plugins/product-variant-cost/strategies/conditional-stock-allocation.strategy";
+import { ConditionalStockAllocationStrategy } from "./plugins/stock-allocation/strategies/conditional-stock-allocation.strategy";
 
 const IS_DEV = process.env.APP_ENV === "dev";
 const serverPort = +process.env.PORT || 3003;
