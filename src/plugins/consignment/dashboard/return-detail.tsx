@@ -208,7 +208,12 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
           </Field>
         </div>
       </Card>
-      <LineItemsEditor storeId={storeId} value={items} onChange={setItems} />
+      <LineItemsEditor
+        storeId={storeId}
+        value={items}
+        onChange={setItems}
+        calculateMaxQty="in-return"
+      />
     </SimplePage>
   );
 }

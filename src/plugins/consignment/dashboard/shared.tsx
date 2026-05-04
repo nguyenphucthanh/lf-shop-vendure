@@ -19,6 +19,7 @@ import {
   Field,
   FieldContent,
   FieldLabel,
+  FieldDescription,
   FullWidthPageBlock,
   Input,
   Page,
@@ -79,6 +80,17 @@ export const GET_QUOTATIONS = graphql(`
       consignmentPrice
       currency
       note
+    }
+  }
+`);
+
+export const GET_QUANTITY_AGGREGATES = graphql(`
+  query ConsignmentQuantityAggregates($storeId: ID!) {
+    consignmentReport(storeId: $storeId) {
+      quotationId
+      intakeQty
+      paidQty
+      returnedQty
     }
   }
 `);
@@ -311,13 +323,67 @@ export function LineItemsEditor(props: {
   storeId: string;
   value: LineItemDraft[];
   onChange: (items: LineItemDraft[]) => void;
+  calculateMaxQty?: false | "in-payment" | "in-return";
 }) {
   const { formatCurrency } = useLocalFormat();
   const { quotations, loading } = useQuotations(props.storeId);
+  const [quantityByQuotationId, setQuantityByQuotationId] = useState<
+    Record<string, { intakeQty: number; paidQty: number; returnedQty: number }>
+  >({});
+  const [quantityAggregatesLoading, setQuantityAggregatesLoading] =
+    useState(false);
   const quotationMap = useMemo(
     () => Object.fromEntries(quotations.map((q) => [q.id, q])),
     [quotations],
   );
+
+  useEffect(() => {
+    setQuantityByQuotationId({});
+    setQuantityAggregatesLoading(false);
+  }, [props.storeId]);
+
+  async function loadQuantityAggregates() {
+    if (!props.storeId || props.calculateMaxQty === false) return;
+    if (quantityAggregatesLoading) return;
+    if (Object.keys(quantityByQuotationId).length > 0) return;
+    setQuantityAggregatesLoading(true);
+    try {
+      const result = await api.query(GET_QUANTITY_AGGREGATES, {
+        storeId: props.storeId,
+      });
+      const next: Record<
+        string,
+        { intakeQty: number; paidQty: number; returnedQty: number }
+      > = {};
+      for (const row of result?.consignmentReport ?? []) {
+        next[row.quotationId] = {
+          intakeQty: Number(row.intakeQty ?? 0),
+          paidQty: Number(row.paidQty ?? 0),
+          returnedQty: Number(row.returnedQty ?? 0),
+        };
+      }
+      setQuantityByQuotationId(next);
+    } finally {
+      setQuantityAggregatesLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (props.calculateMaxQty === false || !props.storeId) return;
+    const hasSelectedQuotation = props.value.some((line) => !!line.quotationId);
+    if (!hasSelectedQuotation) return;
+    void loadQuantityAggregates();
+  }, [props.calculateMaxQty, props.storeId, props.value]);
+
+  function getMaxQty(line: LineItemDraft) {
+    if (props.calculateMaxQty === false || !line.quotationId) return undefined;
+    const aggregate = quantityByQuotationId[line.quotationId];
+    if (!aggregate) return undefined;
+    return Math.max(
+      0,
+      aggregate.intakeQty - aggregate.paidQty - aggregate.returnedQty,
+    );
+  }
 
   function update(index: number, patch: Partial<LineItemDraft>) {
     const next = [...props.value];
@@ -372,6 +438,7 @@ export function LineItemsEditor(props: {
           const quotation = quotationMap[line.quotationId];
           const subtotal =
             (line.consignmentPriceSnapshot ?? 0) * (Number(line.quantity) || 0);
+          const maxQty = getMaxQty(line);
           return (
             <div
               key={index}
@@ -388,6 +455,9 @@ export function LineItemsEditor(props: {
                       onValueChange={(nextValue) => {
                         const selectedQuotation =
                           (nextValue as QuotationOption | null) ?? null;
+                        if (selectedQuotation?.id) {
+                          void loadQuantityAggregates();
+                        }
                         update(index, {
                           quotationId: selectedQuotation?.id ?? "",
                           consignmentPriceSnapshot:
@@ -517,6 +587,12 @@ export function LineItemsEditor(props: {
                       }
                     />
                   </FieldContent>
+                  {maxQty !== undefined ? (
+                    <FieldDescription>
+                      Available to allocate: {maxQty}
+                      {quantityAggregatesLoading ? " (loading...)" : ""}
+                    </FieldDescription>
+                  ) : null}
                 </Field>
               </div>
               <div className="col-span-2 space-y-1 flex flex-col items-end">

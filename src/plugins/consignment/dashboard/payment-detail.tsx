@@ -297,7 +297,12 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
           </div>
         </div>
       </Card>
-      <LineItemsEditor storeId={storeId} value={items} onChange={setItems} />
+      <LineItemsEditor
+        storeId={storeId}
+        value={items}
+        onChange={setItems}
+        calculateMaxQty="in-payment"
+      />
     </SimplePage>
   );
 }
