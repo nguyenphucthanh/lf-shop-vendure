@@ -14,7 +14,12 @@ import {
   Field,
   FieldContent,
   FieldLabel,
+  FullWidthPageBlock,
   Input,
+  Page,
+  PageActionBar,
+  PageLayout,
+  PageTitle,
   Table,
   TableBody,
   TableCell,
@@ -331,13 +336,13 @@ export function SimplePage(props: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-4 p-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">{props.title}</h1>
-        <div className="flex items-center gap-2">{props.actions}</div>
-      </div>
-      {props.children}
-    </div>
+    <Page title={props.title}>
+      <PageTitle>{props.title}</PageTitle>
+      <PageActionBar>{props.actions}</PageActionBar>
+      <PageLayout>
+        <FullWidthPageBlock blockId="main" className="space-y-4">{props.children}</FullWidthPageBlock>
+      </PageLayout>
+    </Page>
   );
 }
 

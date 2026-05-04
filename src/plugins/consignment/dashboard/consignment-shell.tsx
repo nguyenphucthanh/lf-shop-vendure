@@ -1,6 +1,10 @@
 import {
-  Card,
+  FullWidthPageBlock,
   Link,
+  Page,
+  PageBlock,
+  PageLayout,
+  PageTitle,
   Tabs,
   TabsContent,
   TabsList,
@@ -63,7 +67,8 @@ export function ConsignmentShell(props: {
   }
 
   return (
-    <SimplePage title="Consignment">
+    <Page pageId="consignment" title="Consignment">
+      <PageTitle>Consignment</PageTitle>
       <StoreFilterCard storeId={storeId} onStoreChange={handleStoreChange} />
 
       {!storeId ? (
@@ -73,10 +78,9 @@ export function ConsignmentShell(props: {
         />
       ) : (
         <>
-          <Tabs value={props.activeTab}>
+          <Tabs value={props.activeTab} className={"w-full"}>
             <TabsList>
               {TABS.map((tab) => {
-                const isActive = tab.key === props.activeTab;
                 return (
                   <TabsTrigger
                     value={tab.key}
@@ -94,10 +98,21 @@ export function ConsignmentShell(props: {
                 );
               })}
             </TabsList>
-            {props.renderContent(storeId)}
+            {TABS.map((tab) => (
+              <TabsContent
+                value={tab.key}
+                key={tab.key}
+                data-tab={tab.key}
+              ></TabsContent>
+            ))}
           </Tabs>
+          <PageLayout>
+            <FullWidthPageBlock blockId="main">
+              {props.renderContent(storeId)}
+            </FullWidthPageBlock>
+          </PageLayout>
         </>
       )}
-    </SimplePage>
+    </Page>
   );
 }

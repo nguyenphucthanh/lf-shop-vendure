@@ -80,9 +80,9 @@ export function ProductVariantSearchSelect({
               SKU: {variant.sku}
             </div>
           )}
-        </div>
-        <div className="text-sm font-medium ml-2 whitespace-nowrap">
-          {formatCurrency(variant.priceWithTax, variant.currencyCode)}
+          <div className="text-sm font-medium ml-2 whitespace-nowrap text-right">
+            {formatCurrency(variant.priceWithTax, variant.currencyCode)}
+          </div>
         </div>
       </div>
     ),
