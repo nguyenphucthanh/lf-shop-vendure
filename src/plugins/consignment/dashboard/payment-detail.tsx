@@ -10,11 +10,13 @@ import {
   Input,
   useLocalFormat,
 } from "@vendure/dashboard";
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
 
 import {
+  getApiErrorMessage,
   LineItemsEditor,
   SimplePage,
   isoDate,
@@ -151,8 +153,12 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
   async function remove() {
     if (isNew) return;
     if (!window.confirm("Delete this payment?")) return;
-    await api.mutate(DELETE_PAYMENT, { id: params.id });
-    navigate({ to: "/consignment/payments" });
+    try {
+      await api.mutate(DELETE_PAYMENT, { id: params.id });
+      navigate({ to: "/consignment/payments", search: { storeId } });
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    }
   }
 
   return (

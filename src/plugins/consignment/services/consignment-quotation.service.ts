@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ID } from '@vendure/common/lib/shared-types';
-import { ListQueryOptions, PaginatedList, ProductVariant, RequestContext, TransactionalConnection } from '@vendure/core';
+import { ProductVariant, ProductVariantPrice, RequestContext, TransactionalConnection } from '@vendure/core';
 
 import { ConsignmentQuotation } from '../entities/consignment-quotation.entity';
 
@@ -32,12 +32,34 @@ export class ConsignmentQuotationService {
 
     async create(ctx: RequestContext, input: UpsertQuotationInput): Promise<ConsignmentQuotation> {
         const repo = this.connection.getRepository(ctx, ConsignmentQuotation);
-        const productVariant = await this.connection.getEntityOrThrow(ctx, ProductVariant, input.productVariantId);
+        const priceRepo = this.connection.getRepository(ctx, ProductVariantPrice);
+        await this.connection.getEntityOrThrow(ctx, ProductVariant, input.productVariantId);
+
+        // ProductVariant.currencyCode is a hydrated field and may be undefined when loading the entity directly.
+        // Read from ProductVariantPrice for the active channel to persist a stable currency snapshot.
+        const channelPrice = await priceRepo.findOne({
+            where: {
+                variant: { id: input.productVariantId },
+                channelId: ctx.channelId,
+                currencyCode: ctx.currencyCode,
+            },
+        });
+        const fallbackChannelPrice =
+            channelPrice ??
+            (await priceRepo.findOne({
+                where: {
+                    variant: { id: input.productVariantId },
+                    channelId: ctx.channelId,
+                },
+            }));
+
+        const currency = fallbackChannelPrice?.currencyCode ?? ctx.channel.defaultCurrencyCode;
+
         const quotation = repo.create({
             storeId: input.storeId,
             productVariantId: input.productVariantId,
             consignmentPrice: input.consignmentPrice,
-            currency: productVariant.currencyCode,
+            currency,
             note: input.note ?? null,
         });
         return repo.save(quotation);

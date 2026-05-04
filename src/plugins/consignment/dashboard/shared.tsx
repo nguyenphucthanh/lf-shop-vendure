@@ -147,6 +147,21 @@ export function toDateTimeInput(value: string) {
   return new Date(`${value}T00:00:00`).toISOString();
 }
 
+export function getApiErrorMessage(error: unknown) {
+  if (error && typeof error === "object") {
+    const err = error as {
+      graphQLErrors?: Array<{ message?: string }>;
+      response?: { errors?: Array<{ message?: string }> };
+      message?: string;
+    };
+    const graphQlMessage =
+      err.graphQLErrors?.[0]?.message ?? err.response?.errors?.[0]?.message;
+    if (graphQlMessage) return graphQlMessage;
+    if (err.message) return err.message;
+  }
+  return "Unknown error";
+}
+
 export function useStores() {
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [loading, setLoading] = useState(false);

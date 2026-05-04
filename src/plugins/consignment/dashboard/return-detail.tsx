@@ -9,11 +9,13 @@ import {
   Input,
   Textarea,
 } from "@vendure/dashboard";
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
 
 import {
+  getApiErrorMessage,
   LineItemsEditor,
   SimplePage,
   isoDate,
@@ -127,8 +129,12 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
   async function remove() {
     if (isNew) return;
     if (!window.confirm("Delete this return?")) return;
-    await api.mutate(DELETE_RETURN, { id: params.id });
-    navigate({ to: "/consignment/returns" });
+    try {
+      await api.mutate(DELETE_RETURN, { id: params.id });
+      navigate({ to: "/consignment/returns", search: { storeId } });
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    }
   }
 
   return (

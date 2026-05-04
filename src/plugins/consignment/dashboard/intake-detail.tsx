@@ -8,11 +8,13 @@ import {
   FieldLabel,
   Input,
 } from "@vendure/dashboard";
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
 
 import {
+  getApiErrorMessage,
   LineItemsEditor,
   SimplePage,
   isoDate,
@@ -140,8 +142,12 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
   async function remove() {
     if (isNew) return;
     if (!window.confirm("Delete this intake?")) return;
-    await api.mutate(DELETE_INTAKE, { id: params.id });
-    navigate({ to: "/consignment/intakes" });
+    try {
+      await api.mutate(DELETE_INTAKE, { id: params.id });
+      navigate({ to: "/consignment/intakes", search: { storeId } });
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    }
   }
 
   return (

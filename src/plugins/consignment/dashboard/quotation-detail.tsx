@@ -11,12 +11,19 @@ import {
   Textarea,
   useLocalFormat,
 } from "@vendure/dashboard";
+import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 
 import { graphql } from "@/gql";
 import { ProductVariantSearchSelect } from "./shared-ui";
 
-import { EmptyState, SimplePage, useProductVariants, useStore } from "./shared";
+import {
+  EmptyState,
+  getApiErrorMessage,
+  SimplePage,
+  useProductVariants,
+  useStore,
+} from "./shared";
 
 const GET_QUOTATION = graphql(`
   query ConsignmentQuotationDetail($id: ID!) {
@@ -140,8 +147,12 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
   async function remove() {
     if (isNew) return;
     if (!window.confirm("Delete this quotation?")) return;
-    await api.mutate(DELETE_QUOTATION, { id: params.id });
-    navigate({ to: "/consignment/quotations" });
+    try {
+      await api.mutate(DELETE_QUOTATION, { id: params.id });
+      navigate({ to: "/consignment/quotations", search: { storeId } });
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    }
   }
 
   return (
