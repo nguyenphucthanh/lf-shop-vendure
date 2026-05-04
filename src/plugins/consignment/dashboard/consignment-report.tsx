@@ -3,8 +3,12 @@ import {
   AlertDescription,
   api,
   Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
+  cn,
   Table,
   TableBody,
   TableCell,
@@ -85,6 +89,7 @@ const GET_PAYMENT_SUMMARY = graphql(`
       id
       paidAmount
       remainingAmount
+      discount
     }
   }
 `);
@@ -96,6 +101,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
   const [paymentSummary, setPaymentSummary] = useState({
     paidAmount: 0,
     remainingAmount: 0,
+    discount: 0,
   });
 
   const totals = rows.reduce(
@@ -117,25 +123,28 @@ export function ConsignmentReportPage(props: { storeId: string }) {
     intakeValue: totals.intakeValue,
     returnValue: totals.returnedValue,
     paidValue: paymentSummary.paidAmount,
+    discount: paymentSummary.discount,
     debtValue:
-      totals.intakeValue - paymentSummary.paidAmount - totals.returnedValue,
+      totals.intakeValue -
+      paymentSummary.paidAmount -
+      totals.returnedValue -
+      paymentSummary.discount,
   };
 
   useEffect(() => {
     if (!storeId) {
       setRows([]);
       setPartialPaymentCount(0);
-      setPaymentSummary({ paidAmount: 0, remainingAmount: 0 });
+      setPaymentSummary({ paidAmount: 0, remainingAmount: 0, discount: 0 });
       return;
     }
     void Promise.all([
       api.query(GET_REPORT, { storeId }),
       api.query(GET_PAYMENT_SUMMARY, { storeId }),
     ]).then(([reportResult, paymentResult]) => {
-      setRows(((reportResult as any)?.consignmentReport ?? []) as any[]);
+      setRows((reportResult?.consignmentReport ?? []) as any[]);
 
-      const payments = ((paymentResult as any)?.consignmentPayments ??
-        []) as any[];
+      const payments = (paymentResult?.consignmentPayments ?? []) as any[];
       const nextPartialPaymentCount = payments.filter(
         (payment) => (payment.remainingAmount ?? 0) > 0,
       ).length;
@@ -143,8 +152,9 @@ export function ConsignmentReportPage(props: { storeId: string }) {
         (acc, payment) => ({
           paidAmount: acc.paidAmount + (payment.paidAmount ?? 0),
           remainingAmount: acc.remainingAmount + (payment.remainingAmount ?? 0),
+          discount: acc.discount + (payment.discount ?? 0),
         }),
-        { paidAmount: 0, remainingAmount: 0 },
+        { paidAmount: 0, remainingAmount: 0, discount: 0 },
       );
       setPartialPaymentCount(nextPartialPaymentCount);
       setPaymentSummary(nextPaymentSummary);
@@ -153,31 +163,60 @@ export function ConsignmentReportPage(props: { storeId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="p-4">
-          <p className="text-sm text-muted-foreground">Total Intake Value</p>
-          <p className="text-2xl font-semibold">
-            {formatMoney(summaryTotals.intakeValue)}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-sm text-muted-foreground">Total Return Value</p>
-          <p className="text-2xl font-semibold">
-            {formatMoney(summaryTotals.returnValue)}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-sm text-muted-foreground">Total Paid Value</p>
-          <p className="text-2xl font-semibold">
-            {formatMoney(summaryTotals.paidValue)}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-sm text-muted-foreground">Total Debt</p>
-          <p className="text-2xl font-semibold">
-            {formatMoney(summaryTotals.debtValue)}
-          </p>
-        </Card>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>∑ Intake</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold text-right">
+                {formatMoney(summaryTotals.intakeValue)}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>∑ Returned</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold text-right">
+                {formatMoney(summaryTotals.returnValue)}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>∑ Paid</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold text-right">
+                {formatMoney(summaryTotals.paidValue)}
+              </p>
+            </CardContent>
+            <CardFooter>
+              <p className="text-md font-semibold text-right">
+                Discount in payments: {formatMoney(summaryTotals.discount)}
+              </p>
+            </CardFooter>
+          </Card>
+        </div>
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>∑ Debt</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold text-right">
+                {formatMoney(summaryTotals.debtValue)}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {partialPaymentCount > 0 ? (
@@ -193,6 +232,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
       <Card className="overflow-hidden p-0">
         <CardHeader className="p-2 py-2">
           <CardTitle>Report by items</CardTitle>
+          <CardDescription>Value in this report is estimated base on quotation prices and quantity, not reflecting actual sales or returns.</CardDescription>
         </CardHeader>
         <div className="overflow-x-auto">
           <Table>
@@ -221,7 +261,10 @@ export function ConsignmentReportPage(props: { storeId: string }) {
             </TableHeader>
             <TableBody>
               {rows.map((row) => (
-                <TableRow key={row.quotationId}>
+                <TableRow
+                  key={row.quotationId}
+                  className={cn(row.debtQty < 0 ? "bg-red-50" : "")}
+                >
                   <TableCell>
                     {row.featuredAsset ? (
                       <VendureImage

@@ -1,4 +1,11 @@
-import { Card, Link } from "@vendure/dashboard";
+import {
+  Card,
+  Link,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@vendure/dashboard";
 
 import { EmptyState, SimplePage, StoreFilterCard } from "./shared";
 
@@ -66,27 +73,29 @@ export function ConsignmentShell(props: {
         />
       ) : (
         <>
-          <Card className="p-1">
-            <div className="flex flex-wrap gap-1">
+          <Tabs value={props.activeTab}>
+            <TabsList>
               {TABS.map((tab) => {
                 const isActive = tab.key === props.activeTab;
                 return (
-                  <Link
+                  <TabsTrigger
+                    value={tab.key}
                     key={tab.key}
-                    to={`${tab.path}?storeId=${storeId}`}
-                    className={`rounded-md px-3 py-2 text-sm transition-colors ${
-                      isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {tab.title}
-                  </Link>
+                    render={(props) => (
+                      <Link
+                        key={tab.key}
+                        to={`${tab.path}?storeId=${storeId}`}
+                        {...props}
+                      >
+                        {tab.title}
+                      </Link>
+                    )}
+                  ></TabsTrigger>
                 );
               })}
-            </div>
-          </Card>
-          {props.renderContent(storeId)}
+            </TabsList>
+            {props.renderContent(storeId)}
+          </Tabs>
         </>
       )}
     </SimplePage>
