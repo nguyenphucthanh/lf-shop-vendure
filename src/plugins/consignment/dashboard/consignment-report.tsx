@@ -4,7 +4,6 @@ import {
   api,
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -13,7 +12,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -236,20 +234,16 @@ export function ConsignmentReportPage(props: { storeId: string }) {
       <Card className="overflow-hidden p-0">
         <CardHeader className="p-2 py-2">
           <CardTitle>Report by items</CardTitle>
-          <CardDescription>
-            Value in this report is estimated base on quotation prices and
-            quantity, not reflecting actual sales or returns.
-          </CardDescription>
         </CardHeader>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead colSpan={4}>Product</TableHead>
-                <TableHead colSpan={2}>Intake</TableHead>
-                <TableHead colSpan={2}>Paid</TableHead>
-                <TableHead colSpan={2}>Returned</TableHead>
-                <TableHead colSpan={2}>Debt</TableHead>
+                <TableHead colSpan={1}>Intake</TableHead>
+                <TableHead colSpan={1}>Paid</TableHead>
+                <TableHead colSpan={1}>Returned</TableHead>
+                <TableHead colSpan={1}>Debt</TableHead>
               </TableRow>
               <TableRow>
                 <TableHead>Image</TableHead>
@@ -257,13 +251,9 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                 <TableHead>Product</TableHead>
                 <TableHead>Quoted</TableHead>
                 <TableHead>Intake Qty</TableHead>
-                <TableHead>Intake Value</TableHead>
                 <TableHead>Paid Qty</TableHead>
-                <TableHead>Paid Value</TableHead>
                 <TableHead>Returned Qty</TableHead>
-                <TableHead>Returned Value</TableHead>
                 <TableHead>Debt Qty</TableHead>
-                <TableHead>Debt Value</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -291,17 +281,9 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                     {formatCurrency(row.consignmentPrice, "USD")}
                   </TableCell>
                   <TableCell>{row.intakeQty}</TableCell>
-                  <TableCell>
-                    {formatCurrency(row.intakeValue, "USD")}
-                  </TableCell>
                   <TableCell>{row.paidQty}</TableCell>
-                  <TableCell>{formatCurrency(row.paidValue, "USD")}</TableCell>
                   <TableCell>{row.returnedQty}</TableCell>
-                  <TableCell>
-                    {formatCurrency(row.returnedValue, "USD")}
-                  </TableCell>
                   <TableCell>{row.debtQty}</TableCell>
-                  <TableCell>{formatCurrency(row.debtValue, "USD")}</TableCell>
                 </TableRow>
               ))}
               {rows.length === 0 ? (
@@ -315,28 +297,6 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                 </TableRow>
               ) : null}
             </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell colSpan={5} className="font-semibold">
-                  Total
-                </TableCell>
-                <TableCell className="font-semibold">
-                  {formatCurrency(totals.intakeValue, "USD")}
-                </TableCell>
-                <TableCell></TableCell>
-                <TableCell className="font-semibold">
-                  {formatCurrency(totals.paidValue, "USD")}
-                </TableCell>
-                <TableCell></TableCell>
-                <TableCell className="font-semibold">
-                  {formatCurrency(totals.returnedValue, "USD")}
-                </TableCell>
-                <TableCell></TableCell>
-                <TableCell className="font-semibold">
-                  {formatCurrency(totals.debtValue, "USD")}
-                </TableCell>
-              </TableRow>
-            </TableFooter>
           </Table>
         </div>
       </Card>
