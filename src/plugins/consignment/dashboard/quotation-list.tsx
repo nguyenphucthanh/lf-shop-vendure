@@ -3,18 +3,18 @@ import {
   Button,
   Card,
   Link,
+  ResultOf,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  useLocalFormat,
 } from "@vendure/dashboard";
 import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
-
-import { formatMoney } from "./shared";
 
 const LIST_QUOTATIONS = graphql(`
   query ConsignmentQuotationList($storeId: ID!) {
@@ -28,6 +28,7 @@ const LIST_QUOTATIONS = graphql(`
         preview
       }
       consignmentPrice
+      currency
       note
     }
   }
@@ -35,7 +36,10 @@ const LIST_QUOTATIONS = graphql(`
 
 export function QuotationListPage(props: { storeId: string }) {
   const { storeId } = props;
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<
+    ResultOf<typeof LIST_QUOTATIONS>["consignmentQuotations"]
+  >([]);
+  const { formatCurrency } = useLocalFormat();
 
   useEffect(() => {
     if (!storeId) {
@@ -80,22 +84,19 @@ export function QuotationListPage(props: { storeId: string }) {
             {rows.map((row) => (
               <TableRow key={row.id}>
                 <TableCell>
-                  {
-                    row.productVariantFeaturedAsset ? (
-                  <img
-                    src={row.productVariantFeaturedAsset?.preview ?? ""}
-                    alt={row.productVariantName}
-                    className="w-16 h-16 rounded object-cover object-center"
-                  />
-                    ) : (
-                      <span className="block w-16 h-16 rounded-xs bg-muted">
-                      </span>
-                    )
-                  }
+                  {row.productVariantFeaturedAsset ? (
+                    <img
+                      src={row.productVariantFeaturedAsset?.preview ?? ""}
+                      alt={row.productVariantName}
+                      className="w-16 h-16 rounded object-cover object-center"
+                    />
+                  ) : (
+                    <span className="block w-16 h-16 rounded-xs bg-muted"></span>
+                  )}
                 </TableCell>
                 <TableCell>{row.productVariantSku}</TableCell>
                 <TableCell>{row.productVariantName}</TableCell>
-                <TableCell>{formatMoney(row.consignmentPrice)}</TableCell>
+                <TableCell>{formatCurrency(row.consignmentPrice, row.currency || "USD")}</TableCell>
                 <TableCell>{row.note ?? "—"}</TableCell>
                 <TableCell>
                   <Button

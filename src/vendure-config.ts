@@ -4,6 +4,7 @@ import {
   DefaultSchedulerPlugin,
   DefaultSearchPlugin,
   VendureConfig,
+  LanguageCode,
 } from "@vendure/core";
 import {
   defaultEmailHandlers,
@@ -76,20 +77,27 @@ export const config: VendureConfig = {
         name: "externalId",
         type: "string",
         nullable: true,
-        label: [{ languageCode: "en" as any, value: "External ID" }],
+        label: [{ languageCode: LanguageCode.en, value: "External ID" }],
       },
       {
         name: "defaultDiscountPercent",
         type: "int",
         nullable: true,
-        label: [{ languageCode: "en" as any, value: "Default discount percent" }],
+        label: [
+          { languageCode: LanguageCode.en, value: "Default discount percent" },
+        ],
       },
       {
         name: "consignmentStore",
         type: "boolean",
         defaultValue: false,
-        label: [{ languageCode: "en" as any, value: "Consignment Store" }],
-        description: [{ languageCode: "en" as any, value: "Mark this customer as a consignment store" }],
+        label: [{ languageCode: LanguageCode.en, value: "Consignment Store" }],
+        description: [
+          {
+            languageCode: LanguageCode.en,
+            value: "Mark this customer as a consignment store",
+          },
+        ],
       },
     ],
     Order: [
@@ -97,10 +105,12 @@ export const config: VendureConfig = {
         name: "doNotUpdateStock",
         type: "boolean",
         defaultValue: false,
-        label: [{ languageCode: "en" as any, value: "Do not update stock" }],
+        label: [
+          { languageCode: LanguageCode.en, value: "Do not update stock" },
+        ],
         description: [
           {
-            languageCode: "en" as any,
+            languageCode: LanguageCode.en,
             value:
               "If checked, stock will not be deducted when this order is completed. Note: This setting is only applicable to orders in the Draft state. Once the order leaves the Draft state, changing this value doesn't affect the stock.",
           },

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ID } from '@vendure/common/lib/shared-types';
-import { ListQueryOptions, PaginatedList, RequestContext, TransactionalConnection } from '@vendure/core';
+import { ListQueryOptions, PaginatedList, ProductVariant, RequestContext, TransactionalConnection } from '@vendure/core';
 
 import { ConsignmentQuotation } from '../entities/consignment-quotation.entity';
 
@@ -32,10 +32,12 @@ export class ConsignmentQuotationService {
 
     async create(ctx: RequestContext, input: UpsertQuotationInput): Promise<ConsignmentQuotation> {
         const repo = this.connection.getRepository(ctx, ConsignmentQuotation);
+        const productVariant = await this.connection.getEntityOrThrow(ctx, ProductVariant, input.productVariantId);
         const quotation = repo.create({
             storeId: input.storeId,
             productVariantId: input.productVariantId,
             consignmentPrice: input.consignmentPrice,
+            currency: productVariant.currencyCode,
             note: input.note ?? null,
         });
         return repo.save(quotation);

@@ -21,6 +21,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  useLocalFormat,
 } from "@vendure/dashboard";
 import { useEffect, useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
@@ -72,6 +73,7 @@ export const GET_PRODUCT_VARIANTS = graphql(`
         name
         sku
         priceWithTax
+        currencyCode
       }
     }
   }
@@ -91,6 +93,7 @@ export const GET_QUOTATIONS = graphql(`
         preview
       }
       consignmentPrice
+      currency
       note
     }
   }
@@ -109,6 +112,7 @@ export type ProductVariantOption = {
   name: string;
   sku: string;
   priceWithTax: number;
+  currencyCode: string;
 };
 
 export type QuotationOption = {
@@ -122,6 +126,7 @@ export type QuotationOption = {
     preview?: string | null;
   } | null;
   consignmentPrice: number;
+  currency: string;
   note?: string | null;
 };
 
@@ -129,14 +134,8 @@ export type LineItemDraft = {
   quotationId: string;
   quantity: number;
   consignmentPriceSnapshot: number;
+  currency: string;
 };
-
-export function formatMoney(value?: number | null) {
-  return new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format((value ?? 0) / 100);
-}
 
 export function isoDate(value?: string | Date | null) {
   if (!value) return "";
@@ -161,7 +160,7 @@ export function useStores() {
         if (!active) return;
         const items = result?.customers?.items ?? [];
         setStores(
-          items.map((item: any) => ({
+          items.map((item) => ({
             id: item.id,
             name:
               [item.firstName, item.lastName]
@@ -239,11 +238,12 @@ export function useProductVariants() {
     void api.query(GET_PRODUCT_VARIANTS, {}).then((result) => {
       if (!active) return;
       setVariants(
-        (result?.productVariants?.items ?? []).map((item: any) => ({
+        (result?.productVariants?.items ?? []).map((item) => ({
           id: item.id,
           name: item.name,
           sku: item.sku,
           priceWithTax: item.priceWithTax,
+          currencyCode: item.currencyCode,
         })),
       );
     });
@@ -293,6 +293,7 @@ export function StoreSelect(props: {
 }) {
   return (
     <select
+      title="Select store"
       className="w-full rounded-md border px-3 py-2 text-sm"
       value={props.value}
       onChange={(event) => props.onChange(event.target.value)}
@@ -371,6 +372,7 @@ export function LineItemsEditor(props: {
   value: LineItemDraft[];
   onChange: (items: LineItemDraft[]) => void;
 }) {
+  const { formatCurrency } = useLocalFormat();
   const { quotations, loading } = useQuotations(props.storeId);
   const quotationMap = useMemo(
     () => Object.fromEntries(quotations.map((q) => [q.id, q])),
@@ -391,6 +393,7 @@ export function LineItemsEditor(props: {
         quotationId: firstQuotation?.id ?? "",
         quantity: 1,
         consignmentPriceSnapshot: firstQuotation?.consignmentPrice ?? 0,
+        currency: firstQuotation?.currency || "USD",
       },
     ]);
   }
@@ -520,7 +523,10 @@ export function LineItemsEditor(props: {
                                       SKU: {option.productVariantSku}
                                     </div>
                                     <div className="shrink-0 text-sm font-bold">
-                                      {formatMoney(option.consignmentPrice)}
+                                      {formatCurrency(
+                                        option.consignmentPrice,
+                                        option.currency || "USD",
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -576,7 +582,9 @@ export function LineItemsEditor(props: {
               <div className="col-span-2 space-y-1 flex flex-col items-end">
                 <Field>
                   <FieldLabel>Subtotal</FieldLabel>
-                  <FieldContent>{formatMoney(subtotal)}</FieldContent>
+                  <FieldContent>
+                    {formatCurrency(subtotal, line.currency || "USD")}
+                  </FieldContent>
                 </Field>
               </div>
               <div className="col-span-1 text-right">
@@ -593,7 +601,8 @@ export function LineItemsEditor(props: {
           );
         })}
         <div className="flex justify-end text-sm font-medium">
-          Items subtotal: {formatMoney(total)}
+          Items subtotal:{" "}
+          {formatCurrency(total, quotations?.[0]?.currency || "USD")}
         </div>
       </div>
     </Card>

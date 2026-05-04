@@ -23,6 +23,9 @@ export class ConsignmentPaymentItem extends VendureEntity {
     @ManyToOne(() => ConsignmentQuotation, { onDelete: 'RESTRICT' })
     quotation: ConsignmentQuotation;
 
+    @Column({ type: 'varchar', default: '' })
+    currency: string;
+
     @Money()
     productPriceSnapshot: number;
 

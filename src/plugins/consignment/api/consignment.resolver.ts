@@ -1,231 +1,283 @@
-import { Args, Mutation, Query, Resolver, ResolveField, Parent } from '@nestjs/graphql';
-import { Allow, Ctx, Permission, RequestContext } from '@vendure/core';
+import {
+  Args,
+  Mutation,
+  Query,
+  Resolver,
+  ResolveField,
+  Parent,
+} from "@nestjs/graphql";
+import { Allow, Ctx, Permission, RequestContext } from "@vendure/core";
 
-import { ConsignmentQuotationService } from '../services/consignment-quotation.service';
-import { ConsignmentIntakeService } from '../services/consignment-intake.service';
-import { ConsignmentPaymentService } from '../services/consignment-payment.service';
-import { ConsignmentReturnService } from '../services/consignment-return.service';
-import { ConsignmentReportService } from '../services/consignment-report.service';
-import { ConsignmentQuotation } from '../entities/consignment-quotation.entity';
-import { ConsignmentIntake } from '../entities/consignment-intake.entity';
-import { ConsignmentPayment } from '../entities/consignment-payment.entity';
-import { ConsignmentReturn } from '../entities/consignment-return.entity';
+import { ConsignmentQuotationService } from "../services/consignment-quotation.service";
+import { ConsignmentIntakeService } from "../services/consignment-intake.service";
+import { ConsignmentPaymentService } from "../services/consignment-payment.service";
+import { ConsignmentReturnService } from "../services/consignment-return.service";
+import { ConsignmentReportService } from "../services/consignment-report.service";
+import { ConsignmentQuotation } from "../entities/consignment-quotation.entity";
+import { ConsignmentIntake } from "../entities/consignment-intake.entity";
+import { ConsignmentPayment } from "../entities/consignment-payment.entity";
+import { ConsignmentReturn } from "../entities/consignment-return.entity";
 
 function normalizeDateTime(value: Date | string | null | undefined): string {
-    if (!value) {
-        return new Date(0).toISOString();
-    }
-    if (value instanceof Date) {
-        return value.toISOString();
-    }
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        return `${value}T00:00:00.000Z`;
-    }
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.getTime())) {
-        return parsed.toISOString();
-    }
+  if (!value) {
+    return new Date(0).toISOString();
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return `${value}T00:00:00.000Z`;
+  }
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString();
+  }
+  return `${value}T00:00:00.000Z`;
 }
 
 @Resolver()
 export class ConsignmentResolver {
-    constructor(
-        private quotationService: ConsignmentQuotationService,
-        private intakeService: ConsignmentIntakeService,
-        private paymentService: ConsignmentPaymentService,
-        private returnService: ConsignmentReturnService,
-        private reportService: ConsignmentReportService,
-    ) {}
+  constructor(
+    private quotationService: ConsignmentQuotationService,
+    private intakeService: ConsignmentIntakeService,
+    private paymentService: ConsignmentPaymentService,
+    private returnService: ConsignmentReturnService,
+    private reportService: ConsignmentReportService,
+  ) {}
 
-    // ─── Quotation ────────────────────────────────────────────────────────────
+  // ─── Quotation ────────────────────────────────────────────────────────────
 
-    @Query()
-    @Allow(Permission.ReadCustomer)
-    consignmentQuotations(@Ctx() ctx: RequestContext, @Args('storeId') storeId: string) {
-        return this.quotationService.findAll(ctx, storeId);
-    }
+  @Query()
+  @Allow(Permission.ReadCustomer)
+  consignmentQuotations(
+    @Ctx() ctx: RequestContext,
+    @Args("storeId") storeId: string,
+  ) {
+    return this.quotationService.findAll(ctx, storeId);
+  }
 
-    @Query()
-    @Allow(Permission.ReadCustomer)
-    consignmentQuotation(@Ctx() ctx: RequestContext, @Args('id') id: string) {
-        return this.quotationService.findOne(ctx, id);
-    }
+  @Query()
+  @Allow(Permission.ReadCustomer)
+  consignmentQuotation(@Ctx() ctx: RequestContext, @Args("id") id: string) {
+    return this.quotationService.findOne(ctx, id);
+  }
 
-    @Mutation()
-    @Allow(Permission.UpdateCustomer)
-    createConsignmentQuotation(@Ctx() ctx: RequestContext, @Args('input') input: any) {
-        return this.quotationService.create(ctx, input);
-    }
+  @Mutation()
+  @Allow(Permission.UpdateCustomer)
+  createConsignmentQuotation(
+    @Ctx() ctx: RequestContext,
+    @Args("input") input: any,
+  ) {
+    return this.quotationService.create(ctx, input);
+  }
 
-    @Mutation()
-    @Allow(Permission.UpdateCustomer)
-    updateConsignmentQuotation(@Ctx() ctx: RequestContext, @Args('input') input: any) {
-        return this.quotationService.update(ctx, input.id, input);
-    }
+  @Mutation()
+  @Allow(Permission.UpdateCustomer)
+  updateConsignmentQuotation(
+    @Ctx() ctx: RequestContext,
+    @Args("input") input: any,
+  ) {
+    return this.quotationService.update(ctx, input.id, input);
+  }
 
-    @Mutation()
-    @Allow(Permission.DeleteCustomer)
-    deleteConsignmentQuotation(@Ctx() ctx: RequestContext, @Args('id') id: string) {
-        return this.quotationService.delete(ctx, id);
-    }
+  @Mutation()
+  @Allow(Permission.DeleteCustomer)
+  deleteConsignmentQuotation(
+    @Ctx() ctx: RequestContext,
+    @Args("id") id: string,
+  ) {
+    return this.quotationService.delete(ctx, id);
+  }
 
-    // ─── Intake ───────────────────────────────────────────────────────────────
+  // ─── Intake ───────────────────────────────────────────────────────────────
 
-    @Query()
-    @Allow(Permission.ReadCustomer)
-    consignmentIntakes(@Ctx() ctx: RequestContext, @Args('storeId') storeId: string) {
-        return this.intakeService.findAll(ctx, storeId);
-    }
+  @Query()
+  @Allow(Permission.ReadCustomer)
+  consignmentIntakes(
+    @Ctx() ctx: RequestContext,
+    @Args("storeId") storeId: string,
+  ) {
+    return this.intakeService.findAll(ctx, storeId);
+  }
 
-    @Query()
-    @Allow(Permission.ReadCustomer)
-    consignmentIntake(@Ctx() ctx: RequestContext, @Args('id') id: string) {
-        return this.intakeService.findOne(ctx, id);
-    }
+  @Query()
+  @Allow(Permission.ReadCustomer)
+  consignmentIntake(@Ctx() ctx: RequestContext, @Args("id") id: string) {
+    return this.intakeService.findOne(ctx, id);
+  }
 
-    @Mutation()
-    @Allow(Permission.UpdateCustomer)
-    createConsignmentIntake(@Ctx() ctx: RequestContext, @Args('input') input: any) {
-        return this.intakeService.create(ctx, input);
-    }
+  @Mutation()
+  @Allow(Permission.UpdateCustomer)
+  createConsignmentIntake(
+    @Ctx() ctx: RequestContext,
+    @Args("input") input: any,
+  ) {
+    return this.intakeService.create(ctx, input);
+  }
 
-    @Mutation()
-    @Allow(Permission.UpdateCustomer)
-    updateConsignmentIntake(@Ctx() ctx: RequestContext, @Args('input') input: any) {
-        return this.intakeService.update(ctx, input);
-    }
+  @Mutation()
+  @Allow(Permission.UpdateCustomer)
+  updateConsignmentIntake(
+    @Ctx() ctx: RequestContext,
+    @Args("input") input: any,
+  ) {
+    return this.intakeService.update(ctx, input);
+  }
 
-    @Mutation()
-    @Allow(Permission.DeleteCustomer)
-    deleteConsignmentIntake(@Ctx() ctx: RequestContext, @Args('id') id: string) {
-        return this.intakeService.delete(ctx, id);
-    }
+  @Mutation()
+  @Allow(Permission.DeleteCustomer)
+  deleteConsignmentIntake(@Ctx() ctx: RequestContext, @Args("id") id: string) {
+    return this.intakeService.delete(ctx, id);
+  }
 
-    // ─── Payment ──────────────────────────────────────────────────────────────
+  // ─── Payment ──────────────────────────────────────────────────────────────
 
-    @Query()
-    @Allow(Permission.ReadCustomer)
-    consignmentPayments(@Ctx() ctx: RequestContext, @Args('storeId') storeId: string) {
-        return this.paymentService.findAll(ctx, storeId);
-    }
+  @Query()
+  @Allow(Permission.ReadCustomer)
+  consignmentPayments(
+    @Ctx() ctx: RequestContext,
+    @Args("storeId") storeId: string,
+  ) {
+    return this.paymentService.findAll(ctx, storeId);
+  }
 
-    @Query()
-    @Allow(Permission.ReadCustomer)
-    consignmentPayment(@Ctx() ctx: RequestContext, @Args('id') id: string) {
-        return this.paymentService.findOne(ctx, id);
-    }
+  @Query()
+  @Allow(Permission.ReadCustomer)
+  consignmentPayment(@Ctx() ctx: RequestContext, @Args("id") id: string) {
+    return this.paymentService.findOne(ctx, id);
+  }
 
-    @Mutation()
-    @Allow(Permission.UpdateCustomer)
-    createConsignmentPayment(@Ctx() ctx: RequestContext, @Args('input') input: any) {
-        return this.paymentService.create(ctx, input);
-    }
+  @Mutation()
+  @Allow(Permission.UpdateCustomer)
+  createConsignmentPayment(
+    @Ctx() ctx: RequestContext,
+    @Args("input") input: any,
+  ) {
+    return this.paymentService.create(ctx, input);
+  }
 
-    @Mutation()
-    @Allow(Permission.UpdateCustomer)
-    updateConsignmentPayment(@Ctx() ctx: RequestContext, @Args('input') input: any) {
-        return this.paymentService.update(ctx, input);
-    }
+  @Mutation()
+  @Allow(Permission.UpdateCustomer)
+  updateConsignmentPayment(
+    @Ctx() ctx: RequestContext,
+    @Args("input") input: any,
+  ) {
+    return this.paymentService.update(ctx, input);
+  }
 
-    @Mutation()
-    @Allow(Permission.DeleteCustomer)
-    deleteConsignmentPayment(@Ctx() ctx: RequestContext, @Args('id') id: string) {
-        return this.paymentService.delete(ctx, id);
-    }
+  @Mutation()
+  @Allow(Permission.DeleteCustomer)
+  deleteConsignmentPayment(@Ctx() ctx: RequestContext, @Args("id") id: string) {
+    return this.paymentService.delete(ctx, id);
+  }
 
-    // ─── Return ───────────────────────────────────────────────────────────────
+  // ─── Return ───────────────────────────────────────────────────────────────
 
-    @Query()
-    @Allow(Permission.ReadCustomer)
-    consignmentReturns(@Ctx() ctx: RequestContext, @Args('storeId') storeId: string) {
-        return this.returnService.findAll(ctx, storeId);
-    }
+  @Query()
+  @Allow(Permission.ReadCustomer)
+  consignmentReturns(
+    @Ctx() ctx: RequestContext,
+    @Args("storeId") storeId: string,
+  ) {
+    return this.returnService.findAll(ctx, storeId);
+  }
 
-    @Query()
-    @Allow(Permission.ReadCustomer)
-    consignmentReturn(@Ctx() ctx: RequestContext, @Args('id') id: string) {
-        return this.returnService.findOne(ctx, id);
-    }
+  @Query()
+  @Allow(Permission.ReadCustomer)
+  consignmentReturn(@Ctx() ctx: RequestContext, @Args("id") id: string) {
+    return this.returnService.findOne(ctx, id);
+  }
 
-    @Mutation()
-    @Allow(Permission.UpdateCustomer)
-    createConsignmentReturn(@Ctx() ctx: RequestContext, @Args('input') input: any) {
-        return this.returnService.create(ctx, input);
-    }
+  @Mutation()
+  @Allow(Permission.UpdateCustomer)
+  createConsignmentReturn(
+    @Ctx() ctx: RequestContext,
+    @Args("input") input: any,
+  ) {
+    return this.returnService.create(ctx, input);
+  }
 
-    @Mutation()
-    @Allow(Permission.UpdateCustomer)
-    updateConsignmentReturn(@Ctx() ctx: RequestContext, @Args('input') input: any) {
-        return this.returnService.update(ctx, input);
-    }
+  @Mutation()
+  @Allow(Permission.UpdateCustomer)
+  updateConsignmentReturn(
+    @Ctx() ctx: RequestContext,
+    @Args("input") input: any,
+  ) {
+    return this.returnService.update(ctx, input);
+  }
 
-    @Mutation()
-    @Allow(Permission.DeleteCustomer)
-    deleteConsignmentReturn(@Ctx() ctx: RequestContext, @Args('id') id: string) {
-        return this.returnService.delete(ctx, id);
-    }
+  @Mutation()
+  @Allow(Permission.DeleteCustomer)
+  deleteConsignmentReturn(@Ctx() ctx: RequestContext, @Args("id") id: string) {
+    return this.returnService.delete(ctx, id);
+  }
 
-    // ─── Report ───────────────────────────────────────────────────────────────
+  // ─── Report ───────────────────────────────────────────────────────────────
 
-    @Query()
-    @Allow(Permission.ReadCustomer)
-    consignmentReport(@Ctx() ctx: RequestContext, @Args('storeId') storeId: string) {
-        return this.reportService.getReport(ctx, storeId);
-    }
+  @Query()
+  @Allow(Permission.ReadCustomer)
+  consignmentReport(
+    @Ctx() ctx: RequestContext,
+    @Args("storeId") storeId: string,
+  ) {
+    return this.reportService.getReport(ctx, storeId);
+  }
 }
 
 // ─── Field resolvers ──────────────────────────────────────────────────────────
 
-@Resolver('ConsignmentQuotation')
+@Resolver("ConsignmentQuotation")
 export class ConsignmentQuotationFieldResolver {
-    @ResolveField()
-    productVariantName(@Parent() quotation: ConsignmentQuotation): string {
-        const variant = quotation.productVariant as any;
-        if (!variant) {
-            return '';
-        }
-        const translatedName = variant.name;
-        if (translatedName) {
-            return translatedName;
-        }
-        if (Array.isArray(variant.translations) && variant.translations.length > 0) {
-            return variant.translations[0]?.name ?? '';
-        }
-        return '';
+  @ResolveField()
+  productVariantName(@Parent() quotation: ConsignmentQuotation): string {
+    const variant = quotation.productVariant;
+    if (!variant) {
+      return "";
     }
+    const translatedName = variant.name;
+    if (translatedName) {
+      return translatedName;
+    }
+    if (
+      Array.isArray(variant.translations) &&
+      variant.translations.length > 0
+    ) {
+      return variant.translations[0]?.name ?? "";
+    }
+    return "";
+  }
 
-    @ResolveField()
-    productVariantSku(@Parent() quotation: ConsignmentQuotation): string {
-        return quotation.productVariant?.sku ?? '';
-    }
+  @ResolveField()
+  productVariantSku(@Parent() quotation: ConsignmentQuotation): string {
+    return quotation.productVariant?.sku ?? "";
+  }
 
-    @ResolveField()
-    productVariantFeaturedAsset(@Parent() quotation: ConsignmentQuotation) {
-        return quotation.productVariant?.featuredAsset ?? null;
-    }
+  @ResolveField()
+  productVariantFeaturedAsset(@Parent() quotation: ConsignmentQuotation) {
+    return quotation.productVariant?.featuredAsset ?? null;
+  }
 }
 
-@Resolver('ConsignmentIntake')
+@Resolver("ConsignmentIntake")
 export class ConsignmentIntakeFieldResolver {
-    @ResolveField()
-    intakeDate(@Parent() intake: ConsignmentIntake): string {
-        return normalizeDateTime((intake as any).intakeDate);
-    }
+  @ResolveField()
+  intakeDate(@Parent() intake: ConsignmentIntake): string {
+    return normalizeDateTime(intake.intakeDate);
+  }
 }
 
-@Resolver('ConsignmentPayment')
+@Resolver("ConsignmentPayment")
 export class ConsignmentPaymentFieldResolver {
-    @ResolveField()
-    paymentDate(@Parent() payment: ConsignmentPayment): string {
-        return normalizeDateTime((payment as any).paymentDate);
-    }
+  @ResolveField()
+  paymentDate(@Parent() payment: ConsignmentPayment): string {
+    return normalizeDateTime(payment.paymentDate);
+  }
 }
 
-@Resolver('ConsignmentReturn')
+@Resolver("ConsignmentReturn")
 export class ConsignmentReturnFieldResolver {
-    @ResolveField()
-    returnedDate(@Parent() consignmentReturn: ConsignmentReturn): string {
-        return normalizeDateTime((consignmentReturn as any).returnedDate);
-    }
+  @ResolveField()
+  returnedDate(@Parent() consignmentReturn: ConsignmentReturn): string {
+    return normalizeDateTime(consignmentReturn.returnedDate);
+  }
 }

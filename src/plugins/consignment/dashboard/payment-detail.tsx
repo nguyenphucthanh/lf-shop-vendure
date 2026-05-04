@@ -8,6 +8,7 @@ import {
   FieldDescription,
   FieldLabel,
   Input,
+  useLocalFormat,
 } from "@vendure/dashboard";
 import { useEffect, useState } from "react";
 
@@ -16,7 +17,6 @@ import { graphql } from "@/gql";
 import {
   LineItemsEditor,
   SimplePage,
-  formatMoney,
   isoDate,
   toDateTimeInput,
   useStore,
@@ -39,6 +39,7 @@ const GET_PAYMENT = graphql(`
         quotationId
         quantity
         consignmentPriceSnapshot
+        currency
       }
     }
   }
@@ -67,6 +68,7 @@ const DELETE_PAYMENT = graphql(`
 `);
 
 export function PaymentDetailPage({ route }: { route: AnyRoute }) {
+  const { formatCurrency } = useLocalFormat();
   const navigate = route.useNavigate();
   const params = route.useParams();
   const isNew = params.id === "new";
@@ -87,6 +89,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
       quotationId: string;
       quantity: number;
       consignmentPriceSnapshot: number;
+      currency: string;
     }>
   >([]);
   const [saving, setSaving] = useState(false);
@@ -104,10 +107,11 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
       setDiscount(String((payment.discount ?? 0) / 100));
       setPaidAmount(String((payment.paidAmount ?? 0) / 100));
       setItems(
-        (payment.items ?? []).map((item: any) => ({
+        (payment.items ?? []).map((item) => ({
           quotationId: item.quotationId,
           quantity: item.quantity,
           consignmentPriceSnapshot: item.consignmentPriceSnapshot ?? 0,
+          currency: item.currency || "USD",
         })),
       );
     });
@@ -128,7 +132,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
       };
       if (isNew) {
         const result = await api.mutate(CREATE_PAYMENT, { input });
-        const id = (result as any)?.createConsignmentPayment?.id;
+        const id = result?.createConsignmentPayment?.id;
         if (id) {
           navigate({ to: `/consignment/payments/${id}` });
         }
@@ -273,7 +277,10 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
               </FieldContent>
               <FieldDescription>
                 Current paid amount preview:{" "}
-                {formatMoney(Math.round(Number(paidAmount || 0) * 100))}
+                {formatCurrency(
+                  Number(paidAmount || 0),
+                  items?.[0]?.currency || "USD",
+                )}
               </FieldDescription>
             </Field>
           </div>

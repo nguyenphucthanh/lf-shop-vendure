@@ -26,6 +26,7 @@ import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
+import { CurrencyCode } from "@vendure/core";
 
 const GET_VARIANT_COSTS = graphql(`
   query GetVariantCosts($variantId: ID!) {
@@ -99,7 +100,7 @@ export function VariantCostBlock({ context }: { context: PageContextValue }) {
         input: {
           variantId,
           channelId: activeChannel!.id,
-          currencyCode: editCurrency as any,
+          currencyCode: editCurrency as CurrencyCode,
           cost: costInMinorUnits,
         },
       });

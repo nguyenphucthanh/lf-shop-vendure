@@ -4,11 +4,12 @@ import {
   graphql,
   ResultOf,
   DashboardFormComponentProps,
+  useLocalFormat,
 } from "@vendure/dashboard";
 import { useRef } from "react";
 
 // Define the GraphQL query for product variants
-const productVariantListQuery = graphql(`
+const PRODUCT_VARIANTS_LIST = graphql(`
   query GetProductVariantsForSelection($options: ProductVariantListOptions) {
     productVariants(options: $options) {
       items {
@@ -16,6 +17,7 @@ const productVariantListQuery = graphql(`
         name
         sku
         priceWithTax
+        currencyCode
         featuredAsset {
           id
           preview
@@ -47,12 +49,13 @@ export function ProductVariantSearchSelect({
   disabled,
   placeholder = "Search product variants...",
 }: Omit<ProductVariantSearchSelectProps, "onBlur" | "ref" | "name">) {
+  const { formatCurrency } = useLocalFormat();
   const ref = useRef<HTMLDivElement>(null);
   // Create the configuration
   const variantConfig = createRelationSelectorConfig<
-    ResultOf<typeof productVariantListQuery>["productVariants"]["items"][0]
+    ResultOf<typeof PRODUCT_VARIANTS_LIST>["productVariants"]["items"][0]
   >({
-    listQuery: productVariantListQuery as any,
+    listQuery: PRODUCT_VARIANTS_LIST as any,
     idKey: "id",
     labelKey: "name",
     placeholder,
@@ -79,7 +82,7 @@ export function ProductVariantSearchSelect({
           )}
         </div>
         <div className="text-sm font-medium ml-2 whitespace-nowrap">
-          {(variant.priceWithTax / 100).toFixed(2)}
+          {formatCurrency(variant.priceWithTax, variant.currencyCode)}
         </div>
       </div>
     ),

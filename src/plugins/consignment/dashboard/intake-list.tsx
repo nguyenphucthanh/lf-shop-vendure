@@ -3,18 +3,18 @@ import {
   Button,
   Card,
   Link,
+  ResultOf,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  useLocalFormat,
 } from "@vendure/dashboard";
 import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
-
-import { formatMoney } from "./shared";
 
 const LIST_INTAKES = graphql(`
   query ConsignmentIntakeList($storeId: ID!) {
@@ -29,14 +29,18 @@ const LIST_INTAKES = graphql(`
       items {
         id
         quantity
+        currency
       }
     }
   }
 `);
 
 export function IntakeListPage(props: { storeId: string }) {
+  const { formatCurrency } = useLocalFormat();
   const { storeId } = props;
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<
+    ResultOf<typeof LIST_INTAKES>["consignmentIntakes"]
+  >([]);
 
   useEffect(() => {
     if (!storeId) {
@@ -44,19 +48,20 @@ export function IntakeListPage(props: { storeId: string }) {
       return;
     }
     void api.query(LIST_INTAKES, { storeId }).then((result) => {
-      setRows(((result as any)?.consignmentIntakes ?? []) as any[]);
+      setRows(result?.consignmentIntakes ?? []);
     });
   }, [storeId]);
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between">
-        <h2 className="text-lg font-semibold">
-          Total intakes: {rows.length}
-        </h2>
+        <h2 className="text-lg font-semibold">Total intakes: {rows.length}</h2>
         <Button
           render={(buttonProps) => (
-            <Link to={`/consignment/intakes/new?storeId=${storeId}`} {...buttonProps}>
+            <Link
+              to={`/consignment/intakes/new?storeId=${storeId}`}
+              {...buttonProps}
+            >
               New intake
             </Link>
           )}
@@ -80,19 +85,29 @@ export function IntakeListPage(props: { storeId: string }) {
                 <TableCell>
                   {`${
                     row.items?.reduce(
-                      (sum: number, item: any) => sum + item.quantity,
+                      (sum: number, item) => sum + item.quantity,
                       0,
                     ) ?? 0
                   } items of ${row.items?.length ?? 0} products`}
                 </TableCell>
-                <TableCell>{formatMoney(row.deliveryCost)}</TableCell>
-                <TableCell>{formatMoney(row.total)}</TableCell>
+                <TableCell>
+                  {formatCurrency(
+                    row.deliveryCost,
+                    row.items?.[0]?.currency || "USD",
+                  )}
+                </TableCell>
+                <TableCell>
+                  {formatCurrency(row.total, row.items?.[0]?.currency || "USD")}
+                </TableCell>
                 <TableCell>
                   <Button
                     size="sm"
                     variant="secondary"
                     render={(buttonProps) => (
-                      <Link to={`/consignment/intakes/${row.id}`} {...buttonProps}>
+                      <Link
+                        to={`/consignment/intakes/${row.id}`}
+                        {...buttonProps}
+                      >
                         Edit
                       </Link>
                     )}

@@ -3,18 +3,18 @@ import {
   Button,
   Card,
   Link,
+  ResultOf,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  useLocalFormat,
 } from "@vendure/dashboard";
 import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
-
-import { formatMoney } from "./shared";
 
 const LIST_PAYMENTS = graphql(`
   query ConsignmentPaymentList($storeId: ID!) {
@@ -29,14 +29,18 @@ const LIST_PAYMENTS = graphql(`
       items {
         id
         quantity
+        currency
       }
     }
   }
 `);
 
 export function PaymentListPage(props: { storeId: string }) {
+  const { formatCurrency } = useLocalFormat();
   const { storeId } = props;
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<
+    ResultOf<typeof LIST_PAYMENTS>["consignmentPayments"]
+  >([]);
 
   function getStatusClass(status?: string) {
     const normalized = (status ?? "").toLowerCase();
@@ -55,19 +59,20 @@ export function PaymentListPage(props: { storeId: string }) {
       return;
     }
     void api.query(LIST_PAYMENTS, { storeId }).then((result) => {
-      setRows(((result as any)?.consignmentPayments ?? []) as any[]);
+      setRows(result?.consignmentPayments ?? []);
     });
   }, [storeId]);
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between">
-        <h2 className="text-lg font-semibold">
-          Total payments: {rows.length}
-        </h2>
+        <h2 className="text-lg font-semibold">Total payments: {rows.length}</h2>
         <Button
           render={(buttonProps) => (
-            <Link to={`/consignment/payments/new?storeId=${storeId}`} {...buttonProps}>
+            <Link
+              to={`/consignment/payments/new?storeId=${storeId}`}
+              {...buttonProps}
+            >
               New payment
             </Link>
           )}
@@ -104,14 +109,24 @@ export function PaymentListPage(props: { storeId: string }) {
                 <TableCell className={getStatusClass(row.paymentStatus)}>
                   {row.paymentStatus}
                 </TableCell>
-                <TableCell>{formatMoney(row.total)}</TableCell>
-                <TableCell>{formatMoney(row.remainingAmount)}</TableCell>
+                <TableCell>
+                  {formatCurrency(row.total, row.items?.[0]?.currency || "USD")}
+                </TableCell>
+                <TableCell>
+                  {formatCurrency(
+                    row.remainingAmount,
+                    row.items?.[0]?.currency || "USD",
+                  )}
+                </TableCell>
                 <TableCell>
                   <Button
                     size="sm"
                     variant="secondary"
                     render={(buttonProps) => (
-                      <Link to={`/consignment/payments/${row.id}`} {...buttonProps}>
+                      <Link
+                        to={`/consignment/payments/${row.id}`}
+                        {...buttonProps}
+                      >
                         Edit
                       </Link>
                     )}

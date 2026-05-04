@@ -11,6 +11,7 @@ export const adminApiExtensions = gql`
         productVariantSku: String!
         productVariantFeaturedAsset: Asset
         consignmentPrice: Money!
+        currency: String!
         note: String
     }
 
@@ -20,6 +21,7 @@ export const adminApiExtensions = gql`
         updatedAt: DateTime!
         quotationId: ID!
         quotation: ConsignmentQuotation!
+        currency: String!
         productPriceSnapshot: Money!
         consignmentPriceSnapshot: Money!
         quantity: Int!
@@ -46,6 +48,7 @@ export const adminApiExtensions = gql`
         updatedAt: DateTime!
         quotationId: ID!
         quotation: ConsignmentQuotation!
+        currency: String!
         productPriceSnapshot: Money!
         consignmentPriceSnapshot: Money!
         quantity: Int!
@@ -75,6 +78,7 @@ export const adminApiExtensions = gql`
         updatedAt: DateTime!
         quotationId: ID!
         quotation: ConsignmentQuotation!
+        currency: String!
         productPriceSnapshot: Money!
         consignmentPriceSnapshot: Money!
         quantity: Int!

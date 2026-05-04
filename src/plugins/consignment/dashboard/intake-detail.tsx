@@ -35,6 +35,7 @@ const GET_INTAKE = graphql(`
         quotationId
         quantity
         consignmentPriceSnapshot
+        currency
       }
     }
   }
@@ -82,6 +83,7 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
       quotationId: string;
       quantity: number;
       consignmentPriceSnapshot: number;
+      currency: string;
     }>
   >([]);
   const [saving, setSaving] = useState(false);
@@ -98,10 +100,11 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
       setDeliveryTrackingCode(intake.deliveryTrackingCode ?? "");
       setDeliveryCost(String((intake.deliveryCost ?? 0) / 100));
       setItems(
-        (intake.items ?? []).map((item: any) => ({
+        (intake.items ?? []).map((item) => ({
           quotationId: item.quotationId,
           quantity: item.quantity,
           consignmentPriceSnapshot: item.consignmentPriceSnapshot ?? 0,
+          currency: item.currency || "USD",
         })),
       );
     });
@@ -121,7 +124,7 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
       };
       if (isNew) {
         const result = await api.mutate(CREATE_INTAKE, { input });
-        const id = (result as any)?.createConsignmentIntake?.id;
+        const id = result?.createConsignmentIntake?.id;
         if (id) {
           navigate({ to: `/consignment/intakes/${id}` });
         }

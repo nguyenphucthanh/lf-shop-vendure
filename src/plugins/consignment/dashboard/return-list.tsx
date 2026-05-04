@@ -3,18 +3,18 @@ import {
   Button,
   Card,
   Link,
+  ResultOf,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  useLocalFormat,
 } from "@vendure/dashboard";
 import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
-
-import { formatMoney } from "./shared";
 
 const LIST_RETURNS = graphql(`
   query ConsignmentReturnList($storeId: ID!) {
@@ -26,6 +26,7 @@ const LIST_RETURNS = graphql(`
       items {
         id
         quantity
+        currency
       }
     }
   }
@@ -33,7 +34,10 @@ const LIST_RETURNS = graphql(`
 
 export function ReturnListPage(props: { storeId: string }) {
   const { storeId } = props;
-  const [rows, setRows] = useState<any[]>([]);
+  const { formatCurrency } = useLocalFormat();
+  const [rows, setRows] = useState<
+    ResultOf<typeof LIST_RETURNS>["consignmentReturns"]
+  >([]);
 
   useEffect(() => {
     if (!storeId) {
@@ -41,7 +45,7 @@ export function ReturnListPage(props: { storeId: string }) {
       return;
     }
     void api.query(LIST_RETURNS, { storeId }).then((result) => {
-      setRows(((result as any)?.consignmentReturns ?? []) as any[]);
+      setRows(result?.consignmentReturns ?? []);
     });
   }, [storeId]);
 
@@ -78,13 +82,15 @@ export function ReturnListPage(props: { storeId: string }) {
                 <TableCell>
                   {`${
                     row.items?.reduce(
-                      (sum: number, item: any) => sum + item.quantity,
+                      (sum: number, item) => sum + item.quantity,
                       0,
                     ) ?? 0
                   } items of ${row.items?.length ?? 0} products`}
                 </TableCell>
                 <TableCell>{row.reason ?? "—"}</TableCell>
-                <TableCell>{formatMoney(row.total)}</TableCell>
+                <TableCell>
+                  {formatCurrency(row.total, row.items?.[0]?.currency || "USD")}
+                </TableCell>
                 <TableCell>
                   <Button
                     size="sm"

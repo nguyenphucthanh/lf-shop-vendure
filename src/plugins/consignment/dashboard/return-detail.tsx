@@ -76,6 +76,7 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
       quotationId: string;
       quantity: number;
       consignmentPriceSnapshot: number;
+      currency: string;
     }>
   >([]);
   const [saving, setSaving] = useState(false);
@@ -93,6 +94,7 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
           quotationId: item.quotationId,
           quantity: item.quantity,
           consignmentPriceSnapshot: item.consignmentPriceSnapshot ?? 0,
+          currency: item.currency || "USD",
         })),
       );
     });
@@ -109,7 +111,7 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
       };
       if (isNew) {
         const result = await api.mutate(CREATE_RETURN, { input });
-        const id = (result as any)?.createConsignmentReturn?.id;
+        const id = result?.createConsignmentReturn?.id;
         if (id) {
           navigate({ to: `/consignment/returns/${id}` });
         }

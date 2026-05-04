@@ -131,7 +131,8 @@ export function CustomerSearchSelect({
       })
       .then((result) => {
         if (!active) return;
-        const item = (result?.customers?.items?.[0] ?? null) as CustomerItem | null;
+        const item = (result?.customers?.items?.[0] ??
+          null) as CustomerItem | null;
         setSelected(item);
         if (item) {
           const fullName = buildDisplayName(item);
@@ -157,7 +158,7 @@ export function CustomerSearchSelect({
         .query(customerListQuery, {
           options: {
             take,
-            sort: { createdAt: "DESC" as any },
+            sort: { createdAt: "DESC" },
             filter: buildFilter(normalizedTerm),
           },
         })
@@ -198,7 +199,11 @@ export function CustomerSearchSelect({
       itemToStringValue={(item) => item.id}
       itemToStringLabel={(item) => buildDisplayName(item) || item.emailAddress}
     >
-      <ComboboxInput placeholder={placeholder} showClear={!disabled} disabled={disabled} />
+      <ComboboxInput
+        placeholder={placeholder}
+        showClear={!disabled}
+        disabled={disabled}
+      />
       <ComboboxContent>
         <ComboboxList>
           <ComboboxCollection>

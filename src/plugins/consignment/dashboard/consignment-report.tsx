@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
   cn,
+  ResultOf,
   Table,
   TableBody,
   TableCell,
@@ -16,14 +17,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  useLocalFormat,
   VendureImage,
 } from "@vendure/dashboard";
 import { useEffect, useState } from "react";
 import { TriangleAlert } from "lucide-react";
 
 import { graphql } from "@/gql";
-
-import { formatMoney } from "./shared";
 
 // Helper to get translated name based on language code
 function getTranslatedName(
@@ -95,8 +95,11 @@ const GET_PAYMENT_SUMMARY = graphql(`
 `);
 
 export function ConsignmentReportPage(props: { storeId: string }) {
+  const { formatCurrency } = useLocalFormat();
   const { storeId } = props;
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<
+    ResultOf<typeof GET_REPORT>["consignmentReport"]
+  >([]);
   const [partialPaymentCount, setPartialPaymentCount] = useState(0);
   const [paymentSummary, setPaymentSummary] = useState({
     paidAmount: 0,
@@ -142,9 +145,9 @@ export function ConsignmentReportPage(props: { storeId: string }) {
       api.query(GET_REPORT, { storeId }),
       api.query(GET_PAYMENT_SUMMARY, { storeId }),
     ]).then(([reportResult, paymentResult]) => {
-      setRows((reportResult?.consignmentReport ?? []) as any[]);
+      setRows(reportResult?.consignmentReport ?? []);
 
-      const payments = (paymentResult?.consignmentPayments ?? []) as any[];
+      const payments = paymentResult?.consignmentPayments ?? [];
       const nextPartialPaymentCount = payments.filter(
         (payment) => (payment.remainingAmount ?? 0) > 0,
       ).length;
@@ -171,7 +174,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold text-right">
-                {formatMoney(summaryTotals.intakeValue)}
+                {formatCurrency(summaryTotals.intakeValue, "USD")}
               </p>
             </CardContent>
           </Card>
@@ -183,7 +186,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold text-right">
-                {formatMoney(summaryTotals.returnValue)}
+                {formatCurrency(summaryTotals.returnValue, "USD")}
               </p>
             </CardContent>
           </Card>
@@ -195,12 +198,13 @@ export function ConsignmentReportPage(props: { storeId: string }) {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold text-right">
-                {formatMoney(summaryTotals.paidValue)}
+                {formatCurrency(summaryTotals.paidValue, "USD")}
               </p>
             </CardContent>
             <CardFooter>
               <p className="text-md font-semibold text-right">
-                Discount in payments: {formatMoney(summaryTotals.discount)}
+                Discount in payments:{" "}
+                {formatCurrency(summaryTotals.discount, "USD")}
               </p>
             </CardFooter>
           </Card>
@@ -212,7 +216,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold text-right">
-                {formatMoney(summaryTotals.debtValue)}
+                {formatCurrency(summaryTotals.debtValue, "USD")}
               </p>
             </CardContent>
           </Card>
@@ -232,7 +236,10 @@ export function ConsignmentReportPage(props: { storeId: string }) {
       <Card className="overflow-hidden p-0">
         <CardHeader className="p-2 py-2">
           <CardTitle>Report by items</CardTitle>
-          <CardDescription>Value in this report is estimated base on quotation prices and quantity, not reflecting actual sales or returns.</CardDescription>
+          <CardDescription>
+            Value in this report is estimated base on quotation prices and
+            quantity, not reflecting actual sales or returns.
+          </CardDescription>
         </CardHeader>
         <div className="overflow-x-auto">
           <Table>
@@ -280,15 +287,21 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                   <TableCell>
                     {getTranslatedName(row.productNameTranslations)}
                   </TableCell>
-                  <TableCell>{formatMoney(row.consignmentPrice)}</TableCell>
+                  <TableCell>
+                    {formatCurrency(row.consignmentPrice, "USD")}
+                  </TableCell>
                   <TableCell>{row.intakeQty}</TableCell>
-                  <TableCell>{formatMoney(row.intakeValue)}</TableCell>
+                  <TableCell>
+                    {formatCurrency(row.intakeValue, "USD")}
+                  </TableCell>
                   <TableCell>{row.paidQty}</TableCell>
-                  <TableCell>{formatMoney(row.paidValue)}</TableCell>
+                  <TableCell>{formatCurrency(row.paidValue, "USD")}</TableCell>
                   <TableCell>{row.returnedQty}</TableCell>
-                  <TableCell>{formatMoney(row.returnedValue)}</TableCell>
+                  <TableCell>
+                    {formatCurrency(row.returnedValue, "USD")}
+                  </TableCell>
                   <TableCell>{row.debtQty}</TableCell>
-                  <TableCell>{formatMoney(row.debtValue)}</TableCell>
+                  <TableCell>{formatCurrency(row.debtValue, "USD")}</TableCell>
                 </TableRow>
               ))}
               {rows.length === 0 ? (
@@ -308,19 +321,19 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                   Total
                 </TableCell>
                 <TableCell className="font-semibold">
-                  {formatMoney(totals.intakeValue)}
+                  {formatCurrency(totals.intakeValue, "USD")}
                 </TableCell>
                 <TableCell></TableCell>
                 <TableCell className="font-semibold">
-                  {formatMoney(totals.paidValue)}
+                  {formatCurrency(totals.paidValue, "USD")}
                 </TableCell>
                 <TableCell></TableCell>
                 <TableCell className="font-semibold">
-                  {formatMoney(totals.returnedValue)}
+                  {formatCurrency(totals.returnedValue, "USD")}
                 </TableCell>
                 <TableCell></TableCell>
                 <TableCell className="font-semibold">
-                  {formatMoney(totals.debtValue)}
+                  {formatCurrency(totals.debtValue, "USD")}
                 </TableCell>
               </TableRow>
             </TableFooter>

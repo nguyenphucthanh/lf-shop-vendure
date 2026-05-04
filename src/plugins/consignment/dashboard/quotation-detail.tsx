@@ -9,19 +9,14 @@ import {
   FieldLabel,
   Input,
   Textarea,
+  useLocalFormat,
 } from "@vendure/dashboard";
 import { useEffect, useMemo, useState } from "react";
 
 import { graphql } from "@/gql";
 import { ProductVariantSearchSelect } from "./shared-ui";
 
-import {
-  EmptyState,
-  formatMoney,
-  SimplePage,
-  useProductVariants,
-  useStore,
-} from "./shared";
+import { EmptyState, SimplePage, useProductVariants, useStore } from "./shared";
 
 const GET_QUOTATION = graphql(`
   query ConsignmentQuotationDetail($id: ID!) {
@@ -32,6 +27,7 @@ const GET_QUOTATION = graphql(`
       productVariantName
       productVariantSku
       consignmentPrice
+      currency
       note
     }
   }
@@ -64,6 +60,7 @@ const DELETE_QUOTATION = graphql(`
 `);
 
 export function QuotationDetailPage({ route }: { route: AnyRoute }) {
+  const { formatCurrency } = useLocalFormat();
   const params = route.useParams();
   const navigate = route.useNavigate();
   const search = route.useSearch();
@@ -75,6 +72,7 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
   const { store: selectedStore } = useStore(storeId);
   const [productVariantId, setProductVariantId] = useState("");
   const [consignmentPrice, setConsignmentPrice] = useState("0");
+  const [currency, setCurrency] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -86,11 +84,14 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
   useEffect(() => {
     if (isNew || !params.id) return;
     void api.query(GET_QUOTATION, { id: params.id }).then((result) => {
-      const quotation = (result as any)?.consignmentQuotation;
-      if (!quotation) return;
+      const quotation = result?.consignmentQuotation;
+      if (!quotation) {
+        return;
+      }
       setStoreId(quotation.storeId);
       setProductVariantId(quotation.productVariantId);
       setConsignmentPrice(String(quotation.consignmentPrice / 100));
+      setCurrency(quotation.currency);
       setNote(quotation.note ?? "");
     });
   }, [isNew, params.id]);
@@ -102,6 +103,7 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
       (selectedVariant.priceWithTax * (100 - defaultDiscount)) / 100,
     );
     setConsignmentPrice(String(defaultPrice / 100));
+    setCurrency(selectedVariant.currencyCode);
   }, [isNew, selectedStore, selectedVariant]);
 
   async function save() {
@@ -117,7 +119,7 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
             note: note || null,
           },
         });
-        const id = (result as any)?.createConsignmentQuotation?.id;
+        const id = result?.createConsignmentQuotation?.id;
         if (id) {
           navigate({ to: `/consignment/quotations/${id}` });
         }
@@ -212,7 +214,10 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
             </FieldContent>
             <FieldDescription>
               Stored money value:{" "}
-              {formatMoney(Math.round(Number(consignmentPrice || 0) * 100))}
+              {formatCurrency(
+                Math.round(Number(consignmentPrice || 0) * 100),
+                currency || "USD",
+              )}
             </FieldDescription>
           </Field>
         </div>

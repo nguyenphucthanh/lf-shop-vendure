@@ -71,6 +71,7 @@ export class ConsignmentIntakeService {
             const item = itemRepo.create({
                 intakeId: saved.id,
                 quotationId: quotation.id,
+                currency: quotation.currency,
                 productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
                 consignmentPriceSnapshot,
                 quantity: itemInput.quantity,
@@ -110,6 +111,7 @@ export class ConsignmentIntakeService {
                 const item = itemRepo.create({
                     intakeId: intake.id,
                     quotationId: quotation.id,
+                    currency: quotation.currency,
                     productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
                     consignmentPriceSnapshot,
                     quantity: itemInput.quantity,

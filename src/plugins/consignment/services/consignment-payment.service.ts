@@ -134,6 +134,7 @@ export class ConsignmentPaymentService {
             await itemRepo.save(itemRepo.create({
                 paymentId: saved.id,
                 quotationId: quotation.id,
+                currency: quotation.currency,
                 productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
                 consignmentPriceSnapshot,
                 quantity: itemInput.quantity,
@@ -172,6 +173,7 @@ export class ConsignmentPaymentService {
                 await itemRepo.save(itemRepo.create({
                     paymentId: payment.id,
                     quotationId: quotation.id,
+                    currency: quotation.currency,
                     productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
                     consignmentPriceSnapshot,
                     quantity: itemInput.quantity,

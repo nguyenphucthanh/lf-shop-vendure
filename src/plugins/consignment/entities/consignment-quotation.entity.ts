@@ -24,6 +24,9 @@ export class ConsignmentQuotation extends VendureEntity {
     @Money()
     consignmentPrice: number;
 
+    @Column({ type: 'varchar', default: '' })
+    currency: string;
+
     /** Optional human-readable note */
     @Column({ nullable: true, type: 'varchar' })
     note: string | null;
