@@ -11,6 +11,11 @@ import {
   ComboboxList,
   ComboboxTrigger,
   ComboboxValue,
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
   Field,
   FieldContent,
   FieldLabel,
@@ -20,12 +25,6 @@ import {
   PageActionBar,
   PageLayout,
   PageTitle,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   useLocalFormat,
 } from "@vendure/dashboard";
 import { useEffect, useMemo, useState } from "react";
@@ -33,24 +32,6 @@ import { Trash2 } from "lucide-react";
 
 import { graphql } from "@/gql";
 import { CustomerSearchSelect } from "./shared-ui";
-
-export const GET_STORES = graphql(`
-  query ConsignmentStores {
-    customers(options: { take: 100, sort: { createdAt: DESC } }) {
-      items {
-        id
-        firstName
-        lastName
-        emailAddress
-        customFields {
-          externalId
-          defaultDiscountPercent
-          consignmentStore
-        }
-      }
-    }
-  }
-`);
 
 export const GET_STORE = graphql(`
   query ConsignmentStore($id: String!) {
@@ -70,16 +51,14 @@ export const GET_STORE = graphql(`
   }
 `);
 
-export const GET_PRODUCT_VARIANTS = graphql(`
-  query ConsignmentProductVariants {
-    productVariants(options: { take: 100, sort: { createdAt: DESC } }) {
-      items {
-        id
-        name
-        sku
-        priceWithTax
-        currencyCode
-      }
+export const GET_PRODUCT_VARIANT = graphql(`
+  query ConsignmentProductVariant($id: ID!) {
+    productVariant(id: $id) {
+      id
+      name
+      sku
+      priceWithTax
+      currencyCode
     }
   }
 `);
@@ -167,44 +146,6 @@ export function getApiErrorMessage(error: unknown) {
   return "Unknown error";
 }
 
-export function useStores() {
-  const [stores, setStores] = useState<StoreOption[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    void api
-      .query(GET_STORES, {})
-      .then((result) => {
-        if (!active) return;
-        const items = result?.customers?.items ?? [];
-        setStores(
-          items.map((item) => ({
-            id: item.id,
-            name:
-              [item.firstName, item.lastName]
-                .filter(Boolean)
-                .join(" ")
-                .trim() || item.emailAddress,
-            emailAddress: item.emailAddress,
-            externalId: item.customFields?.externalId ?? null,
-            defaultDiscountPercent:
-              item.customFields?.defaultDiscountPercent ?? null,
-          })),
-        );
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  return { stores, loading };
-}
-
 export function useStore(storeId?: string | null) {
   const [store, setStore] = useState<StoreOption | null>(null);
   const [loading, setLoading] = useState(false);
@@ -250,21 +191,23 @@ export function useStore(storeId?: string | null) {
   return { store, loading };
 }
 
-export function useProductVariants() {
-  const [variants, setVariants] = useState<ProductVariantOption[]>([]);
+export function useProductVariant(id: string) {
+  const [variant, setVariant] = useState<ProductVariantOption | null>(null);
 
   useEffect(() => {
     let active = true;
-    void api.query(GET_PRODUCT_VARIANTS, {}).then((result) => {
+    void api.query(GET_PRODUCT_VARIANT, { id }).then((result) => {
       if (!active) return;
-      setVariants(
-        (result?.productVariants?.items ?? []).map((item) => ({
-          id: item.id,
-          name: item.name,
-          sku: item.sku,
-          priceWithTax: item.priceWithTax,
-          currencyCode: item.currencyCode,
-        })),
+      setVariant(
+        result.productVariant
+          ? {
+              id: result.productVariant.id,
+              name: result.productVariant.name,
+              sku: result.productVariant.sku,
+              priceWithTax: result.productVariant.priceWithTax,
+              currencyCode: result.productVariant.currencyCode,
+            }
+          : null,
       );
     });
     return () => {
@@ -272,7 +215,7 @@ export function useProductVariants() {
     };
   }, []);
 
-  return variants;
+  return variant;
 }
 
 export function useQuotations(storeId?: string) {
@@ -305,31 +248,6 @@ export function useQuotations(storeId?: string) {
   return { quotations, loading };
 }
 
-export function StoreSelect(props: {
-  value: string;
-  onChange: (value: string) => void;
-  stores: StoreOption[];
-  disabled?: boolean;
-}) {
-  return (
-    <select
-      title="Select store"
-      className="w-full rounded-md border px-3 py-2 text-sm"
-      value={props.value}
-      onChange={(event) => props.onChange(event.target.value)}
-      disabled={props.disabled}
-    >
-      <option value="">Select a store</option>
-      {props.stores.map((store) => (
-        <option key={store.id} value={store.id}>
-          {store.name}
-          {store.externalId ? ` (${store.externalId})` : ""}
-        </option>
-      ))}
-    </select>
-  );
-}
-
 export function SimplePage(props: {
   title: string;
   actions?: React.ReactNode;
@@ -340,7 +258,9 @@ export function SimplePage(props: {
       <PageTitle>{props.title}</PageTitle>
       <PageActionBar>{props.actions}</PageActionBar>
       <PageLayout>
-        <FullWidthPageBlock blockId="main" className="space-y-4">{props.children}</FullWidthPageBlock>
+        <FullWidthPageBlock blockId="main" className="space-y-4">
+          {props.children}
+        </FullWidthPageBlock>
       </PageLayout>
     </Page>
   );
@@ -375,15 +295,15 @@ export function EmptyState(props: {
   action?: React.ReactNode;
 }) {
   return (
-    <Card className="p-8 text-center">
-      <div className="space-y-2">
-        <h2 className="text-lg font-medium">{props.title}</h2>
+    <Empty>
+      <EmptyHeader>
+        <EmptyTitle>{props.title}</EmptyTitle>
         {props.description ? (
-          <p className="text-sm text-muted-foreground">{props.description}</p>
+          <EmptyDescription>{props.description}</EmptyDescription>
         ) : null}
-        {props.action ? <div className="pt-2">{props.action}</div> : null}
-      </div>
-    </Card>
+        {props.action ? <EmptyContent>{props.action}</EmptyContent> : null}
+      </EmptyHeader>
+    </Empty>
   );
 }
 
@@ -626,28 +546,5 @@ export function LineItemsEditor(props: {
         </div>
       </div>
     </Card>
-  );
-}
-
-export function KeyValueTable(props: {
-  rows: Array<{ label: string; value: React.ReactNode }>;
-}) {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Field</TableHead>
-          <TableHead>Value</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {props.rows.map((row) => (
-          <TableRow key={row.label}>
-            <TableCell>{row.label}</TableCell>
-            <TableCell>{row.value}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
   );
 }

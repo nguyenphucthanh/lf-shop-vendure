@@ -21,7 +21,7 @@ import {
   EmptyState,
   getApiErrorMessage,
   SimplePage,
-  useProductVariants,
+  useProductVariant,
   useStore,
 } from "./shared";
 
@@ -73,7 +73,6 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
   const search = route.useSearch();
   console.log("🚀 ~ QuotationDetailPage ~ search:", search);
   const isNew = params.id === "new";
-  const variants = useProductVariants();
 
   const [storeId, setStoreId] = useState(search?.storeId?.toString() ?? "");
   const { store: selectedStore } = useStore(storeId);
@@ -82,11 +81,7 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
   const [currency, setCurrency] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
-
-  const selectedVariant = useMemo(
-    () => variants.find((variant) => variant.id === productVariantId),
-    [variants, productVariantId],
-  );
+  const selectedVariant = useProductVariant(productVariantId);
 
   useEffect(() => {
     if (isNew || !params.id) return;

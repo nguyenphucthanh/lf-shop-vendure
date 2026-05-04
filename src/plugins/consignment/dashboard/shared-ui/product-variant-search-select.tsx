@@ -80,7 +80,7 @@ export function ProductVariantSearchSelect({
               SKU: {variant.sku}
             </div>
           )}
-          <div className="text-sm font-medium ml-2 whitespace-nowrap text-right">
+          <div className="text-sm font-medium whitespace-nowrap">
             {formatCurrency(variant.priceWithTax, variant.currencyCode)}
           </div>
         </div>
@@ -100,6 +100,7 @@ export function ProductVariantSearchSelect({
       onBlur={() => {}}
       name={"select-product-variant"}
       ref={(r) => (ref.current = r)}
+      className="w-full"
     />
   );
 }
