@@ -1,4 +1,14 @@
-import { AnyRoute, api, Button, Card, Input } from "@vendure/dashboard";
+import {
+  AnyRoute,
+  api,
+  Button,
+  Card,
+  Field,
+  FieldContent,
+  FieldLabel,
+  Input,
+  Textarea,
+} from "@vendure/dashboard";
 import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
@@ -105,7 +115,7 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
         }
       } else {
         await api.mutate(UPDATE_RETURN, { input: { id: params.id, ...input } });
-        navigate({ to: "/consignment/returns" });
+        navigate({ to: "/consignment/returns", search: { storeId } });
       }
     } finally {
       setSaving(false);
@@ -139,33 +149,49 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
       }
     >
       <Card className="space-y-4 p-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Consignment Store</label>
-            <div className="rounded-md border px-3 py-2 text-sm">
-              {selectedStore
-                ? `${selectedStore.name}${selectedStore.emailAddress ? ` (${selectedStore.emailAddress})` : ""}`
-                : storeId
-                  ? `Store #${storeId}`
-                  : "Not selected"}
-            </div>
+        <div className="lg:grid grid-cols-12 gap-4">
+          <div className="space-y-2 col-span-12">
+            <Field>
+              <FieldLabel>Consignment Store</FieldLabel>
+              <FieldContent>
+                <Input
+                  value={
+                    selectedStore
+                      ? `${selectedStore.name}${selectedStore.emailAddress ? ` (${selectedStore.emailAddress})` : ""}`
+                      : storeId
+                        ? `Store #${storeId}`
+                        : "Not selected"
+                  }
+                  readOnly
+                />
+              </FieldContent>
+            </Field>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Returned date</label>
-            <Input
-              type="date"
-              value={returnedDate}
-              onChange={(event) => setReturnedDate(event.target.value)}
-            />
+          <div className="space-y-2 col-span-12">
+            <Field>
+              <FieldLabel htmlFor="returnedDate">Returned date</FieldLabel>
+              <FieldContent>
+                <Input
+                  type="date"
+                  value={returnedDate}
+                  onChange={(event) => setReturnedDate(event.target.value)}
+                />
+              </FieldContent>
+            </Field>
           </div>
         </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Reason</label>
-          <textarea
-            className="min-h-[100px] w-full rounded-md border px-3 py-2 text-sm"
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-          />
+        <div className="space-y-2 col-span-12">
+          <Field>
+            <FieldLabel htmlFor="reason">Reason</FieldLabel>
+            <FieldContent>
+              <Textarea
+                id="reason"
+                className="min-h-[100px] w-full rounded-md border px-3 py-2 text-sm"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+              />
+            </FieldContent>
+          </Field>
         </div>
       </Card>
       <LineItemsEditor storeId={storeId} value={items} onChange={setItems} />

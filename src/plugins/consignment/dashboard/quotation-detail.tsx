@@ -1,4 +1,15 @@
-import { AnyRoute, api, Button, Card, Input } from "@vendure/dashboard";
+import {
+  AnyRoute,
+  api,
+  Button,
+  Card,
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+  Input,
+  Textarea,
+} from "@vendure/dashboard";
 import { useEffect, useMemo, useState } from "react";
 
 import { graphql } from "@/gql";
@@ -116,6 +127,7 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
         });
         navigate({
           to: "/consignment/quotations",
+          search: { storeId },
         });
       }
     } finally {
@@ -151,51 +163,70 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
     >
       <Card className="space-y-4 p-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Consignment Store</label>
-          <div className="rounded-md border px-3 py-2 text-sm">
-            {selectedStore
-              ? `${selectedStore.name}${selectedStore.emailAddress ? ` (${selectedStore.emailAddress})` : ""}`
-              : storeId
-                ? `Store #${storeId}`
-                : "Not selected"}
-          </div>
-          <div>
-            Default discount:{" "}
-            {selectedStore?.defaultDiscountPercent
-              ? `${selectedStore.defaultDiscountPercent}%`
-              : "None"}
-          </div>
+          <Field>
+            <FieldLabel>Consignment Store</FieldLabel>
+            <FieldContent>
+              <Input
+                value={
+                  selectedStore
+                    ? `${selectedStore.name}${selectedStore.emailAddress ? ` (${selectedStore.emailAddress})` : ""}`
+                    : storeId
+                      ? `Store #${storeId}`
+                      : "Not selected"
+                }
+                readOnly
+              />
+            </FieldContent>
+            <FieldDescription>
+              Default discount:{" "}
+              {selectedStore?.defaultDiscountPercent
+                ? `${selectedStore.defaultDiscountPercent}%`
+                : "None"}
+            </FieldDescription>
+          </Field>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Product Variant</label>
-          <ProductVariantSearchSelect
-            value={productVariantId}
-            onChange={setProductVariantId}
-            placeholder="Search product variant..."
-            disabled={!isNew}
-          />
+          <Field>
+            <FieldLabel>Product Variant</FieldLabel>
+            <FieldContent>
+              <ProductVariantSearchSelect
+                value={productVariantId}
+                onChange={setProductVariantId}
+                placeholder="Search product variant..."
+                disabled={!isNew}
+              />
+            </FieldContent>
+          </Field>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Consignment Price</label>
-          <Input
-            type="number"
-            min={0}
-            step="0.01"
-            value={consignmentPrice}
-            onChange={(event) => setConsignmentPrice(event.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">
-            Stored money value:{" "}
-            {formatMoney(Math.round(Number(consignmentPrice || 0) * 100))}
-          </p>
+          <Field>
+            <FieldLabel>Consignment Price</FieldLabel>
+            <FieldContent>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={consignmentPrice}
+                onChange={(event) => setConsignmentPrice(event.target.value)}
+              />
+            </FieldContent>
+            <FieldDescription>
+              Stored money value:{" "}
+              {formatMoney(Math.round(Number(consignmentPrice || 0) * 100))}
+            </FieldDescription>
+          </Field>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Note</label>
-          <textarea
-            className="min-h-[100px] w-full rounded-md border px-3 py-2 text-sm"
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-          />
+          <Field>
+            <FieldLabel>Note</FieldLabel>
+            <FieldContent>
+              <Textarea
+                className="min-h-[100px] w-full rounded-md border px-3 py-2 text-sm"
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+              />
+            </FieldContent>
+          </Field>
         </div>
       </Card>
       {!storeId ? <EmptyState title="Select a store first" /> : null}

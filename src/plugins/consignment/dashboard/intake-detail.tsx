@@ -1,4 +1,13 @@
-import { AnyRoute, api, Button, Card, Input } from "@vendure/dashboard";
+import {
+  AnyRoute,
+  api,
+  Button,
+  Card,
+  Field,
+  FieldContent,
+  FieldLabel,
+  Input,
+} from "@vendure/dashboard";
 import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
@@ -118,7 +127,7 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
         }
       } else {
         await api.mutate(UPDATE_INTAKE, { input: { id: params.id, ...input } });
-        navigate({ to: "/consignment/intakes" });
+        navigate({ to: "/consignment/intakes", search: { storeId } });
       }
     } finally {
       setSaving(false);
@@ -152,57 +161,86 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
       }
     >
       <Card className="space-y-4 p-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Consignment Store</label>
-            <div className="rounded-md border px-3 py-2 text-sm">
-              {selectedStore
-                ? `${selectedStore.name}${selectedStore.emailAddress ? ` (${selectedStore.emailAddress})` : ""}`
-                : storeId
-                  ? `Store #${storeId}`
-                  : "Not selected"}
-            </div>
+        <div className="lg:grid grid-cols-12 gap-4">
+          <div className="space-y-2 col-span-12">
+            <Field>
+              <FieldLabel>Consignment Store</FieldLabel>
+              <FieldContent>
+                <Input
+                  value={
+                    selectedStore
+                      ? `${selectedStore.name}${selectedStore.emailAddress ? ` (${selectedStore.emailAddress})` : ""}`
+                      : storeId
+                        ? `Store #${storeId}`
+                        : "Not selected"
+                  }
+                  readOnly
+                />
+              </FieldContent>
+            </Field>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Intake date</label>
-            <Input
-              type="date"
-              value={intakeDate}
-              onChange={(event) => setIntakeDate(event.target.value)}
-            />
+          <div className="space-y-2 col-span-6">
+            <Field>
+              <FieldLabel>Intake date</FieldLabel>
+              <FieldContent>
+                <Input
+                  type="date"
+                  value={intakeDate}
+                  onChange={(event) => setIntakeDate(event.target.value)}
+                />
+              </FieldContent>
+            </Field>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Payment policy</label>
-            <Input
-              value={paymentPolicy}
-              onChange={(event) => setPaymentPolicy(event.target.value)}
-              placeholder="COD, Pay later"
-            />
+          <div className="space-y-2 col-span-6">
+            <Field>
+              <FieldLabel>Default discount</FieldLabel>
+              <FieldContent>
+                <Input
+                  value={paymentPolicy}
+                  onChange={(event) => setPaymentPolicy(event.target.value)}
+                  placeholder="COD, Pay later"
+                />
+              </FieldContent>
+            </Field>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Delivery method</label>
-            <Input
-              value={deliveryMethod}
-              onChange={(event) => setDeliveryMethod(event.target.value)}
-              placeholder="Self delivery, External"
-            />
+          <div className="space-y-2 col-span-4">
+            <Field>
+              <FieldLabel>Delivery method</FieldLabel>
+              <FieldContent>
+                <Input
+                  value={deliveryMethod}
+                  onChange={(event) => setDeliveryMethod(event.target.value)}
+                  placeholder="Self delivery, External"
+                />
+              </FieldContent>
+            </Field>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Tracking code</label>
-            <Input
-              value={deliveryTrackingCode}
-              onChange={(event) => setDeliveryTrackingCode(event.target.value)}
-            />
+          <div className="space-y-2 col-span-4">
+            <Field>
+              <FieldLabel>Tracking code</FieldLabel>
+              <FieldContent>
+                <Input
+                  value={deliveryTrackingCode}
+                  onChange={(event) =>
+                    setDeliveryTrackingCode(event.target.value)
+                  }
+                />
+              </FieldContent>
+            </Field>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Delivery cost</label>
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
-              value={deliveryCost}
-              onChange={(event) => setDeliveryCost(event.target.value)}
-            />
+          <div className="space-y-2 col-span-4">
+            <Field>
+              <FieldLabel>Delivery cost</FieldLabel>
+              <FieldContent>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={deliveryCost}
+                  onChange={(event) => setDeliveryCost(event.target.value)}
+                />
+              </FieldContent>
+            </Field>
           </div>
         </div>
       </Card>

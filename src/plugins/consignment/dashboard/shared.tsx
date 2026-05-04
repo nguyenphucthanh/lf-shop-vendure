@@ -11,6 +11,9 @@ import {
   ComboboxList,
   ComboboxTrigger,
   ComboboxValue,
+  Field,
+  FieldContent,
+  FieldLabel,
   Input,
   Table,
   TableBody,
@@ -329,16 +332,18 @@ export function StoreFilterCard(props: {
 }) {
   return (
     <Card className="p-4">
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Consignment Store</label>
-        <CustomerSearchSelect
-          value={props.storeId}
-          onChange={props.onStoreChange}
-          filterOptions={{ isConsignment: true }}
-          placeholder="Search consignment store..."
-          disabled={props.loading}
-        />
-      </div>
+      <Field>
+        <FieldLabel>Consignment Store</FieldLabel>
+        <FieldContent>
+          <CustomerSearchSelect
+            value={props.storeId}
+            onChange={props.onStoreChange}
+            filterOptions={{ isConsignment: true }}
+            placeholder="Search consignment store..."
+            disabled={props.loading}
+          />
+        </FieldContent>
+      </Field>
     </Card>
   );
 }
@@ -430,133 +435,149 @@ export function LineItemsEditor(props: {
               className="@3xl:grid grid-cols-12 gap-3 rounded-md border p-3 space-y-3 @3xl:space-y-0"
             >
               <div className="col-span-5 space-y-1">
-                <label className="text-sm font-medium">Quotation</label>
-                <Combobox
-                  items={quotations}
-                  value={quotation ?? null}
-                  disabled={loading}
-                  onValueChange={(nextValue) => {
-                    const selectedQuotation =
-                      (nextValue as QuotationOption | null) ?? null;
-                    update(index, {
-                      quotationId: selectedQuotation?.id ?? "",
-                      consignmentPriceSnapshot:
-                        selectedQuotation?.consignmentPrice ?? 0,
-                    });
-                  }}
-                  itemToStringValue={(item) => item.id}
-                >
-                  <ComboboxTrigger
-                    className={
-                      "w-full border p-2 flex items-center gap-2 rounded-sm"
-                    }
-                  >
-                    <ComboboxValue placeholder="Select quotation">
-                      {(quotation) => {
-                        return (
-                          <div className="flex grow items-start gap-3 justify-start text-left">
-                            <div className="h-6 w-6 shrink-0 overflow-hidden rounded border bg-muted">
-                              {quotation?.productVariantFeaturedAsset
-                                ?.preview ? (
-                                <img
-                                  src={
-                                    quotation.productVariantFeaturedAsset
-                                      .preview
-                                  }
-                                  alt={quotation.productVariantName}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : null}
-                            </div>
-                            <div className="min-w-0 flex-1 truncate text-sm flex divide-x space-x-2">
-                              <div className="font-semibold pr-2">
-                                {quotation?.productVariantName}
-                              </div>
-                              <div className="text-gray-700 pr-2">
-                                SKU: {quotation?.productVariantSku}
-                              </div>
-                            </div>
-                          </div>
-                        );
+                <Field>
+                  <FieldLabel>Quotation</FieldLabel>
+                  <FieldContent>
+                    <Combobox
+                      items={quotations}
+                      value={quotation ?? null}
+                      disabled={loading}
+                      onValueChange={(nextValue) => {
+                        const selectedQuotation =
+                          (nextValue as QuotationOption | null) ?? null;
+                        update(index, {
+                          quotationId: selectedQuotation?.id ?? "",
+                          consignmentPriceSnapshot:
+                            selectedQuotation?.consignmentPrice ?? 0,
+                        });
                       }}
-                    </ComboboxValue>
-                  </ComboboxTrigger>
-                  <ComboboxContent>
-                    <ComboboxInput
-                      placeholder="Select quotation"
-                      showClear
-                      showTrigger={false}
+                      itemToStringValue={(item) => item.id}
+                    >
+                      <ComboboxTrigger
+                        className={
+                          "w-full border p-2 flex items-center gap-2 rounded-sm"
+                        }
+                      >
+                        <ComboboxValue placeholder="Select quotation">
+                          {(quotation) => {
+                            return (
+                              <div className="flex grow items-start gap-3 justify-start text-left">
+                                <div className="h-6 w-6 shrink-0 overflow-hidden rounded border bg-muted">
+                                  {quotation?.productVariantFeaturedAsset
+                                    ?.preview ? (
+                                    <img
+                                      src={
+                                        quotation.productVariantFeaturedAsset
+                                          .preview
+                                      }
+                                      alt={quotation.productVariantName}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : null}
+                                </div>
+                                <div className="min-w-0 flex-1 truncate text-sm flex divide-x space-x-2">
+                                  <div className="font-semibold pr-2">
+                                    {quotation?.productVariantName}
+                                  </div>
+                                  <div className="text-gray-700 pr-2">
+                                    SKU: {quotation?.productVariantSku}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }}
+                        </ComboboxValue>
+                      </ComboboxTrigger>
+                      <ComboboxContent>
+                        <ComboboxInput
+                          placeholder="Select quotation"
+                          showClear
+                          showTrigger={false}
+                        />
+                        <ComboboxList>
+                          <ComboboxCollection>
+                            {(option: QuotationOption) => (
+                              <ComboboxItem value={option} key={option.id}>
+                                <div className="flex w-full items-center gap-3">
+                                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded border bg-muted">
+                                    {option.productVariantFeaturedAsset
+                                      ?.preview ? (
+                                      <img
+                                        src={
+                                          option.productVariantFeaturedAsset
+                                            .preview
+                                        }
+                                        alt={option.productVariantName}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    ) : null}
+                                  </div>
+                                  <div className="min-w-0 flex-1 truncate text-sm">
+                                    <div className="font-semibold">
+                                      {option.productVariantName}
+                                    </div>
+                                    <div className="text-gray-700">
+                                      SKU: {option.productVariantSku}
+                                    </div>
+                                    <div className="shrink-0 text-sm font-bold">
+                                      {formatMoney(option.consignmentPrice)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </ComboboxItem>
+                            )}
+                          </ComboboxCollection>
+                        </ComboboxList>
+                        <ComboboxEmpty>No quotations found.</ComboboxEmpty>
+                      </ComboboxContent>
+                    </Combobox>
+                  </FieldContent>
+                </Field>
+              </div>
+
+              <div className="col-span-2 space-y-1">
+                <Field>
+                  <FieldLabel>Price</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={String((line.consignmentPriceSnapshot ?? 0) / 100)}
+                      onChange={(event) =>
+                        update(index, {
+                          consignmentPriceSnapshot: Math.round(
+                            Number(event.target.value || 0) * 100,
+                          ),
+                        })
+                      }
                     />
-                    <ComboboxList>
-                      <ComboboxCollection>
-                        {(option: QuotationOption) => (
-                          <ComboboxItem value={option} key={option.id}>
-                            <div className="flex w-full items-center gap-3">
-                              <div className="h-16 w-16 shrink-0 overflow-hidden rounded border bg-muted">
-                                {option.productVariantFeaturedAsset?.preview ? (
-                                  <img
-                                    src={
-                                      option.productVariantFeaturedAsset.preview
-                                    }
-                                    alt={option.productVariantName}
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : null}
-                              </div>
-                              <div className="min-w-0 flex-1 truncate text-sm">
-                                <div className="font-semibold">
-                                  {option.productVariantName}
-                                </div>
-                                <div className="text-gray-700">
-                                  SKU: {option.productVariantSku}
-                                </div>
-                                <div className="shrink-0 text-sm font-bold">
-                                  {formatMoney(option.consignmentPrice)}
-                                </div>
-                              </div>
-                            </div>
-                          </ComboboxItem>
-                        )}
-                      </ComboboxCollection>
-                    </ComboboxList>
-                    <ComboboxEmpty>No quotations found.</ComboboxEmpty>
-                  </ComboboxContent>
-                </Combobox>
+                  </FieldContent>
+                </Field>
               </div>
 
               <div className="col-span-2 space-y-1">
-                <label className="text-sm font-medium">Price</label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={String((line.consignmentPriceSnapshot ?? 0) / 100)}
-                  onChange={(event) =>
-                    update(index, {
-                      consignmentPriceSnapshot: Math.round(
-                        Number(event.target.value || 0) * 100,
-                      ),
-                    })
-                  }
-                />
-              </div>
-
-              <div className="col-span-2 space-y-1">
-                <label className="text-sm font-medium">Quantity</label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={String(line.quantity)}
-                  onChange={(event) =>
-                    update(index, { quantity: Number(event.target.value || 0) })
-                  }
-                />
+                <Field>
+                  <FieldLabel>Quantity</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={String(line.quantity)}
+                      onChange={(event) =>
+                        update(index, {
+                          quantity: Number(event.target.value || 0),
+                        })
+                      }
+                    />
+                  </FieldContent>
+                </Field>
               </div>
               <div className="col-span-2 space-y-1 flex flex-col items-end">
-                <label className="text-sm font-medium">Subtotal</label>
-                <div className="text-sm font-medium">
-                  {formatMoney(subtotal)}
-                </div>
+                <Field>
+                  <FieldLabel>Subtotal</FieldLabel>
+                  <FieldContent>{formatMoney(subtotal)}</FieldContent>
+                </Field>
               </div>
               <div className="col-span-1 text-right">
                 <Button
