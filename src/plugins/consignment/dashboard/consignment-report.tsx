@@ -167,7 +167,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
 
   const debtSummary =
     intakeSummary -
-    (paymentSummary.subtotal ?? 0) -
+    (paymentSummary.total ?? 0) -
     returnSummary;
 
   return (

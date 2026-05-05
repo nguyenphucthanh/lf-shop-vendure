@@ -10,7 +10,7 @@ import {
   useLocalFormat,
 } from "@vendure/dashboard";
 import { toast } from "sonner";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
 
@@ -78,11 +78,14 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
     new Date().toISOString().slice(0, 10),
   );
   const [items, setItems] = useState<LineItemDraft[]>([]);
+  const [initialDocumentQtyByQuotation, setInitialDocumentQtyByQuotation] =
+    useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (isNew || !params.id) {
       setItems([]);
+      setInitialDocumentQtyByQuotation({});
       return;
     }
     void api.query(GET_SOLD, { id: params.id }).then((result) => {
@@ -98,16 +101,17 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
           currency: item.currency ?? "USD",
         })),
       );
+      const baseline = (sold.items ?? []).reduce<Record<string, number>>(
+        (acc, item) => {
+          const quotationId = String(item.quotationId);
+          acc[quotationId] = (acc[quotationId] ?? 0) + Number(item.quantity ?? 0);
+          return acc;
+        },
+        {},
+      );
+      setInitialDocumentQtyByQuotation(baseline);
     });
   }, [isNew, params.id]);
-
-  const initialDocumentQtyByQuotation = useMemo(() => {
-    const next: Record<string, number> = {};
-    for (const item of items) {
-      next[item.quotationId] = (next[item.quotationId] ?? 0) + item.quantity;
-    }
-    return next;
-  }, [items]);
 
   async function save() {
     setSaving(true);
