@@ -13,6 +13,7 @@ import { ReturnDetailPage } from "./return-detail";
 import { ReturnListPage } from "./return-list";
 import { SoldDetailPage } from "./sold-detail";
 import { SoldListPage } from "./sold-list";
+import { TotalReportPage } from "./total-report";
 import {
   INTAKE_BY_ID,
   PAYMENT_BY_ID,
@@ -229,6 +230,18 @@ defineDashboardExtension({
         />
       ),
       validateSearch: commonStoreSearchSchema,
+    },
+    {
+      path: "/consignment/total-report",
+      component: () => <TotalReportPage />,
+      loader: () => ({ breadcrumb: [{ label: "Total Report" }] }),
+      navMenuItem: {
+        sectionId: "consignment",
+        id: "consignment-total-report",
+        title: "Total Report",
+        order: 200,
+        url: "/consignment/total-report",
+      },
     },
   ],
 });

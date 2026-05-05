@@ -223,6 +223,29 @@ export const adminApiExtensions = gql`
     consignmentReturns(storeId: ID!): [ConsignmentReturn!]!
     consignmentReturn(id: ID!): ConsignmentReturn
     consignmentReport(storeId: ID!): [ConsignmentReportRow!]!
+    consignmentTotalReport: ConsignmentTotalReport!
+  }
+
+  type ConsignmentTotalReportSummary {
+    totalStores: Int!
+    totalCollectedPayments: Money!
+    totalIntakeItems: Int!
+  }
+
+  type ConsignmentTotalReportVariantRow {
+    productVariantId: ID!
+    productNameTranslations: [TranslatedString!]!
+    variantNameTranslations: [TranslatedString!]!
+    sku: String!
+    featuredAsset: Asset
+    totalIntakeQty: Int!
+    totalSoldQty: Int!
+    totalReturnedQty: Int!
+  }
+
+  type ConsignmentTotalReport {
+    summary: ConsignmentTotalReportSummary!
+    rows: [ConsignmentTotalReportVariantRow!]!
   }
 
   extend type Mutation {

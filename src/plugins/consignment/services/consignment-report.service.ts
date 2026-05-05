@@ -6,6 +6,7 @@ import { ConsignmentIntakeItem } from "../entities/consignment-intake-item.entit
 import { ConsignmentReturnItem } from "../entities/consignment-return-item.entity";
 import { ConsignmentQuotation } from "../entities/consignment-quotation.entity";
 import { ConsignmentSoldItem } from "../entities/consignment-sold-item.entity";
+import { ConsignmentPayment } from "../entities/consignment-payment.entity";
 
 export interface ConsignmentReportRow {
   quotationId: ID;
@@ -31,6 +32,44 @@ export interface ConsignmentReportRow {
 interface QuantityAggregateRow {
   quotationId: ID;
   qty: string;
+}
+
+interface VariantAggregateRow {
+  productVariantId: string | number;
+  qty: string;
+}
+
+type AssetSnapshot = {
+  id: ID;
+  preview: string;
+  source: string;
+  width: number;
+  height: number;
+  name: string;
+};
+
+type TranslationEntry = { languageCode: string; name: string };
+
+export interface ConsignmentTotalReportVariantRow {
+  productVariantId: ID;
+  productNameTranslations: TranslationEntry[];
+  variantNameTranslations: TranslationEntry[];
+  sku: string;
+  featuredAsset: AssetSnapshot | null;
+  totalIntakeQty: number;
+  totalSoldQty: number;
+  totalReturnedQty: number;
+}
+
+export interface ConsignmentTotalReportSummary {
+  totalStores: number;
+  totalCollectedPayments: number;
+  totalIntakeItems: number;
+}
+
+export interface ConsignmentTotalReportResult {
+  summary: ConsignmentTotalReportSummary;
+  rows: ConsignmentTotalReportVariantRow[];
 }
 
 @Injectable()
@@ -93,9 +132,9 @@ export class ConsignmentReportService {
       .groupBy("si.quotationId")
       .getRawMany()) as QuantityAggregateRow[];
 
-    const soldByQuotation = new Map<ID, number>();
+    const soldByQuotation = new Map<string, number>();
     for (const row of soldRows) {
-      soldByQuotation.set(row.quotationId, Number(row.qty ?? 0));
+      soldByQuotation.set(String(row.quotationId), Number(row.qty ?? 0));
     }
 
     const returnedByQuotation = await this.loadQuantityByQuotation(
@@ -168,9 +207,9 @@ export class ConsignmentReportService {
           }
         : null;
 
-      const intakeQty = intakeByQuotation.get(quotation.id) ?? 0;
-      const soldQty = soldByQuotation.get(quotation.id) ?? 0;
-      const returnedQty = returnedByQuotation.get(quotation.id) ?? 0;
+      const intakeQty = intakeByQuotation.get(String(quotation.id)) ?? 0;
+      const soldQty = soldByQuotation.get(String(quotation.id)) ?? 0;
+      const returnedQty = returnedByQuotation.get(String(quotation.id)) ?? 0;
 
       rows.push({
         quotationId: quotation.id,
@@ -190,6 +229,109 @@ export class ConsignmentReportService {
     return rows;
   }
 
+  async getTotalReport(ctx: RequestContext): Promise<ConsignmentTotalReportResult> {
+    const quotationRepo = this.connection.getRepository(ctx, ConsignmentQuotation);
+    const intakeItemRepo = this.connection.getRepository(ctx, ConsignmentIntakeItem);
+    const soldItemRepo = this.connection.getRepository(ctx, ConsignmentSoldItem);
+    const returnItemRepo = this.connection.getRepository(ctx, ConsignmentReturnItem);
+    const paymentRepo = this.connection.getRepository(ctx, ConsignmentPayment);
+
+    // Run all independent aggregate queries + quotation fetch in parallel
+    const [
+      storeCountRaw,
+      collectedRaw,
+      intakeQtyRaw,
+      quotations,
+      intakeMap,
+      soldMap,
+      returnedMap,
+    ] = await Promise.all([
+      quotationRepo
+        .createQueryBuilder("q")
+        .select("COUNT(DISTINCT q.storeId)", "count")
+        .getRawOne() as Promise<{ count: string }>,
+      paymentRepo
+        .createQueryBuilder("p")
+        .where("p.paymentStatus = :status", { status: "Completed" })
+        .select("COALESCE(SUM(p.total), 0)", "total")
+        .getRawOne() as Promise<{ total: string }>,
+      intakeItemRepo
+        .createQueryBuilder("ii")
+        .select("COALESCE(SUM(ii.quantity), 0)", "qty")
+        .getRawOne() as Promise<{ qty: string }>,
+      quotationRepo.find({
+        relations: [
+          "productVariant",
+          "productVariant.product",
+          "productVariant.product.translations",
+          "productVariant.translations",
+          "productVariant.featuredAsset",
+        ],
+        order: { createdAt: "ASC" },
+      }),
+      this.loadQuantityByVariant(intakeItemRepo, "ii"),
+      this.loadQuantityByVariant(soldItemRepo, "si"),
+      this.loadQuantityByVariant(returnItemRepo, "ri"),
+    ]);
+
+    const totalStores = Number(storeCountRaw?.count ?? 0);
+    const totalCollectedPayments = Number(collectedRaw?.total ?? 0);
+    const totalIntakeItems = Number(intakeQtyRaw?.qty ?? 0);
+
+    // Deduplicate by productVariantId; quotations are ordered by createdAt so the
+    // oldest quotation's variant info is used consistently across loads.
+    const seenVariantIds = new Set<string>();
+    const rows: ConsignmentTotalReportVariantRow[] = [];
+
+    for (const quotation of quotations) {
+      const variantId = String(quotation.productVariantId);
+      if (seenVariantIds.has(variantId)) continue;
+      seenVariantIds.add(variantId);
+
+      const variant = quotation.productVariant;
+      const product = variant?.product;
+
+      const productNameTranslations: TranslationEntry[] = [];
+      if (product?.name) {
+        productNameTranslations.push({ languageCode: "", name: String(product.name) });
+      }
+      if (Array.isArray(product?.translations)) {
+        for (const t of product.translations) {
+          productNameTranslations.push({ languageCode: t.languageCode, name: String(t.name) });
+        }
+      }
+
+      const variantNameTranslations: TranslationEntry[] = [];
+      if (variant?.name) {
+        variantNameTranslations.push({ languageCode: "", name: String(variant.name) });
+      }
+      if (Array.isArray(variant?.translations)) {
+        for (const t of variant.translations) {
+          variantNameTranslations.push({ languageCode: t.languageCode, name: String(t.name) });
+        }
+      }
+
+      const featuredAsset = variant?.featuredAsset;
+      rows.push({
+        productVariantId: variantId,
+        productNameTranslations,
+        variantNameTranslations,
+        sku: variant?.sku ?? "",
+        featuredAsset: featuredAsset
+          ? { id: featuredAsset.id, preview: featuredAsset.preview, source: featuredAsset.source, width: featuredAsset.width, height: featuredAsset.height, name: featuredAsset.name }
+          : null,
+        totalIntakeQty: intakeMap.get(variantId) ?? 0,
+        totalSoldQty: soldMap.get(variantId) ?? 0,
+        totalReturnedQty: returnedMap.get(variantId) ?? 0,
+      });
+    }
+
+    return {
+      summary: { totalStores, totalCollectedPayments, totalIntakeItems },
+      rows,
+    };
+  }
+
   private async loadQuantityByQuotation(
     repository: ReturnType<TransactionalConnection["getRepository"]>,
     rootAlias: string,
@@ -197,7 +339,7 @@ export class ConsignmentReportService {
     relationAlias: string,
     storeId: ID,
     quotationIds: ID[],
-  ): Promise<Map<ID, number>> {
+  ): Promise<Map<string, number>> {
     const rows = (await repository
       .createQueryBuilder(rootAlias)
       .innerJoin(relationPath, relationAlias)
@@ -210,10 +352,30 @@ export class ConsignmentReportService {
       .groupBy(`${rootAlias}.quotationId`)
       .getRawMany()) as QuantityAggregateRow[];
 
-    const byQuotation = new Map<ID, number>();
+    const byQuotation = new Map<string, number>();
     for (const row of rows) {
-      byQuotation.set(row.quotationId, Number(row.qty ?? 0));
+      byQuotation.set(String(row.quotationId), Number(row.qty ?? 0));
     }
     return byQuotation;
+  }
+
+  /** Aggregates item quantity across ALL stores, grouped by the quotation's productVariantId. */
+  private async loadQuantityByVariant(
+    repository: ReturnType<TransactionalConnection["getRepository"]>,
+    alias: string,
+  ): Promise<Map<string, number>> {
+    const rows = (await repository
+      .createQueryBuilder(alias)
+      .innerJoin(`${alias}.quotation`, "q")
+      .select("q.productVariantId", "productVariantId")
+      .addSelect(`COALESCE(SUM(${alias}.quantity), 0)`, "qty")
+      .groupBy("q.productVariantId")
+      .getRawMany()) as VariantAggregateRow[];
+
+    const byVariant = new Map<string, number>();
+    for (const row of rows) {
+      byVariant.set(String(row.productVariantId), Number(row.qty ?? 0));
+    }
+    return byVariant;
   }
 }

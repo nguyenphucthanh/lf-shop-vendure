@@ -279,6 +279,20 @@ export function useStore(storeId?: string | null) {
   return { store, loading };
 }
 
+export function getTranslatedName(
+  translations: Array<{ languageCode: string; name: string }> | undefined,
+  preferredLanguageCode?: string,
+): string {
+  if (!translations || translations.length === 0) return "";
+  if (preferredLanguageCode) {
+    const match = translations.find((t) => t.languageCode === preferredLanguageCode);
+    if (match) return match.name;
+  }
+  const contextDefault = translations.find((t) => t.languageCode === "");
+  if (contextDefault) return contextDefault.name;
+  return translations[0]?.name ?? "";
+}
+
 export function useProductVariant(id: string) {
   const [variant, setVariant] = useState<ProductVariantOption | null>(null);
 

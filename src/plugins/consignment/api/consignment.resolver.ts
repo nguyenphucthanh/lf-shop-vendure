@@ -270,6 +270,12 @@ export class ConsignmentResolver {
   ) {
     return this.reportService.getReport(ctx, storeId);
   }
+
+  @Query()
+  @Allow(Permission.ReadCustomer)
+  consignmentTotalReport(@Ctx() ctx: RequestContext) {
+    return this.reportService.getTotalReport(ctx);
+  }
 }
 
 @Resolver("ConsignmentQuotation")

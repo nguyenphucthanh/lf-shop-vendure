@@ -22,29 +22,7 @@ import { useEffect, useState } from "react";
 import { TriangleAlert } from "lucide-react";
 
 import { graphql } from "@/gql";
-
-// Helper to get translated name based on language code
-function getTranslatedName(
-  translations: Array<{ languageCode: string; name: string }> | undefined,
-  preferredLanguageCode?: string,
-): string {
-  if (!translations || translations.length === 0) return "";
-
-  // Try to find exact match for preferred language
-  if (preferredLanguageCode) {
-    const match = translations.find(
-      (t) => t.languageCode === preferredLanguageCode,
-    );
-    if (match) return match.name;
-  }
-
-  // Fallback to empty languageCode (context default)
-  const contextDefault = translations.find((t) => t.languageCode === "");
-  if (contextDefault) return contextDefault.name;
-
-  // Fallback to first available translation
-  return translations[0]?.name ?? "";
-}
+import { getTranslatedName } from "./shared";
 
 const GET_REPORT = graphql(`
   query ConsignmentReport($storeId: ID!) {
@@ -166,9 +144,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
   }, [storeId]);
 
   const debtSummary =
-    intakeSummary -
-    (paymentSummary.total ?? 0) -
-    returnSummary;
+    intakeSummary - (paymentSummary.total ?? 0) - returnSummary;
 
   return (
     <div className="space-y-4">
@@ -179,7 +155,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
               <CardTitle>∑ Intake</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold text-right">
+              <p className="text-2xl font-semibold">
                 {formatCurrency(intakeSummary, "USD")}
               </p>
             </CardContent>
@@ -191,12 +167,12 @@ export function ConsignmentReportPage(props: { storeId: string }) {
               <CardTitle>∑ Paid</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold text-right">
+              <p className="text-2xl font-semibold">
                 {formatCurrency(paymentSummary.subtotal, "USD")}
               </p>
             </CardContent>
             <CardFooter>
-              <p className="text-md font-semibold text-right">
+              <p className="text-md text-muted-foreground">
                 Discount in payments:{" "}
                 {formatCurrency(paymentSummary.discount, "USD")}
               </p>
@@ -209,7 +185,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
               <CardTitle>∑ Returned</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold text-right">
+              <p className="text-2xl font-semibold">
                 {formatCurrency(returnSummary, "USD")}
               </p>
             </CardContent>
@@ -221,7 +197,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
               <CardTitle>∑ Debt</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold text-right">
+              <p className="text-2xl font-semibold">
                 {formatCurrency(debtSummary, "USD")}
               </p>
             </CardContent>
