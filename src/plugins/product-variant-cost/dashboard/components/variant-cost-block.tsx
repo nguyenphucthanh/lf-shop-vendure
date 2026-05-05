@@ -56,6 +56,13 @@ const DELETE_VARIANT_COST = graphql(`
   }
 `);
 
+type VariantCost = {
+  id: string;
+  currencyCode: string;
+  cost: number;
+  channelId: string;
+};
+
 export function VariantCostBlock({ context }: { context: PageContextValue }) {
   const variantId = context.entity?.id as string | undefined;
   const { activeChannel } = useChannel();
@@ -69,15 +76,13 @@ export function VariantCostBlock({ context }: { context: PageContextValue }) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  // We do a minimal client-side data fetch via the graphql client helper
-  const [costs, setCosts] = useState<
-    Array<{ id: string; currencyCode: string; cost: number; channelId: string }>
-  >([]);
+  const [costs, setCosts] = useState<VariantCost[]>([]);
+  
   useEffect(() => {
     if (!variantId) return;
     api.query(GET_VARIANT_COSTS, { variantId }).then((result) => {
       if (result?.productVariantCosts) {
-        setCosts(result.productVariantCosts as typeof costs);
+        setCosts(result.productVariantCosts as VariantCost[]);
       }
     });
   }, [variantId]);
@@ -90,7 +95,7 @@ export function VariantCostBlock({ context }: { context: PageContextValue }) {
   async function handleSave() {
     if (!variantId || !editCost || !editCurrency) return;
     const costInMinorUnits = Math.round(parseFloat(editCost) * 100);
-    if (isNaN(costInMinorUnits)) {
+    if (isNaN(costInMinorUnits) || costInMinorUnits < 0) {
       toast("Invalid cost value");
       return;
     }
@@ -104,9 +109,7 @@ export function VariantCostBlock({ context }: { context: PageContextValue }) {
           cost: costInMinorUnits,
         },
       });
-      const updated = result?.upsertProductVariantCost as
-        | (typeof costs)[0]
-        | undefined;
+      const updated = result?.upsertProductVariantCost as VariantCost | undefined;
       if (updated) {
         setCosts((prev) => {
           const existing = prev.findIndex((c) => c.id === updated.id);
@@ -127,10 +130,13 @@ export function VariantCostBlock({ context }: { context: PageContextValue }) {
 
   async function handleDelete(id: string) {
     setDeleting(id);
-    await api.mutate(DELETE_VARIANT_COST, { id });
-    setCosts((prev) => prev.filter((c) => c.id !== id));
-    setDeleting(null);
-    toast("Cost deleted");
+    try {
+      await api.mutate(DELETE_VARIANT_COST, { id });
+      setCosts((prev) => prev.filter((c) => c.id !== id));
+      toast("Cost deleted");
+    } finally {
+      setDeleting(null);
+    }
   }
 
   if (!variantId) return null;

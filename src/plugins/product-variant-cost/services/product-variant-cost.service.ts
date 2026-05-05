@@ -1,10 +1,33 @@
 import { CurrencyCode } from '@vendure/common/lib/generated-types';
 import { ID } from '@vendure/common/lib/shared-types';
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { Between } from 'typeorm';
 import { Channel, Order, OrderLine, RequestContext, TransactionalConnection } from '@vendure/core';
 
 import { ProductVariantCost } from '../entities/product-variant-cost.entity';
+
+interface OrderLineCustomFields {
+    costSnapshot?: number | null;
+    costCurrencyCodeSnapshot?: string | null;
+}
+
+function isOrderLineCustomFields(obj: unknown): obj is OrderLineCustomFields {
+    return obj != null && typeof obj === 'object';
+}
+
+function getCostSnapshot(customFields: unknown): number {
+    if (isOrderLineCustomFields(customFields) && typeof customFields.costSnapshot === 'number') {
+        return customFields.costSnapshot;
+    }
+    return 0;
+}
+
+function getCostCurrencyCodeSnapshot(customFields: unknown): string | null {
+    if (isOrderLineCustomFields(customFields) && typeof customFields.costCurrencyCodeSnapshot === 'string') {
+        return customFields.costCurrencyCodeSnapshot;
+    }
+    return null;
+}
 
 @Injectable()
 export class ProductVariantCostService {
@@ -47,6 +70,21 @@ export class ProductVariantCostService {
         ctx: RequestContext,
         input: { variantId: ID; channelId: ID; currencyCode: string; cost: number },
     ): Promise<ProductVariantCost> {
+        // Validate inputs
+        if (!input.variantId || !input.channelId || !input.currencyCode) {
+            throw new BadRequestException('variantId, channelId, and currencyCode are required');
+        }
+
+        if (typeof input.cost !== 'number' || input.cost < 0 || !Number.isInteger(input.cost)) {
+            throw new BadRequestException('cost must be a non-negative integer');
+        }
+
+        // Validate currency code is a valid CurrencyCode
+        const validCurrencyCodes = Object.values(CurrencyCode);
+        if (!validCurrencyCodes.includes(input.currencyCode as CurrencyCode)) {
+            throw new BadRequestException(`Invalid currency code: ${input.currencyCode}`);
+        }
+
         const repo = this.connection.getRepository(ctx, ProductVariantCost);
         let record = await repo.findOne({
             where: {
@@ -98,6 +136,10 @@ export class ProductVariantCostService {
         from: Date,
         to: Date,
     ) {
+        if (!ctx.channel?.defaultCurrencyCode) {
+            throw new BadRequestException('Channel currency not configured');
+        }
+
         const orders = await this.connection.getRepository(ctx, Order).find({
             where: {
                 orderPlacedAt: Between(from, to),
@@ -131,7 +173,15 @@ export class ProductVariantCostService {
         for (const order of orders) {
             orderCodes.add(order.code);
             for (const line of order.lines) {
-                const costSnapshot = (line.customFields as any)?.costSnapshot ?? 0;
+                // Use type guard functions instead of unsafe `any` casts
+                const costSnapshot = getCostSnapshot(line.customFields);
+                const costCurrencyCode = getCostCurrencyCodeSnapshot(line.customFields) ?? currencyCode;
+                
+                // Validate required relations are loaded
+                if (!line.productVariant) {
+                    throw new Error(`OrderLine ${line.id} missing productVariant relation`);
+                }
+
                 const unitPrice = line.unitPriceWithTax;
                 const lineTotal = line.linePriceWithTax;
                 const unitCost = costSnapshot;
@@ -145,16 +195,16 @@ export class ProductVariantCostService {
                     orderId: String(order.id),
                     orderCode: order.code,
                     orderDate: order.orderPlacedAt ?? order.createdAt,
-                    productName: line.productVariant?.name ?? '',
-                    variantName: line.productVariant?.name ?? '',
-                    sku: line.productVariant?.sku ?? '',
+                    productName: line.productVariant.name,
+                    variantName: line.productVariant.name,
+                    sku: line.productVariant.sku,
                     quantity: line.quantity,
                     unitPrice,
                     lineTotal,
                     unitCost,
                     lineCost,
                     margin,
-                    currencyCode: (line.customFields as any)?.costCurrencyCodeSnapshot ?? currencyCode,
+                    currencyCode: costCurrencyCode,
                 });
             }
         }

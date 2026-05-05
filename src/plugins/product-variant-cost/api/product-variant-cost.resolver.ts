@@ -11,9 +11,9 @@ export class ProductVariantCostAdminResolver {
     @Allow(Permission.ReadCatalog)
     async productVariantCosts(
         @Ctx() ctx: RequestContext,
-        @Args() args: { variantId: string },
+        @Args('variantId') variantId: string,
     ) {
-        return this.costService.getForVariant(ctx, args.variantId);
+        return this.costService.getForVariant(ctx, variantId);
     }
 
     @Mutation()
@@ -21,9 +21,9 @@ export class ProductVariantCostAdminResolver {
     @Allow(Permission.UpdateCatalog)
     async upsertProductVariantCost(
         @Ctx() ctx: RequestContext,
-        @Args() args: { input: { variantId: string; channelId: string; currencyCode: string; cost: number } },
+        @Args('input') input: { variantId: string; channelId: string; currencyCode: string; cost: number },
     ) {
-        return this.costService.upsert(ctx, args.input);
+        return this.costService.upsert(ctx, input);
     }
 
     @Mutation()
@@ -31,17 +31,18 @@ export class ProductVariantCostAdminResolver {
     @Allow(Permission.UpdateCatalog)
     async deleteProductVariantCost(
         @Ctx() ctx: RequestContext,
-        @Args() args: { id: string },
+        @Args('id') id: string,
     ) {
-        return this.costService.deleteCost(ctx, args.id);
+        return this.costService.deleteCost(ctx, id);
     }
 
     @Query()
     @Allow(Permission.ReadOrder)
     async salesMarginReport(
         @Ctx() ctx: RequestContext,
-        @Args() args: { from: string; to: string },
+        @Args('from') from: string,
+        @Args('to') to: string,
     ) {
-        return this.costService.getSalesMarginReport(ctx, new Date(args.from), new Date(args.to));
+        return this.costService.getSalesMarginReport(ctx, new Date(from), new Date(to));
     }
 }

@@ -34,6 +34,7 @@ import { ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
+import { toast } from "sonner";
 
 const SALES_MARGIN_REPORT = graphql(`
   query SalesMarginReport($from: DateTime!, $to: DateTime!) {
@@ -242,11 +243,41 @@ export function SalesMarginReport() {
     async (f?: string, t?: string) => {
       const fromVal = f ?? from;
       const toVal = t ?? to;
+
+      // Validate date range
+      const fromDate = new Date(fromVal);
+      const toDate = new Date(toVal + "T23:59:59");
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+
+      if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+        toast("Invalid date format");
+        return;
+      }
+
+      if (fromDate > toDate) {
+        toast("From date must be before To date");
+        return;
+      }
+
+      if (toDate > today) {
+        toast("To date cannot be in the future");
+        return;
+      }
+
+      // Prevent queries for more than 1 year to avoid performance issues
+      const daysDiff =
+        (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysDiff > 365) {
+        toast("Date range cannot exceed 365 days");
+        return;
+      }
+
       setLoading(true);
       try {
         const result = await api.query(SALES_MARGIN_REPORT, {
-          from: new Date(fromVal).toISOString(),
-          to: new Date(toVal + "T23:59:59").toISOString(),
+          from: fromDate.toISOString(),
+          to: toDate.toISOString(),
         });
         if (result?.salesMarginReport) {
           setReport(result.salesMarginReport as ReportData);
