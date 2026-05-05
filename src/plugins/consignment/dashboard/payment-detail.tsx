@@ -8,6 +8,12 @@ import {
   FieldDescription,
   FieldLabel,
   Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   useLocalFormat,
 } from "@vendure/dashboard";
 import { toast } from "sonner";
@@ -115,6 +121,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
   const [discount, setDiscount] = useState("0");
   const [soldId, setSoldId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showSoldItems, setShowSoldItems] = useState(true);
 
   useEffect(() => {
     if (!storeId) {
@@ -192,6 +199,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
   const subtotalValue = Math.round(Number(subtotal || 0) * 100);
   const discountValue = Math.round(Number(discount || 0) * 100);
   const totalValue = subtotalValue - discountValue;
+  const selectedSold = soldOptions.find((option) => option.id === soldId) ?? null;
 
   return (
     <SimplePage
@@ -342,6 +350,60 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
               </FieldContent>
             </Field>
           </div>
+
+          {selectedSold ? (
+            <div className="space-y-2 col-span-12">
+              <details
+                className="rounded-md border"
+                open={showSoldItems}
+                onToggle={(event) =>
+                  setShowSoldItems(
+                    (event.target as HTMLDetailsElement).open,
+                  )
+                }
+              >
+                <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium">
+                  Sold items ({selectedSold.items?.length ?? 0})
+                </summary>
+                <div className="px-3 pb-3">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(selectedSold.items ?? []).map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            {item.quotation?.productVariantSku ?? "-"}
+                          </TableCell>
+                          <TableCell>
+                            {item.quotation?.productVariantName ?? "-"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {item.quantity}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {(selectedSold.items?.length ?? 0) === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={3}
+                            className="text-center text-sm text-muted-foreground"
+                          >
+                            No sold items found.
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </TableBody>
+                  </Table>
+                </div>
+              </details>
+            </div>
+          ) : null}
         </div>
       </Card>
     </SimplePage>

@@ -210,7 +210,7 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
           </div>
           <div className="space-y-2 col-span-6">
             <Field>
-              <FieldLabel>Default discount</FieldLabel>
+              <FieldLabel>Payment policy</FieldLabel>
               <FieldContent>
                 <Input
                   value={paymentPolicy}

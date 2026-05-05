@@ -64,6 +64,42 @@ const DELETE_SOLD = graphql(`
   }
 `);
 
+const GET_LINKED_PAYMENT = graphql(`
+  query ConsignmentLinkedPaymentBySold($storeId: ID!) {
+    consignmentPayments(storeId: $storeId) {
+      id
+      soldId
+      paymentDate
+      paymentPolicy
+      paymentMethod
+      paymentStatus
+      subtotal
+      discount
+      total
+    }
+  }
+`);
+
+const CREATE_PAYMENT = graphql(`
+  mutation CreateConsignmentPaymentFromSold($input: CreateConsignmentPaymentInput!) {
+    createConsignmentPayment(input: $input) {
+      id
+    }
+  }
+`);
+
+type LinkedPayment = {
+  id: string;
+  soldId?: string | null;
+  paymentDate: string;
+  paymentPolicy?: string | null;
+  paymentMethod: string;
+  paymentStatus: string;
+  subtotal: number;
+  discount: number;
+  total: number;
+};
+
 export function SoldDetailPage({ route }: { route: AnyRoute }) {
   const { formatCurrency } = useLocalFormat();
   const navigate = route.useNavigate();
@@ -78,21 +114,37 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
     new Date().toISOString().slice(0, 10),
   );
   const [items, setItems] = useState<LineItemDraft[]>([]);
+  const [soldTotal, setSoldTotal] = useState(0);
   const [initialDocumentQtyByQuotation, setInitialDocumentQtyByQuotation] =
     useState<Record<string, number>>({});
+  const [linkedPayment, setLinkedPayment] = useState<LinkedPayment | null>(null);
+  const [linkedPaymentLoading, setLinkedPaymentLoading] = useState(false);
+  const [paymentDrawerOpen, setPaymentDrawerOpen] = useState(false);
+  const [creatingPayment, setCreatingPayment] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (isNew || !params.id) {
       setItems([]);
+      setSoldTotal(0);
       setInitialDocumentQtyByQuotation({});
+      setLinkedPayment(null);
+      setLinkedPaymentLoading(false);
+      setPaymentDrawerOpen(false);
       return;
     }
+    setLinkedPayment(null);
+    setPaymentDrawerOpen(false);
+    setLinkedPaymentLoading(true);
     void api.query(GET_SOLD, { id: params.id }).then((result) => {
       const sold = result?.consignmentSold;
-      if (!sold) return;
+      if (!sold) {
+        setLinkedPaymentLoading(false);
+        return;
+      }
       setStoreId(String(sold.storeId));
       setSoldDate(isoDate(sold.soldDate));
+      setSoldTotal(Number(sold.total ?? 0));
       setItems(
         (sold.items ?? []).map((item) => ({
           quotationId: String(item.quotationId),
@@ -110,8 +162,55 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
         {},
       );
       setInitialDocumentQtyByQuotation(baseline);
+
+      void api
+        .query(GET_LINKED_PAYMENT, { storeId: String(sold.storeId) })
+        .then((paymentResult) => {
+          const payment = (paymentResult?.consignmentPayments ?? []).find(
+            (item) => String(item.soldId ?? "") === String(sold.id),
+          );
+          setLinkedPayment((payment as LinkedPayment | undefined) ?? null);
+        })
+        .finally(() => {
+          setLinkedPaymentLoading(false);
+        });
     });
   }, [isNew, params.id]);
+
+  async function createPaymentForSold() {
+    if (!params.id || isNew) return;
+    setCreatingPayment(true);
+    try {
+      if (linkedPaymentLoading) {
+        return;
+      }
+      if (linkedPayment) {
+        setPaymentDrawerOpen(true);
+        return;
+      }
+      const result = await api.mutate(CREATE_PAYMENT, {
+        input: {
+          storeId,
+          paymentDate: toDateTimeInput(isoDate(soldDate) || new Date().toISOString().slice(0, 10)),
+          paymentPolicy: null,
+          paymentMethod: "Cash",
+          paymentStatus: "Pending",
+          subtotal: soldTotal,
+          discount: 0,
+          soldId: params.id,
+        },
+      });
+      const paymentId = result?.createConsignmentPayment?.id;
+      if (!paymentId) {
+        throw new Error("Cannot create payment");
+      }
+      navigate({ to: `/consignment/payments/${paymentId}` });
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setCreatingPayment(false);
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -172,6 +271,30 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
       actions={
         <>
           {!isNew ? (
+            linkedPaymentLoading ? (
+              <Button variant="secondary" disabled>
+                Checking linked payment...
+              </Button>
+            ) : linkedPayment ? (
+              <Button
+                variant="secondary"
+                onClick={() => setPaymentDrawerOpen(true)}
+              >
+                Payment details
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                onClick={createPaymentForSold}
+                disabled={creatingPayment || !storeId}
+              >
+                {creatingPayment
+                  ? "Creating payment..."
+                  : "Create payment for this sold"}
+              </Button>
+            )
+          ) : null}
+          {!isNew ? (
             <Button variant="ghost" onClick={remove}>
               Delete
             </Button>
@@ -185,6 +308,24 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
         </>
       }
     >
+      {!isNew ? (
+        <div>
+          <span
+            className={
+              linkedPayment
+                ? "inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700"
+                : "inline-flex items-center rounded-full border border-muted-foreground/20 bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"
+            }
+          >
+            {linkedPayment
+              ? `Linked payment: #${linkedPayment.id}`
+              : linkedPaymentLoading
+                ? "Linked payment: checking..."
+                : "No linked payment"}
+          </span>
+        </div>
+      ) : null}
+
       <Card className="space-y-4 p-4">
         <div className="lg:grid grid-cols-12 gap-4">
           <div className="space-y-2 col-span-12">
@@ -237,6 +378,44 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
           calculateMaxQty="in-sold"
           initialDocumentQtyByQuotation={initialDocumentQtyByQuotation}
         />
+      ) : null}
+
+      {linkedPayment && paymentDrawerOpen ? (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
+          <div className="h-full w-full max-w-md bg-background p-4 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Payment details</h3>
+              <Button variant="ghost" onClick={() => setPaymentDrawerOpen(false)}>
+                Close
+              </Button>
+            </div>
+            <Card className="space-y-3 p-4">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="text-muted-foreground">Payment ID</div>
+                <div>{linkedPayment.id}</div>
+                <div className="text-muted-foreground">Date</div>
+                <div>{isoDate(linkedPayment.paymentDate)}</div>
+                <div className="text-muted-foreground">Method</div>
+                <div>{linkedPayment.paymentMethod}</div>
+                <div className="text-muted-foreground">Status</div>
+                <div>{linkedPayment.paymentStatus}</div>
+                <div className="text-muted-foreground">Policy</div>
+                <div>{linkedPayment.paymentPolicy ?? "-"}</div>
+                <div className="text-muted-foreground">Subtotal</div>
+                <div>{formatCurrency(linkedPayment.subtotal, "USD")}</div>
+                <div className="text-muted-foreground">Discount</div>
+                <div>{formatCurrency(linkedPayment.discount, "USD")}</div>
+                <div className="text-muted-foreground">Total</div>
+                <div>{formatCurrency(linkedPayment.total, "USD")}</div>
+              </div>
+              <Button
+                onClick={() => navigate({ to: `/consignment/payments/${linkedPayment.id}` })}
+              >
+                Open payment page
+              </Button>
+            </Card>
+          </div>
+        </div>
       ) : null}
     </SimplePage>
   );
