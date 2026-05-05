@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ID } from '@vendure/common/lib/shared-types';
 import { RequestContext, TransactionalConnection, UserInputError } from '@vendure/core';
+import { Not, IsNull } from 'typeorm';
 
 import { ConsignmentIntake } from '../entities/consignment-intake.entity';
 import { ConsignmentIntakeItem } from '../entities/consignment-intake-item.entity';
@@ -40,7 +41,7 @@ export class ConsignmentIntakeService {
 
     async findOne(ctx: RequestContext, id: ID): Promise<ConsignmentIntake | null> {
         return this.connection.getRepository(ctx, ConsignmentIntake).findOne({
-            where: { id },
+            where: { id, storeId: Not(IsNull()) },
             relations: ['store', 'items', 'items.quotation', 'items.quotation.productVariant'],
         });
     }
@@ -92,7 +93,15 @@ export class ConsignmentIntakeService {
         const itemRepo = this.connection.getRepository(ctx, ConsignmentIntakeItem);
         const quotationRepo = this.connection.getRepository(ctx, ConsignmentQuotation);
 
-        const intake = await this.connection.getEntityOrThrow(ctx, ConsignmentIntake, input.id);
+        const intake = await repo.findOne({
+            where: {
+                id: input.id,
+                storeId: Not(IsNull()),
+            },
+        });
+        if (!intake) {
+            throw new UserInputError(`Intake ${input.id} not found`);
+        }
 
         if (input.intakeDate !== undefined) intake.intakeDate = input.intakeDate;
         if (input.paymentPolicy !== undefined) intake.paymentPolicy = input.paymentPolicy ?? null;
@@ -106,6 +115,9 @@ export class ConsignmentIntakeService {
             for (const itemInput of input.items) {
                 const quotation = await quotationRepo.findOne({ where: { id: itemInput.quotationId }, relations: ['productVariant'] });
                 if (!quotation) throw new UserInputError(`Quotation ${itemInput.quotationId} not found`);
+                if (quotation.storeId !== intake.storeId) {
+                    throw new UserInputError(`Quotation ${itemInput.quotationId} does not belong to store ${intake.storeId}`);
+                }
                 const consignmentPriceSnapshot = itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
                 const subtotal = consignmentPriceSnapshot * itemInput.quantity;
                 const item = itemRepo.create({
@@ -129,7 +141,12 @@ export class ConsignmentIntakeService {
 
     async delete(ctx: RequestContext, id: ID): Promise<boolean> {
         const repo = this.connection.getRepository(ctx, ConsignmentIntake);
-        const intake = await repo.findOne({ where: { id } });
+        const intake = await repo.findOne({
+            where: {
+                id,
+                storeId: Not(IsNull()),
+            },
+        });
         if (!intake) return false;
         await repo.remove(intake);
         return true;

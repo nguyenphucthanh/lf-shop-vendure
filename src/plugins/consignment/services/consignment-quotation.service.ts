@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ID } from '@vendure/common/lib/shared-types';
-import { ProductVariant, ProductVariantPrice, RequestContext, TransactionalConnection } from '@vendure/core';
+import { ProductVariant, ProductVariantPrice, RequestContext, TransactionalConnection, UserInputError } from '@vendure/core';
+import { IsNull, Not } from 'typeorm';
 
 import { ConsignmentQuotation } from '../entities/consignment-quotation.entity';
 
@@ -25,7 +26,7 @@ export class ConsignmentQuotationService {
 
     async findOne(ctx: RequestContext, id: ID): Promise<ConsignmentQuotation | null> {
         return this.connection.getRepository(ctx, ConsignmentQuotation).findOne({
-            where: { id },
+            where: { id, storeId: Not(IsNull()) },
             relations: ['productVariant', 'productVariant.translations', 'productVariant.featuredAsset', 'store'],
         });
     }
@@ -67,7 +68,15 @@ export class ConsignmentQuotationService {
 
     async update(ctx: RequestContext, id: ID, input: Partial<UpsertQuotationInput>): Promise<ConsignmentQuotation> {
         const repo = this.connection.getRepository(ctx, ConsignmentQuotation);
-        const quotation = await this.connection.getEntityOrThrow(ctx, ConsignmentQuotation, id);
+        const quotation = await repo.findOne({
+            where: {
+                id,
+                storeId: Not(IsNull()),
+            },
+        });
+        if (!quotation) {
+            throw new UserInputError(`Quotation ${id} not found`);
+        }
         if (input.consignmentPrice !== undefined) quotation.consignmentPrice = input.consignmentPrice;
         if (input.note !== undefined) quotation.note = input.note ?? null;
         return repo.save(quotation);
@@ -75,7 +84,12 @@ export class ConsignmentQuotationService {
 
     async delete(ctx: RequestContext, id: ID): Promise<boolean> {
         const repo = this.connection.getRepository(ctx, ConsignmentQuotation);
-        const quotation = await repo.findOne({ where: { id } });
+        const quotation = await repo.findOne({
+            where: {
+                id,
+                storeId: Not(IsNull()),
+            },
+        });
         if (!quotation) return false;
         await repo.remove(quotation);
         return true;

@@ -28,6 +28,11 @@ export interface ConsignmentReportRow {
   debtQty: number;
 }
 
+interface QuantityAggregateRow {
+  quotationId: ID;
+  qty: string;
+}
+
 @Injectable()
 export class ConsignmentReportService {
   constructor(private connection: TransactionalConnection) {}
@@ -63,6 +68,39 @@ export class ConsignmentReportService {
         "productVariant.featuredAsset",
       ],
     });
+
+    if (quotations.length === 0) {
+      return [];
+    }
+
+    const quotationIds = quotations.map((quotation) => quotation.id);
+
+    const intakeByQuotation = await this.loadQuantityByQuotation(
+      intakeItemRepo,
+      "ii",
+      "ii.intake",
+      "intake",
+      storeId,
+      quotationIds,
+    );
+
+    const paidByQuotation = await this.loadQuantityByQuotation(
+      paymentItemRepo,
+      "pi",
+      "pi.payment",
+      "payment",
+      storeId,
+      quotationIds,
+    );
+
+    const returnedByQuotation = await this.loadQuantityByQuotation(
+      returnItemRepo,
+      "ri",
+      "ri.consignmentReturn",
+      "ret",
+      storeId,
+      quotationIds,
+    );
 
     const rows: ConsignmentReportRow[] = [];
 
@@ -113,7 +151,7 @@ export class ConsignmentReportService {
       }
 
       // Return full featured asset for frontend rendering with VendureImage
-      const featuredAsset = variant?.featuredAsset as any;
+      const featuredAsset = variant?.featuredAsset;
       const reportFeaturedAsset = featuredAsset
         ? {
             id: featuredAsset.id,
@@ -125,33 +163,9 @@ export class ConsignmentReportService {
           }
         : null;
 
-      const intakeAgg = await intakeItemRepo
-        .createQueryBuilder("ii")
-        .innerJoin("ii.intake", "intake")
-        .where("intake.storeId = :storeId", { storeId })
-        .andWhere("ii.quotationId = :qid", { qid: quotation.id })
-        .select("COALESCE(SUM(ii.quantity), 0)", "qty")
-        .getRawOne();
-
-      const paidAgg = await paymentItemRepo
-        .createQueryBuilder("pi")
-        .innerJoin("pi.payment", "payment")
-        .where("payment.storeId = :storeId", { storeId })
-        .andWhere("pi.quotationId = :qid", { qid: quotation.id })
-        .select("COALESCE(SUM(pi.quantity), 0)", "qty")
-        .getRawOne();
-
-      const returnAgg = await returnItemRepo
-        .createQueryBuilder("ri")
-        .innerJoin("ri.consignmentReturn", "ret")
-        .where("ret.storeId = :storeId", { storeId })
-        .andWhere("ri.quotationId = :qid", { qid: quotation.id })
-        .select("COALESCE(SUM(ri.quantity), 0)", "qty")
-        .getRawOne();
-
-      const intakeQty = Number(intakeAgg?.qty ?? 0);
-      const paidQty = Number(paidAgg?.qty ?? 0);
-      const returnedQty = Number(returnAgg?.qty ?? 0);
+      const intakeQty = intakeByQuotation.get(quotation.id) ?? 0;
+      const paidQty = paidByQuotation.get(quotation.id) ?? 0;
+      const returnedQty = returnedByQuotation.get(quotation.id) ?? 0;
 
       rows.push({
         quotationId: quotation.id,
@@ -169,5 +183,32 @@ export class ConsignmentReportService {
     }
 
     return rows;
+  }
+
+  private async loadQuantityByQuotation(
+    repository: ReturnType<TransactionalConnection["getRepository"]>,
+    rootAlias: string,
+    relationPath: string,
+    relationAlias: string,
+    storeId: ID,
+    quotationIds: ID[],
+  ): Promise<Map<ID, number>> {
+    const rows = (await repository
+      .createQueryBuilder(rootAlias)
+      .innerJoin(relationPath, relationAlias)
+      .where(`${relationAlias}.storeId = :storeId`, { storeId })
+      .andWhere(`${rootAlias}.quotationId IN (:...quotationIds)`, {
+        quotationIds,
+      })
+      .select(`${rootAlias}.quotationId`, "quotationId")
+      .addSelect(`COALESCE(SUM(${rootAlias}.quantity), 0)`, "qty")
+      .groupBy(`${rootAlias}.quotationId`)
+      .getRawMany()) as QuantityAggregateRow[];
+
+    const byQuotation = new Map<ID, number>();
+    for (const row of rows) {
+      byQuotation.set(row.quotationId, Number(row.qty ?? 0));
+    }
+    return byQuotation;
   }
 }

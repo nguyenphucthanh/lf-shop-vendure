@@ -7,6 +7,7 @@
     "dev:worker": "ts-node ./src/index-worker.ts",
     "dev:dashboard": "vite --clearScreen false",
     "dev": "concurrently --kill-others npm:dev:*",
+    "test:consignment-services": "node --test -r ts-node/register test/consignment-services.test.ts",
     "build": "tsc",
     "build:dashboard": "vite build",
     "start:server": "node ./dist/index.js",

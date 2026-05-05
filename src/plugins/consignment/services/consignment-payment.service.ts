@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ID } from '@vendure/common/lib/shared-types';
 import { RequestContext, TransactionalConnection, UserInputError } from '@vendure/core';
-import { DataSource } from 'typeorm';
+import { IsNull, Not } from 'typeorm';
 
 import { ConsignmentPayment, PaymentMethod, PaymentStatus } from '../entities/consignment-payment.entity';
 import { ConsignmentPaymentItem } from '../entities/consignment-payment-item.entity';
@@ -44,7 +44,7 @@ export class ConsignmentPaymentService {
 
     async findOne(ctx: RequestContext, id: ID): Promise<ConsignmentPayment | null> {
         return this.connection.getRepository(ctx, ConsignmentPayment).findOne({
-            where: { id },
+            where: { id, storeId: Not(IsNull()) },
             relations: ['store', 'items', 'items.quotation', 'items.quotation.productVariant'],
         });
     }
@@ -63,12 +63,17 @@ export class ConsignmentPaymentService {
         const paymentItemRepo = this.connection.getRepository(ctx, ConsignmentPaymentItem);
         const returnItemRepo = this.connection.getRepository(ctx, ConsignmentReturnItem);
 
+        const requestedByQuotation = new Map<ID, number>();
         for (const item of items) {
+            requestedByQuotation.set(item.quotationId, (requestedByQuotation.get(item.quotationId) ?? 0) + item.quantity);
+        }
+
+        for (const [quotationId, requestedQuantity] of requestedByQuotation.entries()) {
             const intakeQty = await intakeItemRepo
                 .createQueryBuilder('ii')
                 .innerJoin('ii.intake', 'intake')
                 .where('intake.storeId = :storeId', { storeId })
-                .andWhere('ii.quotationId = :quotationId', { quotationId: item.quotationId })
+                .andWhere('ii.quotationId = :quotationId', { quotationId })
                 .select('COALESCE(SUM(ii.quantity), 0)', 'total')
                 .getRawOne()
                 .then(r => Number(r?.total ?? 0));
@@ -77,7 +82,7 @@ export class ConsignmentPaymentService {
                 .createQueryBuilder('pi')
                 .innerJoin('pi.payment', 'payment')
                 .where('payment.storeId = :storeId', { storeId })
-                .andWhere('pi.quotationId = :quotationId', { quotationId: item.quotationId });
+                .andWhere('pi.quotationId = :quotationId', { quotationId });
             if (excludePaymentId) {
                 paidQtyQuery.andWhere('payment.id != :excludePaymentId', { excludePaymentId });
             }
@@ -90,15 +95,15 @@ export class ConsignmentPaymentService {
                 .createQueryBuilder('ri')
                 .innerJoin('ri.consignmentReturn', 'ret')
                 .where('ret.storeId = :storeId', { storeId })
-                .andWhere('ri.quotationId = :quotationId', { quotationId: item.quotationId })
+                .andWhere('ri.quotationId = :quotationId', { quotationId })
                 .select('COALESCE(SUM(ri.quantity), 0)', 'total')
                 .getRawOne()
                 .then(r => Number(r?.total ?? 0));
 
             const available = intakeQty - paidQty - returnedQty;
-            if (item.quantity > available) {
+            if (requestedQuantity > available) {
                 throw new UserInputError(
-                    `Quotation ${item.quotationId}: requested quantity ${item.quantity} exceeds available ${available} (intake: ${intakeQty}, paid: ${paidQty}, returned: ${returnedQty}).`,
+                    `Quotation ${quotationId}: requested quantity ${requestedQuantity} exceeds available ${available} (intake: ${intakeQty}, paid: ${paidQty}, returned: ${returnedQty}).`,
                 );
             }
         }
@@ -129,6 +134,9 @@ export class ConsignmentPaymentService {
         for (const itemInput of input.items) {
             const quotation = await quotationRepo.findOne({ where: { id: itemInput.quotationId }, relations: ['productVariant'] });
             if (!quotation) throw new UserInputError(`Quotation ${itemInput.quotationId} not found`);
+            if (quotation.storeId !== input.storeId) {
+                throw new UserInputError(`Quotation ${itemInput.quotationId} does not belong to store ${input.storeId}`);
+            }
             const consignmentPriceSnapshot = itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
             const itemSubtotal = consignmentPriceSnapshot * itemInput.quantity;
             await itemRepo.save(itemRepo.create({
@@ -159,7 +167,15 @@ export class ConsignmentPaymentService {
         const itemRepo = this.connection.getRepository(ctx, ConsignmentPaymentItem);
         const quotationRepo = this.connection.getRepository(ctx, ConsignmentQuotation);
 
-        const payment = await this.connection.getEntityOrThrow(ctx, ConsignmentPayment, input.id);
+        const payment = await repo.findOne({
+            where: {
+                id: input.id,
+                storeId: Not(IsNull()),
+            },
+        });
+        if (!payment) {
+            throw new UserInputError(`Payment ${input.id} not found`);
+        }
 
         if (input.items !== undefined) {
             await this.validateQuantityConstraint(ctx, payment.storeId, input.items, payment.id);
@@ -168,6 +184,9 @@ export class ConsignmentPaymentService {
             for (const itemInput of input.items) {
                 const quotation = await quotationRepo.findOne({ where: { id: itemInput.quotationId }, relations: ['productVariant'] });
                 if (!quotation) throw new UserInputError(`Quotation ${itemInput.quotationId} not found`);
+                if (quotation.storeId !== payment.storeId) {
+                    throw new UserInputError(`Quotation ${itemInput.quotationId} does not belong to store ${payment.storeId}`);
+                }
                 const consignmentPriceSnapshot = itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
                 const itemSubtotal = consignmentPriceSnapshot * itemInput.quantity;
                 await itemRepo.save(itemRepo.create({
@@ -202,7 +221,12 @@ export class ConsignmentPaymentService {
 
     async delete(ctx: RequestContext, id: ID): Promise<boolean> {
         const repo = this.connection.getRepository(ctx, ConsignmentPayment);
-        const payment = await repo.findOne({ where: { id } });
+        const payment = await repo.findOne({
+            where: {
+                id,
+                storeId: Not(IsNull()),
+            },
+        });
         if (!payment) return false;
         await repo.remove(payment);
         return true;
