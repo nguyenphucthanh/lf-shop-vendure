@@ -1,4 +1,4 @@
-import { api, Button, Input, useLocalFormat } from "@vendure/dashboard";
+import { api, Button, Card, Input, useLocalFormat } from "@vendure/dashboard";
 import { SearchIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -206,44 +206,46 @@ export function ProductGrid({ cartQuantities, onAddItem }: Props) {
               type="button"
               variant="ghost"
               onClick={() => onAddItem(variant.id)}
-              className="bg-card border-border hover:border-primary focus-visible:ring-ring group relative flex flex-col overflow-hidden rounded-xl border transition-all focus-visible:ring-2 focus-visible:outline-none active:scale-95"
+              className="focus-visible:ring-ring group h-auto rounded-xl p-0 text-left focus-visible:ring-2 focus-visible:outline-none"
             >
-              {/* Qty badge */}
-              {qty > 0 && (
-                <span className="bg-primary text-primary-foreground absolute top-2 right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold">
-                  {qty}
-                </span>
-              )}
-
-              {/* Image */}
-              <div className="bg-muted aspect-square w-full overflow-hidden">
-                {imageUrl ? (
-                  <img
-                    src={`${imageUrl}?w=240&h=240&mode=crop`}
-                    alt={variant.name}
-                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="text-muted-foreground flex h-full w-full items-center justify-center text-3xl">
-                    📦
-                  </div>
-                )}
-              </div>
-
-              {/* Info */}
-              <div className="flex flex-1 flex-col gap-0.5 p-2 text-left">
-                <span className="text-foreground line-clamp-2 text-xs font-medium leading-tight">
-                  {variant.product.name}
-                </span>
-                {variant.name !== variant.product.name && (
-                  <span className="text-muted-foreground line-clamp-1 text-[11px]">
-                    {variant.name}
+              <Card className="bg-card border-border group-hover:border-primary relative flex w-full flex-col gap-0 overflow-hidden rounded-xl border py-0 transition-all active:scale-95">
+                {/* Qty badge */}
+                {qty > 0 && (
+                  <span className="bg-primary text-primary-foreground absolute top-2 right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold">
+                    {qty}
                   </span>
                 )}
-                <span className="text-primary mt-auto text-sm font-semibold">
-                  {formatCurrency(variant.priceWithTax, variant.currencyCode)}
-                </span>
-              </div>
+
+                {/* Image */}
+                <div className="bg-muted aspect-square w-full overflow-hidden">
+                  {imageUrl ? (
+                    <img
+                      src={`${imageUrl}?w=240&h=240&mode=crop`}
+                      alt={variant.name}
+                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="text-muted-foreground flex h-full w-full items-center justify-center text-3xl">
+                      📦
+                    </div>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="flex flex-1 flex-col gap-0.5 p-2 text-left">
+                  <span className="text-foreground line-clamp-2 text-xs font-medium leading-tight">
+                    {variant.product.name}
+                  </span>
+                  {variant.name !== variant.product.name && (
+                    <span className="text-muted-foreground line-clamp-1 text-[11px]">
+                      {variant.name}
+                    </span>
+                  )}
+                  <span className="text-primary mt-auto text-sm font-semibold">
+                    {formatCurrency(variant.priceWithTax, variant.currencyCode)}
+                  </span>
+                </div>
+              </Card>
             </Button>
           );
         })}
