@@ -1,14 +1,179 @@
 import { api } from "@vendure/dashboard";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { graphql } from "@/gql";
 
-// ─── Mutations ───────────────────────────────────────────────────────────────
+// ─── Queries & Mutations ─────────────────────────────────────────────────────
+
+const GET_DRAFT_ORDER = graphql(`
+  query PosDraftOrder($id: ID!) {
+    order(id: $id) {
+      id
+      code
+      state
+      currencyCode
+      totalWithTax
+      subTotalWithTax
+      discounts {
+        adjustmentSource
+        type
+        description
+        amount
+        amountWithTax
+      }
+      couponCodes
+      promotions {
+        id
+        name
+      }
+      lines {
+        id
+        quantity
+        unitPriceWithTax
+        linePriceWithTax
+        discountedLinePriceWithTax
+        discounts {
+          adjustmentSource
+          type
+          description
+          amount
+          amountWithTax
+        }
+        productVariant {
+          id
+          name
+          sku
+          priceWithTax
+          product {
+            id
+            name
+            featuredAsset {
+              preview
+            }
+          }
+          featuredAsset {
+            preview
+          }
+        }
+      }
+    }
+  }
+`);
+
+const GET_LATEST_DRAFT_ORDER = graphql(`
+  query PosLatestDraftOrder {
+    orders(
+      options: {
+        take: 1
+        sort: { updatedAt: DESC }
+        filter: { state: { eq: "Draft" } }
+      }
+    ) {
+      items {
+        id
+        code
+        state
+        currencyCode
+        totalWithTax
+        subTotalWithTax
+        discounts {
+          adjustmentSource
+          type
+          description
+          amount
+          amountWithTax
+        }
+        couponCodes
+        promotions {
+          id
+          name
+        }
+        lines {
+          id
+          quantity
+          unitPriceWithTax
+          linePriceWithTax
+          discountedLinePriceWithTax
+          discounts {
+            adjustmentSource
+            type
+            description
+            amount
+            amountWithTax
+          }
+          productVariant {
+            id
+            name
+            sku
+            priceWithTax
+            product {
+              id
+              name
+              featuredAsset {
+                preview
+              }
+            }
+            featuredAsset {
+              preview
+            }
+          }
+        }
+      }
+    }
+  }
+`);
 
 const CREATE_DRAFT_ORDER = graphql(`
   mutation PosCreateDraftOrder {
     createDraftOrder {
       id
+      code
+      state
+      currencyCode
+      totalWithTax
+      subTotalWithTax
+      discounts {
+        adjustmentSource
+        type
+        description
+        amount
+        amountWithTax
+      }
+      couponCodes
+      promotions {
+        id
+        name
+      }
+      lines {
+        id
+        quantity
+        unitPriceWithTax
+        linePriceWithTax
+        discountedLinePriceWithTax
+        discounts {
+          adjustmentSource
+          type
+          description
+          amount
+          amountWithTax
+        }
+        productVariant {
+          id
+          name
+          sku
+          priceWithTax
+          product {
+            id
+            name
+            featuredAsset {
+              preview
+            }
+          }
+          featuredAsset {
+            preview
+          }
+        }
+      }
     }
   }
 `);
@@ -536,24 +701,51 @@ export interface CompletedOrderInfo {
   code: string;
 }
 
+interface UsePosOrderOptions {
+  preferredOrderId?: string;
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function usePosOrder() {
+export function usePosOrder(options: UsePosOrderOptions = {}) {
+  const { preferredOrderId } = options;
   const [order, setOrder] = useState<PosOrder | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const orderRef = useRef<PosOrder | null>(null);
+  const initialLoadRef = useRef<Promise<void> | null>(null);
   // Serialize mutations so fast taps are queued instead of dropped.
   const runQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+
+  function setCurrentOrder(nextOrder: PosOrder | null) {
+    orderRef.current = nextOrder;
+    setOrder(nextOrder);
+  }
 
   function clearError() {
     setError(null);
   }
 
   async function ensureOrder(): Promise<string> {
-    if (order?.id) return order.id;
+    if (orderRef.current?.id) return orderRef.current.id;
+    await initialLoadRef.current;
+    if (orderRef.current?.id) return orderRef.current.id;
+
     const result = await api.mutate(CREATE_DRAFT_ORDER, {});
     const id = result?.createDraftOrder?.id;
     if (!id) throw new Error("Failed to create draft order");
+    setCurrentOrder({
+      id,
+      code: result.createDraftOrder.code,
+      state: result.createDraftOrder.state,
+      currencyCode: result.createDraftOrder.currencyCode,
+      totalWithTax: result.createDraftOrder.totalWithTax,
+      subTotalWithTax: result.createDraftOrder.subTotalWithTax,
+      discounts: result.createDraftOrder.discounts,
+      couponCodes: result.createDraftOrder.couponCodes,
+      promotions: result.createDraftOrder.promotions,
+      lines: result.createDraftOrder.lines,
+    });
     return id;
   }
 
@@ -573,7 +765,7 @@ export function usePosOrder() {
       setError(String(message));
       return;
     }
-    setOrder(data as PosOrder);
+    setCurrentOrder(data as PosOrder);
   }
 
   function extractMutationError(
@@ -615,6 +807,65 @@ export function usePosOrder() {
     );
     return scheduled;
   }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadLatestDraftOrder = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        let draftOrder: PosOrder | null = null;
+
+        if (preferredOrderId) {
+          const result = await api.query(GET_DRAFT_ORDER, {
+            id: preferredOrderId,
+          });
+          if (cancelled) {
+            return;
+          }
+          if (result?.order?.state === "Draft") {
+            draftOrder = result.order;
+          }
+        }
+
+        if (!draftOrder) {
+          const result = await api.query(GET_LATEST_DRAFT_ORDER, {});
+          if (cancelled) {
+            return;
+          }
+          draftOrder = result?.orders?.items?.[0] ?? null;
+        }
+
+        if (cancelled) {
+          return;
+        }
+        if (draftOrder) {
+          setCurrentOrder(draftOrder);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : String(e));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    const loadPromise = loadLatestDraftOrder();
+    initialLoadRef.current = loadPromise;
+    void loadPromise.finally(() => {
+      if (initialLoadRef.current === loadPromise) {
+        initialLoadRef.current = null;
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [preferredOrderId]);
 
   const addItem = useCallback(
     async (productVariantId: string) => {
@@ -803,7 +1054,7 @@ export function usePosOrder() {
   );
 
   const resetOrder = useCallback(() => {
-    setOrder(null);
+    setCurrentOrder(null);
     setError(null);
   }, []);
 

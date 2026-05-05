@@ -8,7 +8,11 @@ import { CompletedOrderInfo, usePosOrder } from "./hooks/use-pos-order";
 import { ProductGrid } from "./product-grid";
 import { ReceiptScreen } from "./receipt-screen";
 
-export function PosShell() {
+interface PosShellProps {
+  requestedOrderId?: string;
+}
+
+export function PosShell({ requestedOrderId }: PosShellProps) {
   const {
     order,
     loading,
@@ -23,7 +27,7 @@ export function PosShell() {
     setCustomer,
     completeOrder,
     resetOrder,
-  } = usePosOrder();
+  } = usePosOrder({ preferredOrderId: requestedOrderId });
 
   const { formatCurrency } = useLocalFormat();
   const currencyCode = order?.currencyCode ?? "USD";
