@@ -21,14 +21,10 @@ import {
   VendureImage,
 } from "@vendure/dashboard";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Package,
-  Store,
-  Wallet,
-} from "lucide-react";
+import { Package, Store, Wallet } from "lucide-react";
 
 import { graphql } from "@/gql";
-import { getTranslatedName, SortButton, SortDir, SortKey } from "./shared"
+import { getTranslatedName, SortButton, SortDir, SortKey } from "./shared";
 
 const GET_TOTAL_REPORT = graphql(`
   query ConsignmentTotalReport {
@@ -69,7 +65,13 @@ type TotalReportRow = NonNullable<
   ResultOf<typeof GET_TOTAL_REPORT>["consignmentTotalReport"]["rows"][number]
 >;
 
-type LocalTotalSortKey = "name" | "sku" | "intake" | "sold" | "returned" | "available";
+type LocalTotalSortKey =
+  | "name"
+  | "sku"
+  | "intake"
+  | "sold"
+  | "returned"
+  | "available";
 
 function SellThroughBar({ sold, intake }: { sold: number; intake: number }) {
   if (intake === 0)
@@ -107,15 +109,18 @@ export function TotalReportPage() {
 
   useEffect(() => {
     setLoading(true);
-    void api.query(GET_TOTAL_REPORT).then((result) => {
-      const data = result?.consignmentTotalReport;
-      if (data) {
-        setSummary(data.summary);
-        setRows(data.rows ?? []);
-      }
-    }).finally(() => {
-      setLoading(false);
-    });
+    void api
+      .query(GET_TOTAL_REPORT)
+      .then((result) => {
+        const data = result?.consignmentTotalReport;
+        if (data) {
+          setSummary(data.summary);
+          setRows(data.rows ?? []);
+        }
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   function handleSort(key: SortKey) {
@@ -330,7 +335,7 @@ export function TotalReportPage() {
                       return (
                         <TableRow
                           key={row.productVariantId}
-                      className={cn(
+                          className={cn(
                             isOut
                               ? "bg-red-50 dark:bg-red-950/20"
                               : isLow

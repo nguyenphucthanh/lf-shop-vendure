@@ -759,3 +759,154 @@ export function LineItemsEditor(props: {
     </Card>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Print receipt utilities
+// ---------------------------------------------------------------------------
+
+export function escHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+export function formatMinorCurrency(minor: number, currency: string): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(
+    minor / 100,
+  );
+}
+
+export interface PrintColumn {
+  header: string;
+  /** CSS class applied to both <th> and <td>. Use "num" or "mono". */
+  className?: string;
+}
+
+export interface PrintReceiptConfig {
+  /** Document title shown in browser tab */
+  title: string;
+  /** Record ID shown as "Receipt #<id>" in the header */
+  id: string;
+  /** Label/value pairs rendered in the two-column meta grid */
+  metaFields: Array<{ label: string; value: string }>;
+  columns: PrintColumn[];
+  /** Each inner array must have the same length as columns. Values are plain text (escaped internally). */
+  rows: Array<Array<string>>;
+  /** Footer summary row — same length as columns. Values are plain text (escaped internally). */
+  footerRow: Array<string>;
+}
+
+function buildPrintHtml(config: PrintReceiptConfig): string {
+  const metaHtml = config.metaFields
+    .map(
+      (f) =>
+        `<div class="meta-item"><label>${escHtml(f.label)}</label><span>${escHtml(f.value)}</span></div>`,
+    )
+    .join("");
+
+  const theadCols = config.columns
+    .map(
+      (c) =>
+        `<th${c.className ? ` class="${escHtml(c.className)}"` : ""}>${escHtml(c.header)}</th>`,
+    )
+    .join("");
+
+  const tbodyRows = config.rows
+    .map((cells) => {
+      const tds = cells
+        .map((cell, i) => {
+          const cls = config.columns[i]?.className;
+          return `<td${cls ? ` class="${escHtml(cls)}"` : ""}>${escHtml(cell)}</td>`;
+        })
+        .join("");
+      return `<tr>${tds}</tr>`;
+    })
+    .join("");
+
+  const tfootCells = config.footerRow
+    .map((cell, i) => {
+      const cls = config.columns[i]?.className;
+      return `<td${cls ? ` class="${escHtml(cls)}"` : ""}>${escHtml(cell)}</td>`;
+    })
+    .join("");
+
+  const printedDate = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>${escHtml(config.title)} #${escHtml(config.id)}</title>
+  <style>
+    @page { size: A4; margin: 20mm; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 11pt; color: #111; background: #fff; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24pt; border-bottom: 2px solid #111; padding-bottom: 12pt; }
+    .header h1 { font-size: 20pt; font-weight: 700; letter-spacing: -0.5px; }
+    .header .sub { font-size: 9pt; color: #666; margin-top: 4pt; }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 16pt; margin-bottom: 20pt; }
+    .meta-item label { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.5px; color: #777; display: block; margin-bottom: 3pt; }
+    .meta-item span { font-size: 10pt; font-weight: 500; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.5px; color: #555; border-bottom: 1px solid #bbb; padding: 6pt 8pt; text-align: left; }
+    thead th.num { text-align: right; }
+    tbody td { padding: 7pt 8pt; border-bottom: 1px solid #eee; font-size: 10pt; vertical-align: top; }
+    tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tbody td.mono { font-family: 'Courier New', monospace; font-size: 9pt; color: #555; }
+    tfoot td { padding: 8pt; font-weight: 700; font-size: 11pt; border-top: 2px solid #111; }
+    tfoot td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .footer { margin-top: 32pt; font-size: 8pt; color: #aaa; border-top: 1px solid #eee; padding-top: 8pt; }
+    @media screen {
+      html { background: #e8e8e8; }
+      body { padding: 24px; }
+      .page { background: #fff; max-width: 794px; margin: 0 auto; padding: 40px; box-shadow: 0 2px 12px rgba(0,0,0,.18); min-height: 1123px; }
+      .print-toolbar { max-width: 794px; margin: 0 auto 12px; text-align: right; }
+      .print-toolbar button { padding: 7px 20px; background: #111; color: #fff; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+      .print-toolbar button:hover { background: #333; }
+    }
+    @media print {
+      .print-toolbar { display: none; }
+      body { padding: 0; background: #fff; }
+      .page { padding: 0; box-shadow: none; min-height: unset; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-toolbar"><button onclick="window.print()">Print / Save as PDF</button></div>
+  <div class="page">
+    <div class="header">
+      <div>
+        <h1>${escHtml(config.title)}</h1>
+        <div class="sub">Receipt #${escHtml(config.id)}</div>
+      </div>
+      <div style="text-align:right;font-size:9pt;color:#888">Printed ${escHtml(printedDate)}</div>
+    </div>
+    <div class="meta">${metaHtml}</div>
+    <table>
+      <thead><tr>${theadCols}</tr></thead>
+      <tbody>${tbodyRows}</tbody>
+      <tfoot><tr>${tfootCells}</tr></tfoot>
+    </table>
+    <div class="footer">Generated on ${escHtml(new Date().toLocaleString())}</div>
+  </div>
+</body>
+</html>`;
+}
+
+/**
+ * Opens a print-preview popup window.
+ * Returns `false` when the browser blocked the popup — callers should `toast.error`.
+ */
+export function openPrintWindow(config: PrintReceiptConfig): boolean {
+  const win = window.open("", "_blank", "width=860,height=900");
+  if (!win) return false;
+  win.document.write(buildPrintHtml(config));
+  win.document.close();
+  return true;
+}

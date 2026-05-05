@@ -14,15 +14,19 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  useChannel,
   useLocalFormat,
 } from "@vendure/dashboard";
+import { Printer } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
 
 import {
+  formatMinorCurrency,
   getApiErrorMessage,
+  openPrintWindow,
   SimplePage,
   isoDate,
   toDateTimeInput,
@@ -39,6 +43,7 @@ const GET_SOLD_OPTIONS = graphql(`
         id
         quantity
         quotation {
+          consignmentPrice
           productVariantSku
           productVariantName
         }
@@ -94,6 +99,7 @@ type SoldOption = {
     id: string;
     quantity: number;
     quotation?: {
+      consignmentPrice?: number | null;
       productVariantSku?: string | null;
       productVariantName?: string | null;
     } | null;
@@ -102,6 +108,7 @@ type SoldOption = {
 
 export function PaymentDetailPage({ route }: { route: AnyRoute }) {
   const { formatCurrency } = useLocalFormat();
+  const { activeChannel } = useChannel();
   const navigate = route.useNavigate();
   const params = route.useParams();
   const isNew = params.id === "new";
@@ -122,6 +129,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
   const [soldId, setSoldId] = useState("");
   const [saving, setSaving] = useState(false);
   const [showSoldItems, setShowSoldItems] = useState(true);
+  const defaultCurrency = activeChannel?.defaultCurrencyCode ?? "USD";
 
   useEffect(() => {
     if (!storeId) {
@@ -201,6 +209,62 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
     }
   }
 
+  function printReceipt() {
+    const storeName = selectedStore
+      ? `${selectedStore.name}${selectedStore.emailAddress ? ` (${selectedStore.emailAddress})` : ""}`
+      : `Store #${storeId}`;
+    const currency = defaultCurrency;
+    const fmt = (minor: number) => formatMinorCurrency(minor, currency);
+
+    const linkedRows = (selectedSold?.items ?? []).map((item) => {
+      const price = Number(item.quotation?.consignmentPrice ?? 0);
+      const qty = Number(item.quantity ?? 0);
+      return [
+        item.quotation?.productVariantName ?? "-",
+        item.quotation?.productVariantSku ?? "-",
+        String(qty),
+        fmt(price * qty),
+      ];
+    });
+    const linkedTotalQty = (selectedSold?.items ?? []).reduce(
+      (sum, item) => sum + Number(item.quantity ?? 0),
+      0,
+    );
+
+    const opened = openPrintWindow({
+      title: "Payment Receipt",
+      id: String(params.id),
+      metaFields: [
+        { label: "Consignment Store", value: storeName },
+        { label: "Payment Date", value: paymentDate },
+        { label: "Payment Method", value: paymentMethod || "-" },
+        { label: "Subtotal", value: fmt(subtotalValue) },
+        { label: "Discount", value: fmt(discountValue) },
+        { label: "Total", value: fmt(totalValue) },
+      ],
+      columns: [
+        { header: "Product" },
+        { header: "SKU", className: "mono" },
+        { header: "Qty", className: "num" },
+        { header: "Subtotal", className: "num" },
+      ],
+      rows:
+        selectedSold && linkedRows.length > 0
+          ? linkedRows
+          : [["No linked sold items", "-", "0", fmt(0)]],
+      footerRow: [
+        selectedSold ? "Sold items total" : "Items total",
+        "",
+        String(selectedSold ? linkedTotalQty : 0),
+        fmt(selectedSold?.total ?? 0),
+      ],
+    });
+
+    if (!opened) {
+      toast.error("Popup was blocked. Please allow popups for this site.");
+    }
+  }
+
   const subtotalValue = Math.round(Number(subtotal || 0) * 100);
   const discountValue = Math.round(Number(discount || 0) * 100);
   const totalValue = subtotalValue - discountValue;
@@ -212,6 +276,12 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
       title={isNew ? "New Payment" : "Edit Payment"}
       actions={
         <>
+          {!isNew ? (
+            <Button variant="secondary" onClick={printReceipt}>
+              <Printer className="h-4 w-4" />
+              Print
+            </Button>
+          ) : null}
           {!isNew ? (
             <Button variant="ghost" onClick={remove}>
               Delete
@@ -331,7 +401,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
                 />
               </FieldContent>
               <FieldDescription>
-                Computed total: {formatCurrency(totalValue, "USD")}
+                Computed total: {formatCurrency(totalValue, defaultCurrency)}
               </FieldDescription>
             </Field>
           </div>
@@ -351,7 +421,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
                     <option value={option.id} key={option.id}>
                       {String(option.soldDate).slice(0, 10)} -{" "}
                       {option.items?.length ?? 0} items -{" "}
-                      {formatCurrency(option.total, "USD")}
+                      {formatCurrency(option.total, defaultCurrency)}
                     </option>
                   ))}
                 </select>
@@ -378,6 +448,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
                         <TableHead>SKU</TableHead>
                         <TableHead>Product</TableHead>
                         <TableHead className="text-right">Qty</TableHead>
+                        <TableHead className="text-right">Subtotal</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -392,12 +463,19 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
                           <TableCell className="text-right">
                             {item.quantity}
                           </TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(
+                              Number(item.quotation?.consignmentPrice ?? 0) *
+                                Number(item.quantity ?? 0),
+                              defaultCurrency,
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                       {(selectedSold.items?.length ?? 0) === 0 ? (
                         <TableRow>
                           <TableCell
-                            colSpan={3}
+                            colSpan={4}
                             className="text-center text-sm text-muted-foreground"
                           >
                             No sold items found.

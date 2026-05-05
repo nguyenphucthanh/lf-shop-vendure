@@ -10,7 +10,9 @@ import {
   useLocalFormat,
 } from "@vendure/dashboard";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { Printer } from "lucide-react";
 
 import { graphql } from "@/gql";
 
@@ -21,7 +23,10 @@ import {
   SimplePage,
   isoDate,
   toDateTimeInput,
+  useQuotations,
   useStore,
+  openPrintWindow,
+  formatMinorCurrency,
 } from "./shared";
 
 const GET_SOLD = graphql(`
@@ -111,6 +116,11 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
 
   const [storeId, setStoreId] = useState(search?.storeId?.toString() ?? "");
   const { store: selectedStore } = useStore(storeId);
+  const { quotations, loading: quotationsLoading } = useQuotations(storeId);
+  const quotationMap = useMemo(
+    () => Object.fromEntries(quotations.map((q) => [q.id, q])),
+    [quotations],
+  );
 
   const [soldDate, setSoldDate] = useState(
     new Date().toISOString().slice(0, 10),
@@ -273,6 +283,43 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
     return sum + item.consignmentPriceSnapshot * item.quantity;
   }, 0);
 
+  function printReceipt() {
+    const storeName = selectedStore
+      ? `${selectedStore.name}${selectedStore.emailAddress ? ` (${selectedStore.emailAddress})` : ""}`
+      : `Store #${storeId}`;
+    const fmt = (minor: number) => formatMinorCurrency(minor, currency);
+    const totalQty = items.reduce((s, i) => s + i.quantity, 0);
+    const opened = openPrintWindow({
+      title: "Sales Confirmation",
+      id: String(params.id),
+      metaFields: [
+        { label: "Consignment Store", value: storeName },
+        { label: "Sold Date", value: soldDate },
+      ],
+      columns: [
+        { header: "Product" },
+        { header: "SKU", className: "mono" },
+        { header: "Unit Price", className: "num" },
+        { header: "Qty", className: "num" },
+        { header: "Subtotal", className: "num" },
+      ],
+      rows: items.map((item) => {
+        const q = quotationMap[item.quotationId];
+        return [
+          q?.productVariantName ?? `Quotation #${item.quotationId}`,
+          q?.productVariantSku ?? "—",
+          fmt(item.consignmentPriceSnapshot),
+          String(item.quantity),
+          fmt(item.consignmentPriceSnapshot * item.quantity),
+        ];
+      }),
+      footerRow: ["Total", "", "", String(totalQty), fmt(subtotalPreview)],
+    });
+    if (!opened) {
+      toast.error("Popup was blocked. Please allow popups for this site.");
+    }
+  }
+
   const currency = items[0]?.currency ?? "USD";
   const hasInvalidItems =
     items.length === 0 ||
@@ -306,6 +353,16 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
                   : "Create payment for this sold"}
               </Button>
             )
+          ) : null}
+          {!isNew ? (
+            <Button
+              variant="secondary"
+              onClick={printReceipt}
+              disabled={quotationsLoading}
+            >
+              <Printer className="h-4 w-4" />
+              Print
+            </Button>
           ) : null}
           {!isNew ? (
             <Button variant="ghost" onClick={remove}>
