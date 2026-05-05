@@ -649,6 +649,59 @@ const ADD_PAYMENT = graphql(`
   }
 `);
 
+const GET_FULFILLMENT_HANDLERS = graphql(`
+  query PosGetFulfillmentHandlers {
+    fulfillmentHandlers {
+      code
+      args {
+        name
+        defaultValue
+      }
+    }
+  }
+`);
+
+const GET_SHIPPING_METHOD_HANDLER = graphql(`
+  query PosShippingMethodHandler($id: ID!) {
+    shippingMethod(id: $id) {
+      id
+      fulfillmentHandlerCode
+    }
+  }
+`);
+
+const ADD_FULFILLMENT = graphql(`
+  mutation PosAddFulfillment($input: FulfillOrderInput!) {
+    addFulfillmentToOrder(input: $input) {
+      ... on Fulfillment {
+        id
+        state
+        nextStates
+      }
+      ... on ErrorResult {
+        errorCode
+        message
+      }
+    }
+  }
+`);
+
+const TRANSITION_FULFILLMENT = graphql(`
+  mutation PosTransitionFulfillment($id: ID!, $state: String!) {
+    transitionFulfillmentToState(id: $id, state: $state) {
+      ... on Fulfillment {
+        id
+        state
+        nextStates
+      }
+      ... on ErrorResult {
+        errorCode
+        message
+      }
+    }
+  }
+`);
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface PosDiscount {
@@ -824,6 +877,12 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
           if (cancelled) {
             return;
           }
+          if (result?.order && result.order.state !== "Draft") {
+            setError(
+              `POS only supports draft orders. Loaded order is in state \"${result.order.state}\".`,
+            );
+            return;
+          }
           if (result?.order?.state === "Draft") {
             draftOrder = result.order;
           }
@@ -978,6 +1037,7 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
     async (
       paymentMethod: string,
       shippingMethodId: string,
+      autoFulfillAndDeliver = true,
     ): Promise<CompletedOrderInfo | null> => {
       if (!order?.id) return null;
       let completedOrder: CompletedOrderInfo | null = null;
@@ -1035,17 +1095,154 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
           return;
         }
 
-        // 4. Transition to PaymentSettled
-        const settledResult = await api.mutate(TRANSITION_ORDER, {
-          id: order.id,
-          state: "PaymentSettled",
+        const paidOrderState =
+          paid && typeof paid === "object" && "state" in paid
+            ? String((paid as { state: unknown }).state)
+            : null;
+
+        // 4. Transition to PaymentSettled only if payment did not already do it.
+        if (paidOrderState !== "PaymentSettled") {
+          const settledResult = await api.mutate(TRANSITION_ORDER, {
+            id: order.id,
+            state: "PaymentSettled",
+          });
+          const settledError = extractMutationError(
+            settledResult,
+            "transitionOrderToState",
+          );
+          if (settledError) {
+            setError(settledError);
+            return;
+          }
+        }
+
+        if (!autoFulfillAndDeliver) {
+          return;
+        }
+
+        const linesToFulfill =
+          orderRef.current?.lines
+            .filter((line) => line.quantity > 0)
+            .map((line) => ({
+              orderLineId: line.id,
+              quantity: line.quantity,
+            })) ?? [];
+
+        if (linesToFulfill.length === 0) {
+          return;
+        }
+
+        const handlersResult = await api.query(GET_FULFILLMENT_HANDLERS, {});
+        const shippingMethodResult = await api.query(GET_SHIPPING_METHOD_HANDLER, {
+          id: shippingMethodId,
         });
-        const settledError = extractMutationError(
-          settledResult,
-          "transitionOrderToState",
+        const handlerCode =
+          shippingMethodResult?.shippingMethod?.fulfillmentHandlerCode;
+        if (!handlerCode) {
+          setError("Selected shipping method has no fulfillment handler");
+          return;
+        }
+
+        const handlerDefinition = handlersResult?.fulfillmentHandlers?.find(
+          (handler) => handler.code === handlerCode,
         );
-        if (settledError) {
-          setError(settledError);
+
+        if (!handlerDefinition) {
+          setError(
+            `Fulfillment handler \"${handlerCode}\" is not available`,
+          );
+          return;
+        }
+
+        const fulfillmentResult = await api.mutate(ADD_FULFILLMENT, {
+          input: {
+            lines: linesToFulfill,
+            handler: {
+              code: handlerCode,
+              arguments: handlerDefinition.args.map((arg) => ({
+                name: arg.name,
+                value: arg.defaultValue ?? "",
+              })),
+            },
+          },
+        });
+        const fulfillmentError = extractMutationError(
+          fulfillmentResult,
+          "addFulfillmentToOrder",
+        );
+        if (fulfillmentError) {
+          setError(fulfillmentError);
+          return;
+        }
+
+        const createdFulfillment = fulfillmentResult?.addFulfillmentToOrder;
+        if (
+          !createdFulfillment ||
+          typeof createdFulfillment !== "object" ||
+          !("id" in createdFulfillment) ||
+          !("state" in createdFulfillment)
+        ) {
+          setError("Failed to create fulfillment");
+          return;
+        }
+
+        let fulfillmentId = String((createdFulfillment as { id: unknown }).id);
+        let fulfillmentState = String(
+          (createdFulfillment as { state: unknown }).state,
+        );
+        let nextStates = Array.isArray(
+          (createdFulfillment as { nextStates?: unknown }).nextStates,
+        )
+          ? ((createdFulfillment as { nextStates: string[] }).nextStates ?? [])
+          : [];
+
+        // Transition fulfillment through available states until Delivered.
+        for (let i = 0; i < 8 && fulfillmentState !== "Delivered"; i++) {
+          if (nextStates.length === 0) {
+            break;
+          }
+          const targetState = nextStates.includes("Delivered")
+            ? "Delivered"
+            : nextStates.includes("Shipped")
+              ? "Shipped"
+              : nextStates[0];
+
+          const transitionResult = await api.mutate(TRANSITION_FULFILLMENT, {
+            id: fulfillmentId,
+            state: targetState,
+          });
+          const transitionError = extractMutationError(
+            transitionResult,
+            "transitionFulfillmentToState",
+          );
+          if (transitionError) {
+            setError(transitionError);
+            return;
+          }
+
+          const transitioned = transitionResult?.transitionFulfillmentToState;
+          if (
+            !transitioned ||
+            typeof transitioned !== "object" ||
+            !("id" in transitioned) ||
+            !("state" in transitioned)
+          ) {
+            setError("Failed to transition fulfillment state");
+            return;
+          }
+
+          fulfillmentId = String((transitioned as { id: unknown }).id);
+          fulfillmentState = String((transitioned as { state: unknown }).state);
+          nextStates = Array.isArray(
+            (transitioned as { nextStates?: unknown }).nextStates,
+          )
+            ? ((transitioned as { nextStates: string[] }).nextStates ?? [])
+            : [];
+        }
+
+        if (fulfillmentState !== "Delivered") {
+          setError("Could not transition fulfillment to Delivered");
+          return;
         }
       });
       return completedOrder;
@@ -1074,5 +1271,6 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
     setCustomer,
     completeOrder,
     resetOrder,
+    hasExplicitPreferredOrder: !!preferredOrderId,
   };
 }

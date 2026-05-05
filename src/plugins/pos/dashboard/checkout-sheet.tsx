@@ -1,4 +1,10 @@
-import { api, Button, Input, useLocalFormat } from "@vendure/dashboard";
+import {
+  api,
+  Button,
+  Checkbox,
+  Input,
+  useLocalFormat,
+} from "@vendure/dashboard";
 import { ChevronLeftIcon, UserIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -66,7 +72,11 @@ interface Props {
   loading: boolean;
   error: string | null;
   onSetCustomer: (customerId: string) => void;
-  onComplete: (paymentMethod: string, shippingMethodId: string) => void;
+  onComplete: (
+    paymentMethod: string,
+    shippingMethodId: string,
+    autoFulfillAndDeliver: boolean,
+  ) => void;
   onClose: () => void;
   onClearError: () => void;
 }
@@ -94,6 +104,7 @@ export function CheckoutSheet({
   const [loadingShippingMethods, setLoadingShippingMethods] = useState(false);
   const [selectedShippingMethod, setSelectedShippingMethod] =
     useState<ShippingMethodQuote | null>(null);
+  const [autoFulfillAndDeliver, setAutoFulfillAndDeliver] = useState(true);
   const { methods: paymentMethods, loading: loadingMethods } =
     usePaymentMethods(open ? (order?.id ?? undefined) : undefined);
 
@@ -105,6 +116,7 @@ export function CheckoutSheet({
       setSelectedMethod(null);
       setShippingMethods([]);
       setSelectedShippingMethod(null);
+      setAutoFulfillAndDeliver(true);
       onClearError();
     }
   }, [open]);
@@ -219,7 +231,6 @@ export function CheckoutSheet({
                 onSetCustomer(c.id);
               }}
               onClearSelection={() => setSelectedCustomer(null)}
-              onSkip={() => setStep("payment")}
             />
           ) : step === "payment" ? (
             <PaymentStep
@@ -246,8 +257,9 @@ export function CheckoutSheet({
             <Button
               type="button"
               size="sm"
+              disabled={!selectedCustomer}
               onClick={() => setStep("payment")}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 w-full rounded-lg py-3 text-sm font-semibold"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 w-full rounded-lg py-3 text-sm font-semibold disabled:opacity-50"
             >
               Continue to Payment →
             </Button>
@@ -262,19 +274,34 @@ export function CheckoutSheet({
               Continue to Shipping →
             </Button>
           ) : (
-            <Button
-              type="button"
-              size="sm"
-              disabled={!selectedMethod || !selectedShippingMethod || loading}
-              onClick={() =>
-                selectedMethod &&
-                selectedShippingMethod &&
-                onComplete(selectedMethod.code, selectedShippingMethod.id)
-              }
-              className="bg-primary text-primary-foreground hover:bg-primary/90 w-full rounded-lg py-3 text-sm font-semibold disabled:opacity-50"
-            >
-              {loading ? "Processing…" : "Complete Order →"}
-            </Button>
+            <>
+              <label className="mb-3 flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={autoFulfillAndDeliver}
+                  onCheckedChange={(checked) =>
+                    setAutoFulfillAndDeliver(Boolean(checked))
+                  }
+                />
+                <span>Auto fullfill & delivery</span>
+              </label>
+              <Button
+                type="button"
+                size="sm"
+                disabled={!selectedMethod || !selectedShippingMethod || loading}
+                onClick={() =>
+                  selectedMethod &&
+                  selectedShippingMethod &&
+                  onComplete(
+                    selectedMethod.code,
+                    selectedShippingMethod.id,
+                    autoFulfillAndDeliver,
+                  )
+                }
+                className="bg-primary text-primary-foreground hover:bg-primary/90 w-full rounded-lg py-3 text-sm font-semibold disabled:opacity-50"
+              >
+                {loading ? "Processing…" : "Complete Order →"}
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -288,14 +315,12 @@ interface CustomerStepProps {
   selectedCustomer: Customer | null;
   onSelect: (customer: Customer) => void;
   onClearSelection: () => void;
-  onSkip: () => void;
 }
 
 function CustomerStep({
   selectedCustomer,
   onSelect,
   onClearSelection,
-  onSkip,
 }: CustomerStepProps) {
   const [term, setTerm] = useState("");
   const [results, setResults] = useState<Customer[]>([]);
@@ -388,16 +413,6 @@ function CustomerStep({
           )}
         </>
       )}
-
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={onSkip}
-        className="text-muted-foreground hover:text-foreground w-full py-1 text-sm underline"
-      >
-        Skip for now →
-      </Button>
     </div>
   );
 }
@@ -457,7 +472,7 @@ function PaymentStep({
                 variant="ghost"
                 onClick={() => onSelectMethod(method)}
                 className={[
-                  "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
+                  "flex w-full items-center justify-start gap-3 rounded-xl border px-4 py-3 text-left transition-all",
                   selected
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary/50",
@@ -465,7 +480,7 @@ function PaymentStep({
               >
                 <div
                   className={[
-                    "flex h-4 w-4 items-center justify-start rounded-full border-2 shrink-0",
+                    "flex h-4 w-4 items-center justify-center rounded-full border-2 shrink-0",
                     selected ? "border-primary" : "border-muted-foreground",
                   ].join(" ")}
                 >
@@ -539,7 +554,7 @@ function ShippingStep({
                 variant="ghost"
                 onClick={() => onSelectMethod(method)}
                 className={[
-                  "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
+                  "flex w-full items-center justify-start gap-3 rounded-xl border px-4 py-3 text-left transition-all",
                   selected
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary/50",
@@ -547,7 +562,7 @@ function ShippingStep({
               >
                 <div
                   className={[
-                    "flex h-4 w-4 items-center justify-start rounded-full border-2 shrink-0",
+                    "flex h-4 w-4 items-center justify-center rounded-full border-2 shrink-0",
                     selected ? "border-primary" : "border-muted-foreground",
                   ].join(" ")}
                 >

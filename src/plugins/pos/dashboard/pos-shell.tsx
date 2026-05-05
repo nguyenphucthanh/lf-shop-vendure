@@ -1,5 +1,5 @@
-import { Button, useLocalFormat } from "@vendure/dashboard";
-import { ShoppingCartIcon } from "lucide-react";
+import { Button, useLocalFormat, useNavigate } from "@vendure/dashboard";
+import { ExternalLinkIcon, ShoppingCartIcon } from "lucide-react";
 import { useState } from "react";
 
 import { CartPanel } from "./cart-panel";
@@ -27,7 +27,9 @@ export function PosShell({ requestedOrderId }: PosShellProps) {
     setCustomer,
     completeOrder,
     resetOrder,
+    hasExplicitPreferredOrder,
   } = usePosOrder({ preferredOrderId: requestedOrderId });
+  const navigate = useNavigate();
 
   const { formatCurrency } = useLocalFormat();
   const currencyCode = order?.currencyCode ?? "USD";
@@ -45,8 +47,13 @@ export function PosShell({ requestedOrderId }: PosShellProps) {
   async function handleComplete(
     paymentMethod: string,
     shippingMethodId: string,
+    autoFulfillAndDeliver: boolean,
   ) {
-    const result = await completeOrder(paymentMethod, shippingMethodId);
+    const result = await completeOrder(
+      paymentMethod,
+      shippingMethodId,
+      autoFulfillAndDeliver,
+    );
     if (result) {
       setCheckoutOpen(false);
       setMobileCartOpen(false);
@@ -76,9 +83,23 @@ export function PosShell({ requestedOrderId }: PosShellProps) {
     <div className="bg-background flex h-screen w-full flex-col overflow-hidden">
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
       <header className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 z-10 flex h-12 shrink-0 items-center justify-between border-b px-4 backdrop-blur">
-        <h1 className="text-foreground text-base font-bold tracking-tight">
-          POS
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-foreground text-base font-bold tracking-tight">
+            POS
+          </h1>
+          {order?.id && hasExplicitPreferredOrder && (
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              onClick={() => navigate({ to: `/orders/draft/${order.id}` })}
+              className="h-auto p-0 text-sm"
+            >
+              Go to order details
+              <ExternalLinkIcon className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
       </header>
 
       {/* ── Main content ─────────────────────────────────────────────────── */}
