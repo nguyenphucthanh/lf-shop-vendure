@@ -87,7 +87,7 @@ export function PosShell({ requestedOrderId }: PosShellProps) {
           <h1 className="text-foreground text-base font-bold tracking-tight">
             POS
           </h1>
-          {order?.id && hasExplicitPreferredOrder && (
+          {order?.id && (
             <Button
               type="button"
               variant="link"
@@ -141,7 +141,9 @@ export function PosShell({ requestedOrderId }: PosShellProps) {
                 {lineCount}
               </span>
             </div>
-            <span>{formatCurrency(order?.totalWithTax ?? 0, currencyCode)}</span>
+            <span>
+              {formatCurrency(order?.totalWithTax ?? 0, currencyCode)}
+            </span>
           </Button>
         </div>
       )}
