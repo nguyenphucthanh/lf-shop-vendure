@@ -138,7 +138,9 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
         }
       } else {
         const { storeId, ...nextInput } = input;
-        await api.mutate(UPDATE_RETURN, { input: { id: params.id, ...nextInput } });
+        await api.mutate(UPDATE_RETURN, {
+          input: { id: params.id, ...nextInput },
+        });
         toast.success("Return updated successfully");
         navigate({ to: "/consignment/returns", search: { storeId } });
       }

@@ -71,7 +71,6 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
   const params = route.useParams();
   const navigate = route.useNavigate();
   const search = route.useSearch();
-  console.log("🚀 ~ QuotationDetailPage ~ search:", search);
   const isNew = params.id === "new";
 
   const [storeId, setStoreId] = useState(search?.storeId?.toString() ?? "");

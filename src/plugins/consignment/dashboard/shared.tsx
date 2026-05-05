@@ -27,6 +27,7 @@ import {
   PageLayout,
   PageTitle,
   useLocalFormat,
+  Link,
 } from "@vendure/dashboard";
 import { useEffect, useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
@@ -91,6 +92,82 @@ export const GET_QUANTITY_AGGREGATES = graphql(`
       intakeQty
       soldQty
       returnedQty
+    }
+  }
+`);
+
+export const QUOTATION_BY_ID = graphql(`
+  query ConsignmentQuotationById($id: ID!) {
+    consignmentQuotation(id: $id) {
+      id
+      createdAt
+      storeId
+      productVariantId
+      productVariantName
+      productVariantSku
+      productVariantFeaturedAsset {
+        id
+        preview
+      }
+      consignmentPrice
+      currency
+      note
+    }
+  }
+`);
+
+export const INTAKE_BY_ID = graphql(`
+  query ConsignmentIntakeById($id: ID!) {
+    consignmentIntake(id: $id) {
+      id
+      createdAt
+      storeId
+      intakeDate
+      paymentPolicy
+      deliveryMethod
+      deliveryTrackingCode
+      deliveryCost
+      total
+    }
+  }
+`);
+
+export const PAYMENT_BY_ID = graphql(`
+  query ConsignmentPaymentById($id: ID!) {
+    consignmentPayment(id: $id) {
+      id
+      createdAt
+      storeId
+      paymentDate
+      paymentMethod
+      subtotal
+      discount
+      total
+      paymentStatus
+    }
+  }
+`);
+
+export const SOLD_BY_ID = graphql(`
+  query ConsignmentSoldById($id: ID!) {
+    consignmentSold(id: $id) {
+      id
+      createdAt
+      storeId
+      soldDate
+      total
+    }
+  }
+`);
+
+export const RETURN_BY_ID = graphql(`
+  query ConsignmentReturnById($id: ID!) {
+    consignmentReturn(id: $id) {
+      id
+      createdAt
+      storeId
+      reason
+      total
     }
   }
 `);

@@ -204,7 +204,8 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
   const subtotalValue = Math.round(Number(subtotal || 0) * 100);
   const discountValue = Math.round(Number(discount || 0) * 100);
   const totalValue = subtotalValue - discountValue;
-  const selectedSold = soldOptions.find((option) => option.id === soldId) ?? null;
+  const selectedSold =
+    soldOptions.find((option) => option.id === soldId) ?? null;
 
   return (
     <SimplePage
@@ -348,7 +349,9 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
                   <option value="">Not linked</option>
                   {soldOptions.map((option) => (
                     <option value={option.id} key={option.id}>
-                      {String(option.soldDate).slice(0, 10)} - {option.items?.length ?? 0} items - {formatCurrency(option.total, "USD")}
+                      {String(option.soldDate).slice(0, 10)} -{" "}
+                      {option.items?.length ?? 0} items -{" "}
+                      {formatCurrency(option.total, "USD")}
                     </option>
                   ))}
                 </select>
@@ -362,9 +365,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
                 className="rounded-md border"
                 open={showSoldItems}
                 onToggle={(event) =>
-                  setShowSoldItems(
-                    (event.target as HTMLDetailsElement).open,
-                  )
+                  setShowSoldItems((event.target as HTMLDetailsElement).open)
                 }
               >
                 <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium">

@@ -81,7 +81,9 @@ const GET_LINKED_PAYMENT = graphql(`
 `);
 
 const CREATE_PAYMENT = graphql(`
-  mutation CreateConsignmentPaymentFromSold($input: CreateConsignmentPaymentInput!) {
+  mutation CreateConsignmentPaymentFromSold(
+    $input: CreateConsignmentPaymentInput!
+  ) {
     createConsignmentPayment(input: $input) {
       id
     }
@@ -117,7 +119,9 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
   const [soldTotal, setSoldTotal] = useState(0);
   const [initialDocumentQtyByQuotation, setInitialDocumentQtyByQuotation] =
     useState<Record<string, number>>({});
-  const [linkedPayment, setLinkedPayment] = useState<LinkedPayment | null>(null);
+  const [linkedPayment, setLinkedPayment] = useState<LinkedPayment | null>(
+    null,
+  );
   const [linkedPaymentLoading, setLinkedPaymentLoading] = useState(false);
   const [paymentDrawerOpen, setPaymentDrawerOpen] = useState(false);
   const [creatingPayment, setCreatingPayment] = useState(false);
@@ -156,7 +160,8 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
       const baseline = (sold.items ?? []).reduce<Record<string, number>>(
         (acc, item) => {
           const quotationId = String(item.quotationId);
-          acc[quotationId] = (acc[quotationId] ?? 0) + Number(item.quantity ?? 0);
+          acc[quotationId] =
+            (acc[quotationId] ?? 0) + Number(item.quantity ?? 0);
           return acc;
         },
         {},
@@ -191,7 +196,9 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
       const result = await api.mutate(CREATE_PAYMENT, {
         input: {
           storeId,
-          paymentDate: toDateTimeInput(isoDate(soldDate) || new Date().toISOString().slice(0, 10)),
+          paymentDate: toDateTimeInput(
+            isoDate(soldDate) || new Date().toISOString().slice(0, 10),
+          ),
           paymentPolicy: null,
           paymentMethod: "Cash",
           paymentStatus: "Pending",
@@ -391,7 +398,10 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
           <div className="h-full w-full max-w-md bg-background p-4 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Payment details</h3>
-              <Button variant="ghost" onClick={() => setPaymentDrawerOpen(false)}>
+              <Button
+                variant="ghost"
+                onClick={() => setPaymentDrawerOpen(false)}
+              >
                 Close
               </Button>
             </div>
@@ -415,7 +425,9 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
                 <div>{formatCurrency(linkedPayment.total, "USD")}</div>
               </div>
               <Button
-                onClick={() => navigate({ to: `/consignment/payments/${linkedPayment.id}` })}
+                onClick={() =>
+                  navigate({ to: `/consignment/payments/${linkedPayment.id}` })
+                }
               >
                 Open payment page
               </Button>
