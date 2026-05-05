@@ -1,0 +1,827 @@
+import { api } from "@vendure/dashboard";
+import { useCallback, useRef, useState } from "react";
+
+import { graphql } from "@/gql";
+
+// ─── Mutations ───────────────────────────────────────────────────────────────
+
+const CREATE_DRAFT_ORDER = graphql(`
+  mutation PosCreateDraftOrder {
+    createDraftOrder {
+      id
+    }
+  }
+`);
+
+const ADD_ITEM = graphql(`
+  mutation PosAddItem($orderId: ID!, $productVariantId: ID!, $quantity: Int!) {
+    addItemToDraftOrder(
+      orderId: $orderId
+      input: { productVariantId: $productVariantId, quantity: $quantity }
+    ) {
+      ... on Order {
+        id
+        code
+        state
+        currencyCode
+        totalWithTax
+        subTotalWithTax
+        discounts {
+          adjustmentSource
+          type
+          description
+          amount
+          amountWithTax
+        }
+        couponCodes
+        promotions {
+          id
+          name
+        }
+        lines {
+          id
+          quantity
+          unitPriceWithTax
+          linePriceWithTax
+          discountedLinePriceWithTax
+          discounts {
+            adjustmentSource
+            type
+            description
+            amount
+            amountWithTax
+          }
+          productVariant {
+            id
+            name
+            sku
+            priceWithTax
+            product {
+              id
+              name
+              featuredAsset {
+                preview
+              }
+            }
+            featuredAsset {
+              preview
+            }
+          }
+        }
+      }
+      ... on ErrorResult {
+        errorCode
+        message
+      }
+    }
+  }
+`);
+
+const ADJUST_LINE = graphql(`
+  mutation PosAdjustLine($orderId: ID!, $orderLineId: ID!, $quantity: Int!) {
+    adjustDraftOrderLine(
+      orderId: $orderId
+      input: { orderLineId: $orderLineId, quantity: $quantity }
+    ) {
+      ... on Order {
+        id
+        code
+        state
+        currencyCode
+        totalWithTax
+        subTotalWithTax
+        discounts {
+          adjustmentSource
+          type
+          description
+          amount
+          amountWithTax
+        }
+        couponCodes
+        promotions {
+          id
+          name
+        }
+        lines {
+          id
+          quantity
+          unitPriceWithTax
+          linePriceWithTax
+          discountedLinePriceWithTax
+          discounts {
+            adjustmentSource
+            type
+            description
+            amount
+            amountWithTax
+          }
+          productVariant {
+            id
+            name
+            sku
+            priceWithTax
+            product {
+              id
+              name
+              featuredAsset {
+                preview
+              }
+            }
+            featuredAsset {
+              preview
+            }
+          }
+        }
+      }
+      ... on ErrorResult {
+        errorCode
+        message
+      }
+    }
+  }
+`);
+
+const REMOVE_LINE = graphql(`
+  mutation PosRemoveLine($orderId: ID!, $orderLineId: ID!) {
+    removeDraftOrderLine(orderId: $orderId, orderLineId: $orderLineId) {
+      ... on Order {
+        id
+        code
+        state
+        currencyCode
+        totalWithTax
+        subTotalWithTax
+        discounts {
+          adjustmentSource
+          type
+          description
+          amount
+          amountWithTax
+        }
+        couponCodes
+        promotions {
+          id
+          name
+        }
+        lines {
+          id
+          quantity
+          unitPriceWithTax
+          linePriceWithTax
+          discountedLinePriceWithTax
+          discounts {
+            adjustmentSource
+            type
+            description
+            amount
+            amountWithTax
+          }
+          productVariant {
+            id
+            name
+            sku
+            priceWithTax
+            product {
+              id
+              name
+              featuredAsset {
+                preview
+              }
+            }
+            featuredAsset {
+              preview
+            }
+          }
+        }
+      }
+      ... on ErrorResult {
+        errorCode
+        message
+      }
+    }
+  }
+`);
+
+const APPLY_COUPON = graphql(`
+  mutation PosApplyCoupon($orderId: ID!, $couponCode: String!) {
+    applyCouponCodeToDraftOrder(orderId: $orderId, couponCode: $couponCode) {
+      ... on Order {
+        id
+        code
+        state
+        currencyCode
+        totalWithTax
+        subTotalWithTax
+        discounts {
+          adjustmentSource
+          type
+          description
+          amount
+          amountWithTax
+        }
+        couponCodes
+        promotions {
+          id
+          name
+        }
+        lines {
+          id
+          quantity
+          unitPriceWithTax
+          linePriceWithTax
+          discountedLinePriceWithTax
+          discounts {
+            adjustmentSource
+            type
+            description
+            amount
+            amountWithTax
+          }
+          productVariant {
+            id
+            name
+            sku
+            priceWithTax
+            product {
+              id
+              name
+              featuredAsset {
+                preview
+              }
+            }
+            featuredAsset {
+              preview
+            }
+          }
+        }
+      }
+      ... on ErrorResult {
+        errorCode
+        message
+      }
+    }
+  }
+`);
+
+const REMOVE_COUPON = graphql(`
+  mutation PosRemoveCoupon($orderId: ID!, $couponCode: String!) {
+    removeCouponCodeFromDraftOrder(orderId: $orderId, couponCode: $couponCode) {
+      ... on Order {
+        id
+        code
+        state
+        currencyCode
+        totalWithTax
+        subTotalWithTax
+        discounts {
+          adjustmentSource
+          type
+          description
+          amount
+          amountWithTax
+        }
+        couponCodes
+        promotions {
+          id
+          name
+        }
+        lines {
+          id
+          quantity
+          unitPriceWithTax
+          linePriceWithTax
+          discountedLinePriceWithTax
+          discounts {
+            adjustmentSource
+            type
+            description
+            amount
+            amountWithTax
+          }
+          productVariant {
+            id
+            name
+            sku
+            priceWithTax
+            product {
+              id
+              name
+              featuredAsset {
+                preview
+              }
+            }
+            featuredAsset {
+              preview
+            }
+          }
+        }
+      }
+    }
+  }
+`);
+
+const SET_CUSTOMER = graphql(`
+  mutation PosSetCustomer($orderId: ID!, $customerId: ID!) {
+    setCustomerForDraftOrder(orderId: $orderId, customerId: $customerId) {
+      ... on Order {
+        id
+        code
+        state
+        currencyCode
+        totalWithTax
+        subTotalWithTax
+        discounts {
+          adjustmentSource
+          type
+          description
+          amount
+          amountWithTax
+        }
+        couponCodes
+        promotions {
+          id
+          name
+        }
+        lines {
+          id
+          quantity
+          unitPriceWithTax
+          linePriceWithTax
+          discountedLinePriceWithTax
+          discounts {
+            adjustmentSource
+            type
+            description
+            amount
+            amountWithTax
+          }
+          productVariant {
+            id
+            name
+            sku
+            priceWithTax
+            product {
+              id
+              name
+              featuredAsset {
+                preview
+              }
+            }
+            featuredAsset {
+              preview
+            }
+          }
+        }
+      }
+      ... on ErrorResult {
+        errorCode
+        message
+      }
+    }
+  }
+`);
+
+const SET_SHIPPING_METHOD = graphql(`
+  mutation PosSetShippingMethod($orderId: ID!, $shippingMethodId: ID!) {
+    setDraftOrderShippingMethod(
+      orderId: $orderId
+      shippingMethodId: $shippingMethodId
+    ) {
+      ... on Order {
+        id
+        code
+        state
+        currencyCode
+        totalWithTax
+        subTotalWithTax
+        discounts {
+          adjustmentSource
+          type
+          description
+          amount
+          amountWithTax
+        }
+        couponCodes
+        promotions {
+          id
+          name
+        }
+        lines {
+          id
+          quantity
+          unitPriceWithTax
+          linePriceWithTax
+          discountedLinePriceWithTax
+          discounts {
+            adjustmentSource
+            type
+            description
+            amount
+            amountWithTax
+          }
+          productVariant {
+            id
+            name
+            sku
+            priceWithTax
+            product {
+              id
+              name
+              featuredAsset {
+                preview
+              }
+            }
+            featuredAsset {
+              preview
+            }
+          }
+        }
+      }
+      ... on ErrorResult {
+        errorCode
+        message
+      }
+    }
+  }
+`);
+
+const TRANSITION_ORDER = graphql(`
+  mutation PosTransitionOrder($id: ID!, $state: String!) {
+    transitionOrderToState(id: $id, state: $state) {
+      ... on Order {
+        id
+        state
+      }
+      ... on OrderStateTransitionError {
+        errorCode
+        message
+        transitionError
+      }
+    }
+  }
+`);
+
+const ADD_PAYMENT = graphql(`
+  mutation PosAddPayment($orderId: ID!, $method: String!, $metadata: JSON!) {
+    addManualPaymentToOrder(
+      input: {
+        orderId: $orderId
+        method: $method
+        transactionId: ""
+        metadata: $metadata
+      }
+    ) {
+      ... on Order {
+        id
+        code
+        state
+      }
+      ... on ManualPaymentStateError {
+        errorCode
+        message
+      }
+    }
+  }
+`);
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface PosDiscount {
+  adjustmentSource: string;
+  type: string;
+  description: string;
+  amount: number;
+  amountWithTax: number;
+}
+
+export interface PosVariant {
+  id: string;
+  name: string;
+  sku: string;
+  priceWithTax: number;
+  product: {
+    id: string;
+    name: string;
+    featuredAsset: { preview: string } | null;
+  };
+  featuredAsset: { preview: string } | null;
+}
+
+export interface PosOrderLine {
+  id: string;
+  quantity: number;
+  unitPriceWithTax: number;
+  linePriceWithTax: number;
+  discountedLinePriceWithTax: number;
+  discounts: PosDiscount[];
+  productVariant: PosVariant;
+}
+
+export interface PosOrder {
+  __typename?: "Order";
+  id: string;
+  code: string;
+  state: string;
+  currencyCode: string;
+  totalWithTax: number;
+  subTotalWithTax: number;
+  discounts: PosDiscount[];
+  couponCodes: string[];
+  promotions: Array<{ id: string; name: string }>;
+  lines: PosOrderLine[];
+}
+
+export interface CompletedOrderInfo {
+  id: string;
+  code: string;
+}
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
+export function usePosOrder() {
+  const [order, setOrder] = useState<PosOrder | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Serialize mutations so fast taps are queued instead of dropped.
+  const runQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+
+  function clearError() {
+    setError(null);
+  }
+
+  async function ensureOrder(): Promise<string> {
+    if (order?.id) return order.id;
+    const result = await api.mutate(CREATE_DRAFT_ORDER, {});
+    const id = result?.createDraftOrder?.id;
+    if (!id) throw new Error("Failed to create draft order");
+    return id;
+  }
+
+  function applyOrderResult(
+    result: Record<string, unknown> | null | undefined,
+    key: string,
+  ) {
+    const data = result?.[key];
+    if (!data) return;
+    if (
+      typeof data === "object" &&
+      "errorCode" in data &&
+      typeof (data as { errorCode: unknown }).errorCode === "string"
+    ) {
+      const message =
+        (data as { message?: unknown }).message ?? "Operation failed";
+      setError(String(message));
+      return;
+    }
+    setOrder(data as PosOrder);
+  }
+
+  function extractMutationError(
+    result: Record<string, unknown> | null | undefined,
+    key: string,
+  ): string | null {
+    const data = result?.[key];
+    if (!data || typeof data !== "object") {
+      return null;
+    }
+    if (
+      "errorCode" in data &&
+      "message" in data &&
+      typeof (data as { message?: unknown }).message === "string"
+    ) {
+      return String((data as { message?: unknown }).message);
+    }
+    return null;
+  }
+
+  async function run<T>(fn: () => Promise<T>): Promise<T | undefined> {
+    const execute = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        return await fn();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+        return undefined;
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const scheduled = runQueueRef.current.then(execute, execute);
+    runQueueRef.current = scheduled.then(
+      () => undefined,
+      () => undefined,
+    );
+    return scheduled;
+  }
+
+  const addItem = useCallback(
+    async (productVariantId: string) => {
+      await run(async () => {
+        const orderId = await ensureOrder();
+        const existing = order?.lines.find(
+          (l) => l.productVariant.id === productVariantId,
+        );
+        if (existing) {
+          const result = await api.mutate(ADJUST_LINE, {
+            orderId,
+            orderLineId: existing.id,
+            quantity: existing.quantity + 1,
+          });
+          applyOrderResult(result, "adjustDraftOrderLine");
+        } else {
+          const result = await api.mutate(ADD_ITEM, {
+            orderId,
+            productVariantId,
+            quantity: 1,
+          });
+          applyOrderResult(result, "addItemToDraftOrder");
+        }
+      });
+    },
+    [order],
+  );
+
+  const adjustLine = useCallback(
+    async (orderLineId: string, quantity: number) => {
+      if (!order?.id) return;
+      await run(async () => {
+        if (quantity <= 0) {
+          const result = await api.mutate(REMOVE_LINE, {
+            orderId: order.id,
+            orderLineId,
+          });
+          applyOrderResult(result, "removeDraftOrderLine");
+        } else {
+          const result = await api.mutate(ADJUST_LINE, {
+            orderId: order.id,
+            orderLineId,
+            quantity,
+          });
+          applyOrderResult(result, "adjustDraftOrderLine");
+        }
+      });
+    },
+    [order],
+  );
+
+  const removeLine = useCallback(
+    async (orderLineId: string) => {
+      if (!order?.id) return;
+      await run(async () => {
+        const result = await api.mutate(REMOVE_LINE, {
+          orderId: order.id,
+          orderLineId,
+        });
+        applyOrderResult(result, "removeDraftOrderLine");
+      });
+    },
+    [order],
+  );
+
+  const applyCoupon = useCallback(
+    async (couponCode: string) => {
+      if (!order?.id) return;
+      await run(async () => {
+        const result = await api.mutate(APPLY_COUPON, {
+          orderId: order.id,
+          couponCode,
+        });
+        applyOrderResult(result, "applyCouponCodeToDraftOrder");
+      });
+    },
+    [order],
+  );
+
+  const removeCoupon = useCallback(
+    async (couponCode: string) => {
+      if (!order?.id) return;
+      await run(async () => {
+        const result = await api.mutate(REMOVE_COUPON, {
+          orderId: order.id,
+          couponCode,
+        });
+        applyOrderResult(result, "removeCouponCodeFromDraftOrder");
+      });
+    },
+    [order],
+  );
+
+  const setCustomer = useCallback(
+    async (customerId: string) => {
+      if (!customerId.trim()) return;
+      if (!order?.id) return;
+      await run(async () => {
+        const result = await api.mutate(SET_CUSTOMER, {
+          orderId: order.id,
+          customerId,
+        });
+        applyOrderResult(result, "setCustomerForDraftOrder");
+      });
+    },
+    [order],
+  );
+
+  const completeOrder = useCallback(
+    async (
+      paymentMethod: string,
+      shippingMethodId: string,
+    ): Promise<CompletedOrderInfo | null> => {
+      if (!order?.id) return null;
+      let completedOrder: CompletedOrderInfo | null = null;
+      await run(async () => {
+        // 1. Shipping method is required before leaving Draft state.
+        const shippingResult = await api.mutate(SET_SHIPPING_METHOD, {
+          orderId: order.id,
+          shippingMethodId,
+        });
+        applyOrderResult(shippingResult, "setDraftOrderShippingMethod");
+        const shippingError = extractMutationError(
+          shippingResult,
+          "setDraftOrderShippingMethod",
+        );
+        if (shippingError) {
+          setError(shippingError);
+          return;
+        }
+
+        // 2. Transition to ArrangingPayment
+        const arrangingResult = await api.mutate(TRANSITION_ORDER, {
+          id: order.id,
+          state: "ArrangingPayment",
+        });
+        const arrangingError = extractMutationError(
+          arrangingResult,
+          "transitionOrderToState",
+        );
+        if (arrangingError) {
+          setError(arrangingError);
+          return;
+        }
+
+        // 3. Add manual payment
+        const payResult = await api.mutate(ADD_PAYMENT, {
+          orderId: order.id,
+          method: paymentMethod,
+          metadata: { source: "pos" },
+        });
+        const paid = payResult?.addManualPaymentToOrder;
+        if (
+          paid &&
+          typeof paid === "object" &&
+          "code" in paid &&
+          "id" in paid &&
+          typeof (paid as { code: string }).code === "string" &&
+          typeof (paid as { id: string }).id === "string"
+        ) {
+          completedOrder = {
+            id: (paid as { id: string }).id,
+            code: (paid as { code: string }).code,
+          };
+        } else if (paid && typeof paid === "object" && "errorCode" in paid) {
+          setError((paid as { message: string }).message);
+          return;
+        }
+
+        // 4. Transition to PaymentSettled
+        const settledResult = await api.mutate(TRANSITION_ORDER, {
+          id: order.id,
+          state: "PaymentSettled",
+        });
+        const settledError = extractMutationError(
+          settledResult,
+          "transitionOrderToState",
+        );
+        if (settledError) {
+          setError(settledError);
+        }
+      });
+      return completedOrder;
+    },
+    [order],
+  );
+
+  const resetOrder = useCallback(() => {
+    setOrder(null);
+    setError(null);
+  }, []);
+
+  const lineCount = order?.lines.reduce((sum, l) => sum + l.quantity, 0) ?? 0;
+
+  return {
+    order,
+    loading,
+    error,
+    lineCount,
+    clearError,
+    addItem,
+    adjustLine,
+    removeLine,
+    applyCoupon,
+    removeCoupon,
+    setCustomer,
+    completeOrder,
+    resetOrder,
+  };
+}
