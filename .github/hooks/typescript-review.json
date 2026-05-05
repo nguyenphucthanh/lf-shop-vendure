@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "node .github/hooks/scripts/run-prettier-on-edited-files.mjs",
+        "cwd": ".",
+        "timeout": 20
+      },
+      {
+        "type": "command",
+        "command": "node .github/hooks/scripts/enforce-typescript-review-standards.mjs",
+        "cwd": ".",
+        "timeout": 20
+      }
+    ]
+  }
+}
