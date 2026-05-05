@@ -17,6 +17,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  useChannel,
   useLocalFormat,
   VendureImage,
 } from "@vendure/dashboard";
@@ -96,6 +97,8 @@ function SellThroughBar({ sold, intake }: { sold: number; intake: number }) {
 
 export function TotalReportPage() {
   const { formatCurrency } = useLocalFormat();
+  const { activeChannel } = useChannel();
+  const defaultCurrency = activeChannel?.defaultCurrencyCode ?? "USD";
 
   const [summary, setSummary] = useState({
     totalStores: 0,
@@ -205,7 +208,10 @@ export function TotalReportPage() {
                 <p className="text-3xl font-bold">
                   {loading
                     ? "—"
-                    : formatCurrency(summary.totalCollectedPayments, "USD")}
+                    : formatCurrency(
+                        summary.totalCollectedPayments,
+                        defaultCurrency,
+                      )}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Completed payments only

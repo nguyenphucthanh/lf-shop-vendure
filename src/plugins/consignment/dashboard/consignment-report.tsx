@@ -15,6 +15,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  useChannel,
   useLocalFormat,
   VendureImage,
 } from "@vendure/dashboard";
@@ -96,7 +97,9 @@ type LocalSortKey = "name" | "sku" | "price" | "intake" | "sold" | "returned" | 
 
 export function ConsignmentReportPage(props: { storeId: string }) {
   const { formatCurrency } = useLocalFormat();
+  const { activeChannel } = useChannel();
   const { storeId } = props;
+  const defaultCurrency = activeChannel?.defaultCurrencyCode ?? "USD";
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [pendingPaymentCount, setPendingPaymentCount] = useState(0);
@@ -227,7 +230,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold">
-                {formatCurrency(intakeSummary, "USD")}
+                {formatCurrency(intakeSummary, defaultCurrency)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Total value received from store
@@ -243,13 +246,13 @@ export function ConsignmentReportPage(props: { storeId: string }) {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold">
-                {formatCurrency(paymentSummary.subtotal, "USD")}
+                {formatCurrency(paymentSummary.subtotal, defaultCurrency)}
               </p>
             </CardContent>
             <CardFooter>
               <p className="text-xs text-muted-foreground">
                 Discount in payments:{" "}
-                {formatCurrency(paymentSummary.discount, "USD")}
+                {formatCurrency(paymentSummary.discount, defaultCurrency)}
               </p>
             </CardFooter>
           </Card>
@@ -262,7 +265,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold">
-                {formatCurrency(returnSummary, "USD")}
+                {formatCurrency(returnSummary, defaultCurrency)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Value of items returned to store
@@ -278,7 +281,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold">
-                {formatCurrency(debtSummary, "USD")}
+                {formatCurrency(debtSummary, defaultCurrency)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Intake − paid − returned
@@ -371,7 +374,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                     {getTranslatedName(row.productNameTranslations)}
                   </TableCell>
                   <TableCell>
-                    {formatCurrency(row.consignmentPrice, "USD")}
+                    {formatCurrency(row.consignmentPrice, defaultCurrency)}
                   </TableCell>
                   <TableCell>{row.intakeQty}</TableCell>
                   <TableCell>{row.soldQty}</TableCell>

@@ -10,6 +10,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  useChannel,
   useLocalFormat,
 } from "@vendure/dashboard";
 import { useEffect, useState } from "react";
@@ -44,7 +45,9 @@ const LIST_PAYMENTS = graphql(`
 
 export function PaymentListPage(props: { storeId: string }) {
   const { formatCurrency } = useLocalFormat();
+  const { activeChannel } = useChannel();
   const { storeId } = props;
+  const defaultCurrency = activeChannel?.defaultCurrencyCode ?? "USD";
   const [rows, setRows] = useState<
     ResultOf<typeof LIST_PAYMENTS>["consignmentPayments"]
   >([]);
@@ -114,9 +117,13 @@ export function PaymentListPage(props: { storeId: string }) {
                 <TableCell className={getStatusClass(row.paymentStatus)}>
                   {row.paymentStatus}
                 </TableCell>
-                <TableCell>{formatCurrency(row.subtotal, "USD")}</TableCell>
-                <TableCell>{formatCurrency(row.discount, "USD")}</TableCell>
-                <TableCell>{formatCurrency(row.total, "USD")}</TableCell>
+                <TableCell>
+                  {formatCurrency(row.subtotal, defaultCurrency)}
+                </TableCell>
+                <TableCell>
+                  {formatCurrency(row.discount, defaultCurrency)}
+                </TableCell>
+                <TableCell>{formatCurrency(row.total, defaultCurrency)}</TableCell>
                 <TableCell>
                   <Button
                     size="sm"
