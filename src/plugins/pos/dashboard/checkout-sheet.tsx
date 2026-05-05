@@ -368,7 +368,7 @@ function CustomerStep({
                     type="button"
                     variant="ghost"
                     onClick={() => onSelect(c)}
-                    className="hover:bg-muted flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors"
+                    className="hover:bg-muted flex w-full items-center justify-start gap-3 px-3 py-2.5 text-left transition-colors"
                   >
                     <div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full">
                       <UserIcon className="text-muted-foreground h-4 w-4" />
@@ -465,7 +465,7 @@ function PaymentStep({
               >
                 <div
                   className={[
-                    "flex h-4 w-4 items-center justify-center rounded-full border-2 shrink-0",
+                    "flex h-4 w-4 items-center justify-start rounded-full border-2 shrink-0",
                     selected ? "border-primary" : "border-muted-foreground",
                   ].join(" ")}
                 >
@@ -547,11 +547,13 @@ function ShippingStep({
               >
                 <div
                   className={[
-                    "flex h-4 w-4 items-center justify-center rounded-full border-2 shrink-0",
+                    "flex h-4 w-4 items-center justify-start rounded-full border-2 shrink-0",
                     selected ? "border-primary" : "border-muted-foreground",
                   ].join(" ")}
                 >
-                  {selected && <div className="bg-primary h-2 w-2 rounded-full" />}
+                  {selected && (
+                    <div className="bg-primary h-2 w-2 rounded-full" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p
