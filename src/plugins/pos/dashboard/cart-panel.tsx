@@ -1,4 +1,4 @@
-import { useLocalFormat } from "@vendure/dashboard";
+import { Button, Input, useLocalFormat } from "@vendure/dashboard";
 import { MinusIcon, PlusIcon, TagIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -60,9 +60,16 @@ export function CartPanel({
       {error && (
         <div className="bg-destructive/10 text-destructive flex items-start gap-2 px-4 py-2 text-sm">
           <span className="flex-1">{error}</span>
-          <button type="button" onClick={onClearError} aria-label="Dismiss error">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onClearError}
+            aria-label="Dismiss error"
+            className="h-6 w-6 p-0"
+          >
             <XIcon className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       )}
 
@@ -94,7 +101,7 @@ export function CartPanel({
           <div className="flex gap-2">
             <div className="relative flex-1">
               <TagIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
-              <input
+              <Input
                 type="text"
                 placeholder="Coupon code"
                 value={couponInput}
@@ -103,14 +110,15 @@ export function CartPanel({
                 className="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border py-1.5 pr-2 pl-8 text-sm focus-visible:ring-2 focus-visible:outline-none"
               />
             </div>
-            <button
+            <Button
               type="button"
+              size="sm"
               onClick={handleApplyCoupon}
               disabled={!couponInput.trim() || loading}
               className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md px-3 py-1.5 text-sm font-medium disabled:opacity-40"
             >
               Apply
-            </button>
+            </Button>
           </div>
 
           {/* Applied coupons */}
@@ -121,14 +129,16 @@ export function CartPanel({
             >
               <TagIcon className="h-3.5 w-3.5 shrink-0" />
               <span className="flex-1 font-medium">{code}</span>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => onRemoveCoupon(code)}
                 aria-label={`Remove coupon ${code}`}
-                className="opacity-70 hover:opacity-100"
+                className="h-6 w-6 p-0 opacity-70 hover:opacity-100"
               >
                 <XIcon className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </div>
           ))}
 
@@ -162,14 +172,16 @@ export function CartPanel({
           </div>
 
           {/* Checkout button */}
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={onCheckout}
             disabled={loading}
             className="bg-primary text-primary-foreground hover:bg-primary/90 w-full rounded-lg py-3 text-sm font-semibold transition-colors disabled:opacity-50"
           >
             Checkout →
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -226,38 +238,44 @@ function CartLineItem({
               </p>
             )}
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={onRemove}
             aria-label="Remove item"
-            className="text-muted-foreground hover:text-destructive shrink-0 transition-colors"
+            className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0 p-0 transition-colors"
           >
             <Trash2Icon className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         </div>
 
         <div className="flex items-center justify-between">
           {/* Qty controls */}
           <div className="border-border flex items-center gap-1 rounded-lg border">
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => onAdjust(line.quantity - 1)}
               aria-label="Decrease quantity"
-              className="text-muted-foreground hover:text-foreground flex h-7 w-7 items-center justify-center transition-colors"
+              className="text-muted-foreground hover:text-foreground h-7 w-7 p-0 transition-colors"
             >
               <MinusIcon className="h-3 w-3" />
-            </button>
+            </Button>
             <span className="text-foreground w-5 text-center text-sm font-medium">
               {line.quantity}
             </span>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => onAdjust(line.quantity + 1)}
               aria-label="Increase quantity"
-              className="text-muted-foreground hover:text-foreground flex h-7 w-7 items-center justify-center transition-colors"
+              className="text-muted-foreground hover:text-foreground h-7 w-7 p-0 transition-colors"
             >
               <PlusIcon className="h-3 w-3" />
-            </button>
+            </Button>
           </div>
 
           {/* Price */}

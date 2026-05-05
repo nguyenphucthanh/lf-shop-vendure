@@ -5,7 +5,7 @@ import {
   PrinterIcon,
   PlusCircleIcon,
 } from "lucide-react";
-import { useNavigate } from "@vendure/dashboard";
+import { Button, useNavigate } from "@vendure/dashboard";
 
 interface Props {
   orderId: string;
@@ -39,26 +39,32 @@ export function ReceiptScreen({ orderId, orderCode, onNewOrder }: Props) {
 
       {/* Actions */}
       <div className="flex w-full max-w-xs flex-col gap-3">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => navigate({ to: `/orders/${orderId}` })}
           className="border-border text-foreground hover:bg-muted flex w-full items-center justify-center gap-2 rounded-lg border py-3 text-sm font-medium transition-colors"
         >
           <ExternalLinkIcon className="h-4 w-4" />
           View order details
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={handlePrint}
           className="border-border text-foreground hover:bg-muted flex w-full items-center justify-center gap-2 rounded-lg border py-3 text-sm font-medium transition-colors"
         >
           <PrinterIcon className="h-4 w-4" />
           Print receipt
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => {
             // Email action — intentionally left for caller to handle
             alert("Email receipt action — connect to your email service.");
@@ -67,16 +73,17 @@ export function ReceiptScreen({ orderId, orderCode, onNewOrder }: Props) {
         >
           <MailIcon className="h-4 w-4" />
           Email receipt
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
+          size="sm"
           onClick={onNewOrder}
           className="bg-primary text-primary-foreground hover:bg-primary/90 flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition-colors"
         >
           <PlusCircleIcon className="h-4 w-4" />
           Start new order
-        </button>
+        </Button>
       </div>
     </div>
   );

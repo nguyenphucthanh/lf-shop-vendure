@@ -1,4 +1,4 @@
-import { api, useLocalFormat } from "@vendure/dashboard";
+import { api, Button, Input, useLocalFormat } from "@vendure/dashboard";
 import { SearchIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -139,7 +139,7 @@ export function ProductGrid({ cartQuantities, onAddItem }: Props) {
       {/* Search */}
       <div className="relative">
         <SearchIcon className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-        <input
+        <Input
           type="search"
           placeholder="Search products…"
           value={search}
@@ -155,9 +155,11 @@ export function ProductGrid({ cartQuantities, onAddItem }: Props) {
             facet.values.map((value) => {
               const active = activeFacetValueIds.includes(value.id);
               return (
-                <button
+                <Button
                   key={value.id}
                   type="button"
+                  variant={active ? "default" : "outline"}
+                  size="sm"
                   onClick={() => toggleFacetValue(value.id)}
                   className={[
                     "rounded-full border px-3 py-0.5 text-xs font-medium transition-colors",
@@ -167,18 +169,20 @@ export function ProductGrid({ cartQuantities, onAddItem }: Props) {
                   ].join(" ")}
                 >
                   {value.name}
-                </button>
+                </Button>
               );
             }),
           )}
           {activeFacetValueIds.length > 0 && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setActiveFacetValueIds([])}
               className="text-muted-foreground hover:text-foreground rounded-full px-2 py-0.5 text-xs underline"
             >
               Clear
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -197,9 +201,10 @@ export function ProductGrid({ cartQuantities, onAddItem }: Props) {
             variant.featuredAsset?.preview ??
             variant.product.featuredAsset?.preview;
           return (
-            <button
+            <Button
               key={variant.id}
               type="button"
+              variant="ghost"
               onClick={() => onAddItem(variant.id)}
               className="bg-card border-border hover:border-primary focus-visible:ring-ring group relative flex flex-col overflow-hidden rounded-xl border transition-all focus-visible:ring-2 focus-visible:outline-none active:scale-95"
             >
@@ -239,7 +244,7 @@ export function ProductGrid({ cartQuantities, onAddItem }: Props) {
                   {formatCurrency(variant.priceWithTax, variant.currencyCode)}
                 </span>
               </div>
-            </button>
+            </Button>
           );
         })}
 

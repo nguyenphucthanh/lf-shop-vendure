@@ -1,4 +1,4 @@
-import { useLocalFormat } from "@vendure/dashboard";
+import { Button, useLocalFormat } from "@vendure/dashboard";
 import { ShoppingCartIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -103,8 +103,9 @@ export function PosShell() {
       {/* ── Mobile sticky cart bar ────────────────────────────────────────── */}
       {lineCount > 0 && (
         <div className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 fixed bottom-0 left-0 right-0 z-20 border-t px-4 py-3 backdrop-blur md:hidden">
-          <button
+          <Button
             type="button"
+            size="sm"
             onClick={() => setMobileCartOpen(true)}
             className="bg-primary text-primary-foreground flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold shadow-lg"
           >
@@ -116,7 +117,7 @@ export function PosShell() {
               </span>
             </div>
             <span>{formatCurrency(order?.totalWithTax ?? 0, currencyCode)}</span>
-          </button>
+          </Button>
         </div>
       )}
 

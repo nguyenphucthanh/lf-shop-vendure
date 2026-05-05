@@ -1,4 +1,4 @@
-import { api, useLocalFormat } from "@vendure/dashboard";
+import { api, Button, Input, useLocalFormat } from "@vendure/dashboard";
 import { ChevronLeftIcon, UserIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -160,16 +160,18 @@ export function CheckoutSheet({
         {/* Header */}
         <div className="border-border flex items-center gap-3 border-b px-4 py-3">
           {step !== "customer" && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() =>
                 setStep(step === "shipping" ? "payment" : "customer")
               }
               aria-label="Go back"
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
             >
               <ChevronLeftIcon className="h-5 w-5" />
-            </button>
+            </Button>
           )}
           <h2 className="text-foreground flex-1 font-semibold">
             {step === "customer"
@@ -178,23 +180,32 @@ export function CheckoutSheet({
                 ? "Payment"
                 : "Shipping"}
           </h2>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={onClose}
             aria-label="Close checkout"
-            className="text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
           >
             <XIcon className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Error */}
         {error && (
           <div className="bg-destructive/10 text-destructive flex items-start gap-2 px-4 py-2 text-sm">
             <span className="flex-1">{error}</span>
-            <button type="button" onClick={onClearError} aria-label="Dismiss error">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClearError}
+              aria-label="Dismiss error"
+              className="h-6 w-6 p-0"
+            >
               <XIcon className="h-4 w-4" />
-            </button>
+            </Button>
           </div>
         )}
 
@@ -232,25 +243,28 @@ export function CheckoutSheet({
         {/* Footer CTA */}
         <div className="border-border border-t px-4 py-4">
           {step === "customer" ? (
-            <button
+            <Button
               type="button"
+              size="sm"
               onClick={() => setStep("payment")}
               className="bg-primary text-primary-foreground hover:bg-primary/90 w-full rounded-lg py-3 text-sm font-semibold"
             >
               Continue to Payment →
-            </button>
+            </Button>
           ) : step === "payment" ? (
-            <button
+            <Button
               type="button"
+              size="sm"
               disabled={!selectedMethod}
               onClick={() => setStep("shipping")}
               className="bg-primary text-primary-foreground hover:bg-primary/90 w-full rounded-lg py-3 text-sm font-semibold disabled:opacity-50"
             >
               Continue to Shipping →
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               type="button"
+              size="sm"
               disabled={!selectedMethod || !selectedShippingMethod || loading}
               onClick={() =>
                 selectedMethod &&
@@ -260,7 +274,7 @@ export function CheckoutSheet({
               className="bg-primary text-primary-foreground hover:bg-primary/90 w-full rounded-lg py-3 text-sm font-semibold disabled:opacity-50"
             >
               {loading ? "Processing…" : "Complete Order →"}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -321,18 +335,20 @@ function CustomerStep({
               {selectedCustomer.emailAddress}
             </p>
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={onClearSelection}
             aria-label="Clear selected customer"
-            className="text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground h-7 w-7 p-0"
           >
             <XIcon className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       ) : (
         <>
-          <input
+          <Input
             type="search"
             placeholder="Search by name or email…"
             value={term}
@@ -348,8 +364,9 @@ function CustomerStep({
             <ul className="border-border divide-border divide-y overflow-hidden rounded-xl border">
               {results.map((c) => (
                 <li key={c.id}>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
                     onClick={() => onSelect(c)}
                     className="hover:bg-muted flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors"
                   >
@@ -364,7 +381,7 @@ function CustomerStep({
                         {c.emailAddress}
                       </p>
                     </div>
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -372,13 +389,15 @@ function CustomerStep({
         </>
       )}
 
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="sm"
         onClick={onSkip}
         className="text-muted-foreground hover:text-foreground w-full py-1 text-sm underline"
       >
         Skip for now →
-      </button>
+      </Button>
     </div>
   );
 }
@@ -432,9 +451,10 @@ function PaymentStep({
           methods.map((method) => {
             const selected = selectedMethod?.code === method.code;
             return (
-              <button
+              <Button
                 key={method.code}
                 type="button"
+                variant="ghost"
                 onClick={() => onSelectMethod(method)}
                 className={[
                   "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
@@ -468,7 +488,7 @@ function PaymentStep({
                     </p>
                   )}
                 </div>
-              </button>
+              </Button>
             );
           })
         )}
@@ -513,9 +533,10 @@ function ShippingStep({
           methods.map((method) => {
             const selected = selectedMethod?.id === method.id;
             return (
-              <button
+              <Button
                 key={method.id}
                 type="button"
+                variant="ghost"
                 onClick={() => onSelectMethod(method)}
                 className={[
                   "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
@@ -550,7 +571,7 @@ function ShippingStep({
                 <span className="text-foreground text-sm font-semibold">
                   {formatCurrency(method.priceWithTax, currencyCode)}
                 </span>
-              </button>
+              </Button>
             );
           })
         )}
