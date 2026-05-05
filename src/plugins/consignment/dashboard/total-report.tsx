@@ -22,16 +22,13 @@ import {
 } from "@vendure/dashboard";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
   Package,
   Store,
   Wallet,
 } from "lucide-react";
 
 import { graphql } from "@/gql";
-import { getTranslatedName } from "./shared";
+import { getTranslatedName, SortButton, SortDir, SortKey } from "./shared"
 
 const GET_TOTAL_REPORT = graphql(`
   query ConsignmentTotalReport {
@@ -72,42 +69,7 @@ type TotalReportRow = NonNullable<
   ResultOf<typeof GET_TOTAL_REPORT>["consignmentTotalReport"]["rows"][number]
 >;
 
-type SortKey = "name" | "sku" | "intake" | "sold" | "returned" | "available";
-type SortDir = "asc" | "desc";
-
-function SortButton({
-  label,
-  sortKey,
-  current,
-  dir,
-  onSort,
-}: {
-  label: string;
-  sortKey: SortKey;
-  current: SortKey;
-  dir: SortDir;
-  onSort: (key: SortKey) => void;
-}) {
-  const active = current === sortKey;
-  return (
-    <Button
-      variant="ghost"
-      className="flex items-center gap-1 font-semibold px-0 h-auto"
-      onClick={() => onSort(sortKey)}
-    >
-      {label}
-      {active ? (
-        dir === "asc" ? (
-          <ArrowUp className="h-3 w-3" />
-        ) : (
-          <ArrowDown className="h-3 w-3" />
-        )
-      ) : (
-        <ArrowUpDown className="h-3 w-3 opacity-40" />
-      )}
-    </Button>
-  );
-}
+type LocalTotalSortKey = "name" | "sku" | "intake" | "sold" | "returned" | "available";
 
 function SellThroughBar({ sold, intake }: { sold: number; intake: number }) {
   if (intake === 0)
@@ -287,7 +249,7 @@ export function TotalReportPage() {
                         sortKey="name"
                         current={sortKey}
                         dir={sortDir}
-                        onSort={handleSort}
+                        onSort={handleSort as any}
                       />
                     </TableHead>
                     <TableHead>
@@ -296,7 +258,7 @@ export function TotalReportPage() {
                         sortKey="sku"
                         current={sortKey}
                         dir={sortDir}
-                        onSort={handleSort}
+                        onSort={handleSort as any}
                       />
                     </TableHead>
                     <TableHead className="text-right">
@@ -305,7 +267,7 @@ export function TotalReportPage() {
                         sortKey="intake"
                         current={sortKey}
                         dir={sortDir}
-                        onSort={handleSort}
+                        onSort={handleSort as any}
                       />
                     </TableHead>
                     <TableHead className="text-right">
@@ -314,7 +276,7 @@ export function TotalReportPage() {
                         sortKey="sold"
                         current={sortKey}
                         dir={sortDir}
-                        onSort={handleSort}
+                        onSort={handleSort as any}
                       />
                     </TableHead>
                     <TableHead className="text-right">
@@ -323,7 +285,7 @@ export function TotalReportPage() {
                         sortKey="returned"
                         current={sortKey}
                         dir={sortDir}
-                        onSort={handleSort}
+                        onSort={handleSort as any}
                       />
                     </TableHead>
                     <TableHead className="text-right">
@@ -332,7 +294,7 @@ export function TotalReportPage() {
                         sortKey="available"
                         current={sortKey}
                         dir={sortDir}
-                        onSort={handleSort}
+                        onSort={handleSort as any}
                       />
                     </TableHead>
                     <TableHead className="w-36">Sell-through</TableHead>
