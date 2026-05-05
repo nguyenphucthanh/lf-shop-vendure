@@ -89,7 +89,7 @@ export const GET_QUANTITY_AGGREGATES = graphql(`
     consignmentReport(storeId: $storeId) {
       quotationId
       intakeQty
-      paidQty
+      soldQty
       returnedQty
     }
   }
@@ -163,7 +163,6 @@ export function useStore(storeId?: string | null) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    console.log("🚀 ~ useStore ~ storeId:", storeId);
     if (!storeId) {
       setStore(null);
       setLoading(false);
@@ -323,13 +322,13 @@ export function LineItemsEditor(props: {
   storeId: string;
   value: LineItemDraft[];
   onChange: (items: LineItemDraft[]) => void;
-  calculateMaxQty?: false | "in-payment" | "in-return";
+  calculateMaxQty?: false | "in-sold" | "in-return";
   initialDocumentQtyByQuotation?: Record<string, number>;
 }) {
   const { formatCurrency } = useLocalFormat();
   const { quotations, loading } = useQuotations(props.storeId);
   const [quantityByQuotationId, setQuantityByQuotationId] = useState<
-    Record<string, { intakeQty: number; paidQty: number; returnedQty: number }>
+    Record<string, { intakeQty: number; soldQty: number; returnedQty: number }>
   >({});
   const [quantityAggregatesLoading, setQuantityAggregatesLoading] =
     useState(false);
@@ -354,12 +353,12 @@ export function LineItemsEditor(props: {
       });
       const next: Record<
         string,
-        { intakeQty: number; paidQty: number; returnedQty: number }
+        { intakeQty: number; soldQty: number; returnedQty: number }
       > = {};
       for (const row of result?.consignmentReport ?? []) {
         next[row.quotationId] = {
           intakeQty: Number(row.intakeQty ?? 0),
-          paidQty: Number(row.paidQty ?? 0),
+          soldQty: Number(row.soldQty ?? 0),
           returnedQty: Number(row.returnedQty ?? 0),
         };
       }
@@ -385,7 +384,7 @@ export function LineItemsEditor(props: {
     return Math.max(
       0,
       aggregate.intakeQty -
-        aggregate.paidQty -
+        aggregate.soldQty -
         aggregate.returnedQty +
         initialDocumentQty,
     );
@@ -468,6 +467,7 @@ export function LineItemsEditor(props: {
                           quotationId: selectedQuotation?.id ?? "",
                           consignmentPriceSnapshot:
                             selectedQuotation?.consignmentPrice ?? 0,
+                          currency: selectedQuotation?.currency ?? "USD",
                         });
                       }}
                       itemToStringValue={(item) => item.id}

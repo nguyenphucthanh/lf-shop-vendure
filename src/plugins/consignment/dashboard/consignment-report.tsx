@@ -70,7 +70,7 @@ const GET_REPORT = graphql(`
       }
       consignmentPrice
       intakeQty
-      paidQty
+      soldQty
       returnedQty
       debtQty
     }
@@ -90,9 +90,10 @@ const GET_PAYMENT_SUMMARY = graphql(`
   query ConsignmentReportPaymentSummary($storeId: ID!) {
     consignmentPayments(storeId: $storeId) {
       id
-      paidAmount
-      remainingAmount
+      subtotal
       discount
+      total
+      paymentStatus
     }
   }
 `);
@@ -112,11 +113,11 @@ export function ConsignmentReportPage(props: { storeId: string }) {
   const [rows, setRows] = useState<
     ResultOf<typeof GET_REPORT>["consignmentReport"]
   >([]);
-  const [partialPaymentCount, setPartialPaymentCount] = useState(0);
+  const [pendingPaymentCount, setPendingPaymentCount] = useState(0);
   const [paymentSummary, setPaymentSummary] = useState({
-    paidAmount: 0,
-    remainingAmount: 0,
+    subtotal: 0,
     discount: 0,
+    total: 0,
   });
 
   const [returnSummary, setReturnSummary] = useState(0);
@@ -125,8 +126,8 @@ export function ConsignmentReportPage(props: { storeId: string }) {
   useEffect(() => {
     if (!storeId) {
       setRows([]);
-      setPartialPaymentCount(0);
-      setPaymentSummary({ paidAmount: 0, remainingAmount: 0, discount: 0 });
+      setPendingPaymentCount(0);
+      setPaymentSummary({ subtotal: 0, discount: 0, total: 0 });
       return;
     }
     void Promise.all([
@@ -138,17 +139,17 @@ export function ConsignmentReportPage(props: { storeId: string }) {
       setRows(reportResult?.consignmentReport ?? []);
 
       const payments = paymentResult?.consignmentPayments ?? [];
-      const nextPartialPaymentCount = payments.filter(
-        (payment) => (payment.remainingAmount ?? 0) > 0,
+      const nextPendingPaymentCount = payments.filter(
+        (payment) => (payment.paymentStatus ?? "") !== "Completed",
       ).length;
-      setPartialPaymentCount(nextPartialPaymentCount);
+      setPendingPaymentCount(nextPendingPaymentCount);
       const nextPaymentSummary = payments.reduce(
         (acc, payment) => ({
-          paidAmount: acc.paidAmount + (payment.paidAmount ?? 0),
-          remainingAmount: acc.remainingAmount + (payment.remainingAmount ?? 0),
+          subtotal: acc.subtotal + (payment.subtotal ?? 0),
           discount: acc.discount + (payment.discount ?? 0),
+          total: acc.total + (payment.total ?? 0),
         }),
-        { paidAmount: 0, remainingAmount: 0, discount: 0 },
+        { subtotal: 0, discount: 0, total: 0 },
       );
       setPaymentSummary(nextPaymentSummary);
       const nextIntakeSummary = intakeResult?.consignmentIntakes.reduce(
@@ -166,8 +167,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
 
   const debtSummary =
     intakeSummary -
-    (paymentSummary.paidAmount ?? 0) -
-    (paymentSummary.discount ?? 0) -
+    (paymentSummary.subtotal ?? 0) -
     returnSummary;
 
   return (
@@ -192,7 +192,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold text-right">
-                {formatCurrency(paymentSummary.paidAmount, "USD")}
+                {formatCurrency(paymentSummary.subtotal, "USD")}
               </p>
             </CardContent>
             <CardFooter>
@@ -229,12 +229,12 @@ export function ConsignmentReportPage(props: { storeId: string }) {
         </div>
       </div>
 
-      {partialPaymentCount > 0 ? (
+      {pendingPaymentCount > 0 ? (
         <Alert variant="destructive">
           <TriangleAlert className="h-4 w-4" />
           <AlertDescription>
-            There are {partialPaymentCount} partial payment
-            {partialPaymentCount > 1 ? "s" : ""}.
+            There are {pendingPaymentCount} payment
+            {pendingPaymentCount > 1 ? "s" : ""} not marked as completed.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -249,7 +249,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
               <TableRow>
                 <TableHead colSpan={4}>Product</TableHead>
                 <TableHead colSpan={1}>Intake</TableHead>
-                <TableHead colSpan={1}>Paid</TableHead>
+                <TableHead colSpan={1}>Sold</TableHead>
                 <TableHead colSpan={1}>Returned</TableHead>
                 <TableHead colSpan={1}>Debt</TableHead>
               </TableRow>
@@ -259,7 +259,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                 <TableHead>Product</TableHead>
                 <TableHead>Quoted</TableHead>
                 <TableHead>Intake Qty</TableHead>
-                <TableHead>Paid Qty</TableHead>
+                <TableHead>Sold Qty</TableHead>
                 <TableHead>Returned Qty</TableHead>
                 <TableHead>Debt Qty</TableHead>
               </TableRow>
@@ -289,7 +289,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                     {formatCurrency(row.consignmentPrice, "USD")}
                   </TableCell>
                   <TableCell>{row.intakeQty}</TableCell>
-                  <TableCell>{row.paidQty}</TableCell>
+                  <TableCell>{row.soldQty}</TableCell>
                   <TableCell>{row.returnedQty}</TableCell>
                   <TableCell>{row.debtQty}</TableCell>
                 </TableRow>

@@ -4,16 +4,7 @@ import { RequestContext, TransactionalConnection, UserInputError } from '@vendur
 import { IsNull, Not } from 'typeorm';
 
 import { ConsignmentPayment, PaymentMethod, PaymentStatus } from '../entities/consignment-payment.entity';
-import { ConsignmentPaymentItem } from '../entities/consignment-payment-item.entity';
-import { ConsignmentQuotation } from '../entities/consignment-quotation.entity';
-import { ConsignmentIntakeItem } from '../entities/consignment-intake-item.entity';
-import { ConsignmentReturnItem } from '../entities/consignment-return-item.entity';
-
-export interface PaymentItemInput {
-    quotationId: ID;
-    quantity: number;
-    consignmentPriceSnapshot?: number;
-}
+import { ConsignmentSold } from '../entities/consignment-sold.entity';
 
 export interface CreatePaymentInput {
     storeId: ID;
@@ -21,9 +12,9 @@ export interface CreatePaymentInput {
     paymentPolicy?: string | null;
     paymentMethod: PaymentMethod;
     paymentStatus: PaymentStatus;
+    subtotal: number;
     discount?: number;
-    paidAmount?: number;
-    items: PaymentItemInput[];
+    soldId?: ID | null;
 }
 
 export interface UpdatePaymentInput extends Partial<Omit<CreatePaymentInput, 'storeId'>> {
@@ -37,7 +28,7 @@ export class ConsignmentPaymentService {
     async findAll(ctx: RequestContext, storeId: ID): Promise<ConsignmentPayment[]> {
         return this.connection.getRepository(ctx, ConsignmentPayment).find({
             where: { storeId },
-            relations: ['items', 'items.quotation', 'items.quotation.productVariant'],
+            relations: ['sold', 'sold.items', 'sold.items.quotation', 'sold.items.quotation.productVariant'],
             order: { paymentDate: 'DESC' },
         });
     }
@@ -45,76 +36,31 @@ export class ConsignmentPaymentService {
     async findOne(ctx: RequestContext, id: ID): Promise<ConsignmentPayment | null> {
         return this.connection.getRepository(ctx, ConsignmentPayment).findOne({
             where: { id, storeId: Not(IsNull()) },
-            relations: ['store', 'items', 'items.quotation', 'items.quotation.productVariant'],
+            relations: ['store', 'sold', 'sold.items', 'sold.items.quotation', 'sold.items.quotation.productVariant'],
         });
     }
 
-    /**
-     * Validates that the total paid + returned quantity for a given quotation
-     * does not exceed the total intake quantity, excluding a specific payment being updated.
-     */
-    private async validateQuantityConstraint(
-        ctx: RequestContext,
-        storeId: ID,
-        items: PaymentItemInput[],
-        excludePaymentId?: ID,
-    ): Promise<void> {
-        const intakeItemRepo = this.connection.getRepository(ctx, ConsignmentIntakeItem);
-        const paymentItemRepo = this.connection.getRepository(ctx, ConsignmentPaymentItem);
-        const returnItemRepo = this.connection.getRepository(ctx, ConsignmentReturnItem);
-
-        const requestedByQuotation = new Map<ID, number>();
-        for (const item of items) {
-            requestedByQuotation.set(item.quotationId, (requestedByQuotation.get(item.quotationId) ?? 0) + item.quantity);
-        }
-
-        for (const [quotationId, requestedQuantity] of requestedByQuotation.entries()) {
-            const intakeQty = await intakeItemRepo
-                .createQueryBuilder('ii')
-                .innerJoin('ii.intake', 'intake')
-                .where('intake.storeId = :storeId', { storeId })
-                .andWhere('ii.quotationId = :quotationId', { quotationId })
-                .select('COALESCE(SUM(ii.quantity), 0)', 'total')
-                .getRawOne()
-                .then(r => Number(r?.total ?? 0));
-
-            const paidQtyQuery = paymentItemRepo
-                .createQueryBuilder('pi')
-                .innerJoin('pi.payment', 'payment')
-                .where('payment.storeId = :storeId', { storeId })
-                .andWhere('pi.quotationId = :quotationId', { quotationId });
-            if (excludePaymentId) {
-                paidQtyQuery.andWhere('payment.id != :excludePaymentId', { excludePaymentId });
-            }
-            const paidQty = await paidQtyQuery
-                .select('COALESCE(SUM(pi.quantity), 0)', 'total')
-                .getRawOne()
-                .then(r => Number(r?.total ?? 0));
-
-            const returnedQty = await returnItemRepo
-                .createQueryBuilder('ri')
-                .innerJoin('ri.consignmentReturn', 'ret')
-                .where('ret.storeId = :storeId', { storeId })
-                .andWhere('ri.quotationId = :quotationId', { quotationId })
-                .select('COALESCE(SUM(ri.quantity), 0)', 'total')
-                .getRawOne()
-                .then(r => Number(r?.total ?? 0));
-
-            const available = intakeQty - paidQty - returnedQty;
-            if (requestedQuantity > available) {
-                throw new UserInputError(
-                    `Quotation ${quotationId}: requested quantity ${requestedQuantity} exceeds available ${available} (intake: ${intakeQty}, paid: ${paidQty}, returned: ${returnedQty}).`,
-                );
-            }
-        }
-    }
-
     async create(ctx: RequestContext, input: CreatePaymentInput): Promise<ConsignmentPayment> {
-        await this.validateQuantityConstraint(ctx, input.storeId, input.items);
-
         const repo = this.connection.getRepository(ctx, ConsignmentPayment);
-        const itemRepo = this.connection.getRepository(ctx, ConsignmentPaymentItem);
-        const quotationRepo = this.connection.getRepository(ctx, ConsignmentQuotation);
+        const soldRepo = this.connection.getRepository(ctx, ConsignmentSold);
+
+        let soldId: ID | null = input.soldId ?? null;
+        if (soldId) {
+            const sold = await soldRepo.findOne({
+                where: {
+                    id: soldId,
+                    storeId: input.storeId,
+                },
+            });
+            if (!sold) {
+                throw new UserInputError(`Sold ${soldId} not found for store ${input.storeId}`);
+            }
+            soldId = sold.id;
+        }
+
+        const subtotal = input.subtotal;
+        const discount = input.discount ?? 0;
+        const total = subtotal - discount;
 
         const payment = repo.create({
             storeId: input.storeId,
@@ -122,50 +68,19 @@ export class ConsignmentPaymentService {
             paymentPolicy: input.paymentPolicy ?? null,
             paymentMethod: input.paymentMethod,
             paymentStatus: input.paymentStatus,
-            subtotal: 0,
-            discount: input.discount ?? 0,
-            total: 0,
-            paidAmount: 0,
-            remainingAmount: 0,
+            subtotal,
+            discount,
+            total,
+            soldId,
         });
         const saved = await repo.save(payment);
-
-        let subtotal = 0;
-        for (const itemInput of input.items) {
-            const quotation = await quotationRepo.findOne({ where: { id: itemInput.quotationId }, relations: ['productVariant'] });
-            if (!quotation) throw new UserInputError(`Quotation ${itemInput.quotationId} not found`);
-            if (quotation.storeId !== input.storeId) {
-                throw new UserInputError(`Quotation ${itemInput.quotationId} does not belong to store ${input.storeId}`);
-            }
-            const consignmentPriceSnapshot = itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
-            const itemSubtotal = consignmentPriceSnapshot * itemInput.quantity;
-            await itemRepo.save(itemRepo.create({
-                paymentId: saved.id,
-                quotationId: quotation.id,
-                currency: quotation.currency,
-                productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
-                consignmentPriceSnapshot,
-                quantity: itemInput.quantity,
-                subtotal: itemSubtotal,
-            }));
-            subtotal += itemSubtotal;
-        }
-
-        const total = subtotal - saved.discount;
-        const paidAmount = input.paidAmount ?? total;
-        saved.subtotal = subtotal;
-        saved.total = total;
-        saved.paidAmount = paidAmount;
-        saved.remainingAmount = total - paidAmount;
-        await repo.save(saved);
 
         return (await this.findOne(ctx, saved.id))!;
     }
 
     async update(ctx: RequestContext, input: UpdatePaymentInput): Promise<ConsignmentPayment> {
         const repo = this.connection.getRepository(ctx, ConsignmentPayment);
-        const itemRepo = this.connection.getRepository(ctx, ConsignmentPaymentItem);
-        const quotationRepo = this.connection.getRepository(ctx, ConsignmentQuotation);
+        const soldRepo = this.connection.getRepository(ctx, ConsignmentSold);
 
         const payment = await repo.findOne({
             where: {
@@ -177,43 +92,31 @@ export class ConsignmentPaymentService {
             throw new UserInputError(`Payment ${input.id} not found`);
         }
 
-        if (input.items !== undefined) {
-            await this.validateQuantityConstraint(ctx, payment.storeId, input.items, payment.id);
-            await itemRepo.delete({ paymentId: payment.id });
-            let subtotal = 0;
-            for (const itemInput of input.items) {
-                const quotation = await quotationRepo.findOne({ where: { id: itemInput.quotationId }, relations: ['productVariant'] });
-                if (!quotation) throw new UserInputError(`Quotation ${itemInput.quotationId} not found`);
-                if (quotation.storeId !== payment.storeId) {
-                    throw new UserInputError(`Quotation ${itemInput.quotationId} does not belong to store ${payment.storeId}`);
+        if (input.soldId !== undefined) {
+            if (input.soldId === null) {
+                payment.soldId = null;
+            } else {
+                const sold = await soldRepo.findOne({
+                    where: {
+                        id: input.soldId,
+                        storeId: payment.storeId,
+                    },
+                });
+                if (!sold) {
+                    throw new UserInputError(`Sold ${input.soldId} not found for store ${payment.storeId}`);
                 }
-                const consignmentPriceSnapshot = itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
-                const itemSubtotal = consignmentPriceSnapshot * itemInput.quantity;
-                await itemRepo.save(itemRepo.create({
-                    paymentId: payment.id,
-                    quotationId: quotation.id,
-                    currency: quotation.currency,
-                    productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
-                    consignmentPriceSnapshot,
-                    quantity: itemInput.quantity,
-                    subtotal: itemSubtotal,
-                }));
-                subtotal += itemSubtotal;
+                payment.soldId = sold.id;
             }
-            payment.subtotal = subtotal;
         }
 
         if (input.paymentDate !== undefined) payment.paymentDate = input.paymentDate;
         if (input.paymentPolicy !== undefined) payment.paymentPolicy = input.paymentPolicy ?? null;
         if (input.paymentMethod !== undefined) payment.paymentMethod = input.paymentMethod;
         if (input.paymentStatus !== undefined) payment.paymentStatus = input.paymentStatus;
+        if (input.subtotal !== undefined) payment.subtotal = input.subtotal;
         if (input.discount !== undefined) payment.discount = input.discount;
 
-        const total = payment.subtotal - payment.discount;
-        payment.total = total;
-        const paidAmount = input.paidAmount ?? payment.paidAmount;
-        payment.paidAmount = paidAmount;
-        payment.remainingAmount = total - paidAmount;
+        payment.total = payment.subtotal - payment.discount;
 
         await repo.save(payment);
         return (await this.findOne(ctx, payment.id))!;

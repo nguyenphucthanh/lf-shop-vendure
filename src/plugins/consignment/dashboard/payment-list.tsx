@@ -21,15 +21,22 @@ const LIST_PAYMENTS = graphql(`
     consignmentPayments(storeId: $storeId) {
       id
       paymentDate
+      paymentPolicy
       paymentMethod
       paymentStatus
+      subtotal
+      discount
       total
-      paidAmount
-      remainingAmount
-      items {
+      sold {
         id
-        quantity
-        currency
+        soldDate
+        items {
+          id
+          quotation {
+            productVariantSku
+            productVariantName
+          }
+        }
       }
     }
   }
@@ -85,11 +92,12 @@ export function PaymentListPage(props: { storeId: string }) {
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
-              <TableHead>Items</TableHead>
+              <TableHead>Linked Sold</TableHead>
               <TableHead>Method</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Subtotal</TableHead>
+              <TableHead>Discount</TableHead>
               <TableHead>Total</TableHead>
-              <TableHead>Remaining</TableHead>
               <TableHead className="w-[140px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -98,26 +106,17 @@ export function PaymentListPage(props: { storeId: string }) {
               <TableRow key={row.id}>
                 <TableCell>{String(row.paymentDate).slice(0, 10)}</TableCell>
                 <TableCell>
-                  {`${
-                    row.items?.reduce(
-                      (sum: number, item: any) => sum + item.quantity,
-                      0,
-                    ) ?? 0
-                  } items of ${row.items?.length ?? 0} products`}
+                  {row.sold?.id
+                    ? `${String(row.sold.soldDate).slice(0, 10)} - ${row.sold.items?.length ?? 0} items`
+                    : "Not linked"}
                 </TableCell>
                 <TableCell>{row.paymentMethod}</TableCell>
                 <TableCell className={getStatusClass(row.paymentStatus)}>
                   {row.paymentStatus}
                 </TableCell>
-                <TableCell>
-                  {formatCurrency(row.total, row.items?.[0]?.currency || "USD")}
-                </TableCell>
-                <TableCell>
-                  {formatCurrency(
-                    row.remainingAmount,
-                    row.items?.[0]?.currency || "USD",
-                  )}
-                </TableCell>
+                <TableCell>{formatCurrency(row.subtotal, "USD")}</TableCell>
+                <TableCell>{formatCurrency(row.discount, "USD")}</TableCell>
+                <TableCell>{formatCurrency(row.total, "USD")}</TableCell>
                 <TableCell>
                   <Button
                     size="sm"
@@ -137,7 +136,7 @@ export function PaymentListPage(props: { storeId: string }) {
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="text-center text-sm text-muted-foreground"
                 >
                   No payment records found.

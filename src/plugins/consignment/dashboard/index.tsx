@@ -11,6 +11,8 @@ import { QuotationDetailPage } from "./quotation-detail";
 import { QuotationListPage } from "./quotation-list";
 import { ReturnDetailPage } from "./return-detail";
 import { ReturnListPage } from "./return-list";
+import { SoldDetailPage } from "./sold-detail";
+import { SoldListPage } from "./sold-list";
 const commonStoreSearchSchema = z.object({
   storeId: z.union([z.string(), z.number()]).optional(),
 });
@@ -72,6 +74,21 @@ defineDashboardExtension({
     {
       path: "/consignment/intakes/$id",
       component: (route) => <IntakeDetailPage route={route} />,
+    },
+    {
+      path: "/consignment/solds",
+      component: (route) => (
+        <ConsignmentShell
+          route={route}
+          activeTab="solds"
+          renderContent={(storeId) => <SoldListPage storeId={storeId} />}
+        />
+      ),
+      validateSearch: commonStoreSearchSchema,
+    },
+    {
+      path: "/consignment/solds/$id",
+      component: (route) => <SoldDetailPage route={route} />,
     },
     {
       path: "/consignment/payments",

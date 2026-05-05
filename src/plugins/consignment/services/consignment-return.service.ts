@@ -7,7 +7,7 @@ import { ConsignmentReturn } from '../entities/consignment-return.entity';
 import { ConsignmentReturnItem } from '../entities/consignment-return-item.entity';
 import { ConsignmentQuotation } from '../entities/consignment-quotation.entity';
 import { ConsignmentIntakeItem } from '../entities/consignment-intake-item.entity';
-import { ConsignmentPaymentItem } from '../entities/consignment-payment-item.entity';
+import { ConsignmentSoldItem } from '../entities/consignment-sold-item.entity';
 
 export interface ReturnItemInput {
     quotationId: ID;
@@ -52,7 +52,7 @@ export class ConsignmentReturnService {
         excludeReturnId?: ID,
     ): Promise<void> {
         const intakeItemRepo = this.connection.getRepository(ctx, ConsignmentIntakeItem);
-        const paymentItemRepo = this.connection.getRepository(ctx, ConsignmentPaymentItem);
+        const soldItemRepo = this.connection.getRepository(ctx, ConsignmentSoldItem);
         const returnItemRepo = this.connection.getRepository(ctx, ConsignmentReturnItem);
 
         const requestedByQuotation = new Map<ID, number>();
@@ -70,12 +70,12 @@ export class ConsignmentReturnService {
                 .getRawOne()
                 .then(r => Number(r?.total ?? 0));
 
-            const paidQty = await paymentItemRepo
-                .createQueryBuilder('pi')
-                .innerJoin('pi.payment', 'payment')
-                .where('payment.storeId = :storeId', { storeId })
-                .andWhere('pi.quotationId = :quotationId', { quotationId })
-                .select('COALESCE(SUM(pi.quantity), 0)', 'total')
+            const soldQty = await soldItemRepo
+                .createQueryBuilder('si')
+                .innerJoin('si.sold', 'sold')
+                .where('sold.storeId = :storeId', { storeId })
+                .andWhere('si.quotationId = :quotationId', { quotationId })
+                .select('COALESCE(SUM(si.quantity), 0)', 'total')
                 .getRawOne()
                 .then(r => Number(r?.total ?? 0));
 
@@ -92,7 +92,7 @@ export class ConsignmentReturnService {
                 .getRawOne()
                 .then(r => Number(r?.total ?? 0));
 
-            const available = intakeQty - paidQty - returnedQty;
+            const available = intakeQty - soldQty - returnedQty;
             if (requestedQuantity > available) {
                 throw new UserInputError(
                     `Quotation ${quotationId}: requested return quantity ${requestedQuantity} exceeds available ${available}.`,

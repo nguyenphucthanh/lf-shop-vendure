@@ -10,14 +10,16 @@ import { UserInputError } from '@vendure/core';
 import { ConsignmentIntake } from '../src/plugins/consignment/entities/consignment-intake.entity';
 import { ConsignmentIntakeItem } from '../src/plugins/consignment/entities/consignment-intake-item.entity';
 import { ConsignmentPayment } from '../src/plugins/consignment/entities/consignment-payment.entity';
-import { ConsignmentPaymentItem } from '../src/plugins/consignment/entities/consignment-payment-item.entity';
 import { ConsignmentQuotation } from '../src/plugins/consignment/entities/consignment-quotation.entity';
 import { ConsignmentReturn } from '../src/plugins/consignment/entities/consignment-return.entity';
 import { ConsignmentReturnItem } from '../src/plugins/consignment/entities/consignment-return-item.entity';
+import { ConsignmentSoldItem } from '../src/plugins/consignment/entities/consignment-sold-item.entity';
+import { ConsignmentSold } from '../src/plugins/consignment/entities/consignment-sold.entity';
 import { ConsignmentIntakeService } from '../src/plugins/consignment/services/consignment-intake.service';
 import { ConsignmentPaymentService } from '../src/plugins/consignment/services/consignment-payment.service';
 import { ConsignmentReportService } from '../src/plugins/consignment/services/consignment-report.service';
 import { ConsignmentReturnService } from '../src/plugins/consignment/services/consignment-return.service';
+import { ConsignmentSoldService } from '../src/plugins/consignment/services/consignment-sold.service';
 
 type RepoRecord = Record<string, unknown>;
 
@@ -161,12 +163,15 @@ test('intake update should not change total when only delivery cost changes', as
     assert.equal(getLast(savedIntakes)?.total, 1100);
 });
 
-test('payment create should reject duplicate quotation rows that exceed available quantity in aggregate', async () => {
-    const service = new ConsignmentPaymentService(
+test('sold create should reject quantity that exceeds available aggregate', async () => {
+    const service = new ConsignmentSoldService(
         new FakeConnection(
             createRepoMap([
-                [ConsignmentPayment, { create: (input: RepoRecord) => ({ ...input }), save: async (input: RepoRecord) => ({ id: 'payment-1', ...input }) }],
-                [ConsignmentPaymentItem, {
+                [ConsignmentSold, {
+                    create: (input: RepoRecord) => ({ ...input }),
+                    save: async (input: RepoRecord) => ({ id: 'sold-1', ...input }),
+                }],
+                [ConsignmentSoldItem, {
                     create: (input: RepoRecord) => ({ ...input }),
                     save: async (input: RepoRecord) => input,
                     createQueryBuilder: () => createSumQueryBuilder(0),
@@ -176,6 +181,7 @@ test('payment create should reject duplicate quotation rows that exceed availabl
                 [ConsignmentQuotation, {
                     findOne: async () => ({
                         id: 'quotation-1',
+                        storeId: 'store-1',
                         currency: 'USD',
                         consignmentPrice: 100,
                         productVariant: { priceWithTax: 200 },
@@ -184,18 +190,13 @@ test('payment create should reject duplicate quotation rows that exceed availabl
             ]),
         ) as never,
     );
-    service.findOne = async () => ({ id: 'payment-1' } as ConsignmentPayment);
+    service.findOne = async () => ({ id: 'sold-1' } as ConsignmentSold);
 
     await assert.rejects(
         service.create(ctx, {
             storeId: 'store-1',
-            paymentDate: new Date('2026-01-01T00:00:00.000Z'),
-            paymentMethod: 'Cash',
-            paymentStatus: 'Pending',
-            items: [
-                { quotationId: 'quotation-1', quantity: 3 },
-                { quotationId: 'quotation-1', quantity: 3 },
-            ],
+            soldDate: new Date('2026-01-01T00:00:00.000Z'),
+            items: [{ quotationId: 'quotation-1', quantity: 6 }],
         }),
         UserInputError,
     );
@@ -212,7 +213,7 @@ test('return create should reject duplicate quotation rows that exceed available
                     createQueryBuilder: () => createSumQueryBuilder(0),
                 }],
                 [ConsignmentIntakeItem, { createQueryBuilder: () => createSumQueryBuilder(5) }],
-                [ConsignmentPaymentItem, { createQueryBuilder: () => createSumQueryBuilder(0) }],
+                [ConsignmentSoldItem, { createQueryBuilder: () => createSumQueryBuilder(0) }],
                 [ConsignmentQuotation, {
                     findOne: async () => ({
                         id: 'quotation-1',
@@ -243,6 +244,7 @@ test('consignment services should not rely on id-only record lookups for store-s
     const serviceFiles = [
         path.resolve('src/plugins/consignment/services/consignment-quotation.service.ts'),
         path.resolve('src/plugins/consignment/services/consignment-intake.service.ts'),
+        path.resolve('src/plugins/consignment/services/consignment-sold.service.ts'),
         path.resolve('src/plugins/consignment/services/consignment-payment.service.ts'),
         path.resolve('src/plugins/consignment/services/consignment-return.service.ts'),
     ];
@@ -276,7 +278,7 @@ test('report service should not issue aggregate queries per quotation row', asyn
             createRepoMap([
                 [ConsignmentQuotation, quotationRepo],
                 [ConsignmentIntakeItem, aggregateRepo],
-                [ConsignmentPaymentItem, aggregateRepo],
+                [ConsignmentSoldItem, aggregateRepo],
                 [ConsignmentReturnItem, aggregateRepo],
             ]),
         ) as never,

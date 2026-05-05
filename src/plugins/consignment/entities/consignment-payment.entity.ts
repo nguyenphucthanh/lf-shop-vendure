@@ -1,7 +1,7 @@
 import { DeepPartial, ID } from "@vendure/common/lib/shared-types";
 import { Customer, EntityId, Money, VendureEntity } from "@vendure/core";
-import { Column, Entity, ManyToOne, OneToMany } from "typeorm";
-import { ConsignmentPaymentItem } from "./consignment-payment-item.entity";
+import { Column, Entity, ManyToOne } from "typeorm";
+import { ConsignmentSold } from "./consignment-sold.entity";
 
 export type PaymentMethod = "Cash" | "Bank transfer";
 export type PaymentStatus = "Pending" | "Completed";
@@ -30,7 +30,7 @@ export class ConsignmentPayment extends VendureEntity {
   @Column({ type: "varchar" })
   paymentStatus: PaymentStatus;
 
-  /** Sum of all items' subtotals */
+  /** Financial subtotal for this payment entry */
   @Money()
   subtotal: number;
 
@@ -41,16 +41,9 @@ export class ConsignmentPayment extends VendureEntity {
   @Money()
   total: number;
 
-  @Money()
-  paidAmount: number;
+  @EntityId({ nullable: true })
+  soldId: ID | null;
 
-  /** total - paidAmount */
-  @Money()
-  remainingAmount: number;
-
-  @OneToMany(() => ConsignmentPaymentItem, (item) => item.payment, {
-    cascade: true,
-    eager: false,
-  })
-  items: ConsignmentPaymentItem[];
+  @ManyToOne(() => ConsignmentSold, { onDelete: "SET NULL", nullable: true })
+  sold: ConsignmentSold | null;
 }

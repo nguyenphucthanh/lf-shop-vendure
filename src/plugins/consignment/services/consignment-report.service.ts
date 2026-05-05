@@ -3,9 +3,9 @@ import { ID } from "@vendure/common/lib/shared-types";
 import { RequestContext, TransactionalConnection } from "@vendure/core";
 
 import { ConsignmentIntakeItem } from "../entities/consignment-intake-item.entity";
-import { ConsignmentPaymentItem } from "../entities/consignment-payment-item.entity";
 import { ConsignmentReturnItem } from "../entities/consignment-return-item.entity";
 import { ConsignmentQuotation } from "../entities/consignment-quotation.entity";
+import { ConsignmentSoldItem } from "../entities/consignment-sold-item.entity";
 
 export interface ConsignmentReportRow {
   quotationId: ID;
@@ -23,7 +23,7 @@ export interface ConsignmentReportRow {
   } | null;
   consignmentPrice: number;
   intakeQty: number;
-  paidQty: number;
+  soldQty: number;
   returnedQty: number;
   debtQty: number;
 }
@@ -49,10 +49,7 @@ export class ConsignmentReportService {
       ctx,
       ConsignmentIntakeItem,
     );
-    const paymentItemRepo = this.connection.getRepository(
-      ctx,
-      ConsignmentPaymentItem,
-    );
+    const soldItemRepo = this.connection.getRepository(ctx, ConsignmentSoldItem);
     const returnItemRepo = this.connection.getRepository(
       ctx,
       ConsignmentReturnItem,
@@ -84,14 +81,22 @@ export class ConsignmentReportService {
       quotationIds,
     );
 
-    const paidByQuotation = await this.loadQuantityByQuotation(
-      paymentItemRepo,
-      "pi",
-      "pi.payment",
-      "payment",
-      storeId,
-      quotationIds,
-    );
+    const soldRows = (await soldItemRepo
+      .createQueryBuilder("si")
+      .innerJoin("si.sold", "sold")
+      .where("sold.storeId = :storeId", { storeId })
+      .andWhere("si.quotationId IN (:...quotationIds)", {
+        quotationIds,
+      })
+      .select("si.quotationId", "quotationId")
+      .addSelect("COALESCE(SUM(si.quantity), 0)", "qty")
+      .groupBy("si.quotationId")
+      .getRawMany()) as QuantityAggregateRow[];
+
+    const soldByQuotation = new Map<ID, number>();
+    for (const row of soldRows) {
+      soldByQuotation.set(row.quotationId, Number(row.qty ?? 0));
+    }
 
     const returnedByQuotation = await this.loadQuantityByQuotation(
       returnItemRepo,
@@ -164,7 +169,7 @@ export class ConsignmentReportService {
         : null;
 
       const intakeQty = intakeByQuotation.get(quotation.id) ?? 0;
-      const paidQty = paidByQuotation.get(quotation.id) ?? 0;
+      const soldQty = soldByQuotation.get(quotation.id) ?? 0;
       const returnedQty = returnedByQuotation.get(quotation.id) ?? 0;
 
       rows.push({
@@ -176,9 +181,9 @@ export class ConsignmentReportService {
         featuredAsset: reportFeaturedAsset,
         consignmentPrice: quotation.consignmentPrice,
         intakeQty,
-        paidQty,
+        soldQty,
         returnedQty,
-        debtQty: intakeQty - paidQty - returnedQty,
+        debtQty: intakeQty - soldQty - returnedQty,
       });
     }
 

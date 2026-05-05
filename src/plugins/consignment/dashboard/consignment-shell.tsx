@@ -1,8 +1,8 @@
 import {
+  AnyRoute,
   FullWidthPageBlock,
   Link,
   Page,
-  PageBlock,
   PageLayout,
   PageTitle,
   Tabs,
@@ -16,6 +16,7 @@ import { EmptyState, SimplePage, StoreFilterCard } from "./shared";
 type ConsignmentTabKey =
   | "quotations"
   | "intakes"
+  | "solds"
   | "payments"
   | "returns"
   | "report";
@@ -23,6 +24,7 @@ type ConsignmentTabKey =
 const TABS: Array<{ key: ConsignmentTabKey; title: string; path: string }> = [
   { key: "quotations", title: "Quotations", path: "/consignment/quotations" },
   { key: "intakes", title: "Intakes", path: "/consignment/intakes" },
+  { key: "solds", title: "Sold", path: "/consignment/solds" },
   { key: "payments", title: "Payments", path: "/consignment/payments" },
   { key: "returns", title: "Returns", path: "/consignment/returns" },
   { key: "report", title: "Report", path: "/consignment/report" },
@@ -49,7 +51,7 @@ function toSearchStoreId(value: string): string | number | undefined {
 }
 
 export function ConsignmentShell(props: {
-  route: any;
+  route: AnyRoute;
   activeTab: ConsignmentTabKey;
   renderContent: (storeId: string) => React.ReactNode;
 }) {

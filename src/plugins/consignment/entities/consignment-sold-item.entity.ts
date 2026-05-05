@@ -2,20 +2,20 @@ import { DeepPartial, ID } from '@vendure/common/lib/shared-types';
 import { EntityId, Money, VendureEntity } from '@vendure/core';
 import { Column, Entity, ManyToOne } from 'typeorm';
 
-import { ConsignmentPayment } from './consignment-payment.entity';
 import { ConsignmentQuotation } from './consignment-quotation.entity';
+import { ConsignmentSold } from './consignment-sold.entity';
 
 @Entity()
-export class ConsignmentPaymentItem extends VendureEntity {
-    constructor(input?: DeepPartial<ConsignmentPaymentItem>) {
+export class ConsignmentSoldItem extends VendureEntity {
+    constructor(input?: DeepPartial<ConsignmentSoldItem>) {
         super(input);
     }
 
     @EntityId()
-    paymentId: ID;
+    soldId: ID;
 
-    @ManyToOne(() => ConsignmentPayment, payment => payment.items, { onDelete: 'CASCADE' })
-    payment: ConsignmentPayment;
+    @ManyToOne(() => ConsignmentSold, sold => sold.items, { onDelete: 'CASCADE' })
+    sold: ConsignmentSold;
 
     @EntityId()
     quotationId: ID;
@@ -35,7 +35,6 @@ export class ConsignmentPaymentItem extends VendureEntity {
     @Column({ type: 'int' })
     quantity: number;
 
-    /** consignmentPriceSnapshot × quantity */
     @Money()
     subtotal: number;
 }

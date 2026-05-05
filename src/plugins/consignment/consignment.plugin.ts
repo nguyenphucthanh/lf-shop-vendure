@@ -6,18 +6,21 @@ import {
     ConsignmentPaymentFieldResolver,
     ConsignmentQuotationFieldResolver,
     ConsignmentResolver,
+    ConsignmentSoldFieldResolver,
     ConsignmentReturnFieldResolver,
 } from './api/consignment.resolver';
 import { ConsignmentQuotation } from './entities/consignment-quotation.entity';
 import { ConsignmentIntake } from './entities/consignment-intake.entity';
 import { ConsignmentIntakeItem } from './entities/consignment-intake-item.entity';
 import { ConsignmentPayment } from './entities/consignment-payment.entity';
-import { ConsignmentPaymentItem } from './entities/consignment-payment-item.entity';
+import { ConsignmentSoldItem } from './entities/consignment-sold-item.entity';
+import { ConsignmentSold } from './entities/consignment-sold.entity';
 import { ConsignmentReturn } from './entities/consignment-return.entity';
 import { ConsignmentReturnItem } from './entities/consignment-return-item.entity';
 import { ConsignmentQuotationService } from './services/consignment-quotation.service';
 import { ConsignmentIntakeService } from './services/consignment-intake.service';
 import { ConsignmentPaymentService } from './services/consignment-payment.service';
+import { ConsignmentSoldService } from './services/consignment-sold.service';
 import { ConsignmentReturnService } from './services/consignment-return.service';
 import { ConsignmentReportService } from './services/consignment-report.service';
 
@@ -28,13 +31,15 @@ import { ConsignmentReportService } from './services/consignment-report.service'
         ConsignmentIntake,
         ConsignmentIntakeItem,
         ConsignmentPayment,
-        ConsignmentPaymentItem,
+        ConsignmentSold,
+        ConsignmentSoldItem,
         ConsignmentReturn,
         ConsignmentReturnItem,
     ],
     providers: [
         ConsignmentQuotationService,
         ConsignmentIntakeService,
+        ConsignmentSoldService,
         ConsignmentPaymentService,
         ConsignmentReturnService,
         ConsignmentReportService,
@@ -45,6 +50,7 @@ import { ConsignmentReportService } from './services/consignment-report.service'
             ConsignmentResolver,
             ConsignmentQuotationFieldResolver,
             ConsignmentIntakeFieldResolver,
+            ConsignmentSoldFieldResolver,
             ConsignmentPaymentFieldResolver,
             ConsignmentReturnFieldResolver,
         ],

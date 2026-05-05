@@ -17,12 +17,29 @@ import { graphql } from "@/gql";
 
 import {
   getApiErrorMessage,
-  LineItemsEditor,
   SimplePage,
   isoDate,
   toDateTimeInput,
   useStore,
 } from "./shared";
+
+const GET_SOLD_OPTIONS = graphql(`
+  query ConsignmentSoldOptionsForPayment($storeId: ID!) {
+    consignmentSolds(storeId: $storeId) {
+      id
+      soldDate
+      total
+      items {
+        id
+        quantity
+        quotation {
+          productVariantSku
+          productVariantName
+        }
+      }
+    }
+  }
+`);
 
 const GET_PAYMENT = graphql(`
   query ConsignmentPaymentDetail($id: ID!) {
@@ -33,16 +50,10 @@ const GET_PAYMENT = graphql(`
       paymentPolicy
       paymentMethod
       paymentStatus
+      subtotal
       discount
       total
-      paidAmount
-      remainingAmount
-      items {
-        quotationId
-        quantity
-        consignmentPriceSnapshot
-        currency
-      }
+      soldId
     }
   }
 `);
@@ -69,6 +80,20 @@ const DELETE_PAYMENT = graphql(`
   }
 `);
 
+type SoldOption = {
+  id: string;
+  soldDate: string;
+  total: number;
+  items?: Array<{
+    id: string;
+    quantity: number;
+    quotation?: {
+      productVariantSku?: string | null;
+      productVariantName?: string | null;
+    } | null;
+  }>;
+};
+
 export function PaymentDetailPage({ route }: { route: AnyRoute }) {
   const { formatCurrency } = useLocalFormat();
   const navigate = route.useNavigate();
@@ -78,29 +103,31 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
 
   const [storeId, setStoreId] = useState(search?.storeId?.toString() ?? "");
   const { store: selectedStore } = useStore(storeId);
+  const [soldOptions, setSoldOptions] = useState<SoldOption[]>([]);
+
   const [paymentDate, setPaymentDate] = useState(
     new Date().toISOString().slice(0, 10),
   );
   const [paymentPolicy, setPaymentPolicy] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [paymentStatus, setPaymentStatus] = useState("Pending");
+  const [subtotal, setSubtotal] = useState("0");
   const [discount, setDiscount] = useState("0");
-  const [paidAmount, setPaidAmount] = useState("0");
-  const [items, setItems] = useState<
-    Array<{
-      quotationId: string;
-      quantity: number;
-      consignmentPriceSnapshot: number;
-      currency: string;
-    }>
-  >([]);
-  const [initialPaymentQtyByQuotation, setInitialPaymentQtyByQuotation] =
-    useState<Record<string, number>>({});
+  const [soldId, setSoldId] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (!storeId) {
+      setSoldOptions([]);
+      return;
+    }
+    void api.query(GET_SOLD_OPTIONS, { storeId }).then((result) => {
+      setSoldOptions((result?.consignmentSolds ?? []) as SoldOption[]);
+    });
+  }, [storeId]);
+
+  useEffect(() => {
     if (isNew || !params.id) {
-      setInitialPaymentQtyByQuotation({});
       return;
     }
     void api.query(GET_PAYMENT, { id: params.id }).then((result) => {
@@ -111,44 +138,24 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
       setPaymentPolicy(payment.paymentPolicy ?? "");
       setPaymentMethod(payment.paymentMethod ?? "Cash");
       setPaymentStatus(payment.paymentStatus ?? "Pending");
+      setSubtotal(String((payment.subtotal ?? 0) / 100));
       setDiscount(String((payment.discount ?? 0) / 100));
-      setPaidAmount(String((payment.paidAmount ?? 0) / 100));
-      setItems(
-        (payment.items ?? []).map((item) => ({
-          quotationId: item.quotationId,
-          quantity: item.quantity,
-          consignmentPriceSnapshot: item.consignmentPriceSnapshot ?? 0,
-          currency: item.currency || "USD",
-        })),
-      );
-      const baseline = (payment.items ?? []).reduce<Record<string, number>>(
-        (acc, item) => {
-          acc[item.quotationId] = (acc[item.quotationId] ?? 0) + item.quantity;
-          return acc;
-        },
-        {},
-      );
-      setInitialPaymentQtyByQuotation(baseline);
+      setSoldId(payment.soldId ? String(payment.soldId) : "");
     });
   }, [isNew, params.id]);
 
   async function save() {
     setSaving(true);
     try {
-      const mutationItems = items.map((item) => ({
-        quotationId: item.quotationId,
-        quantity: item.quantity,
-        consignmentPriceSnapshot: item.consignmentPriceSnapshot,
-      }));
       const input = {
         storeId,
         paymentDate: toDateTimeInput(paymentDate),
         paymentPolicy: paymentPolicy || null,
         paymentMethod,
         paymentStatus,
+        subtotal: Math.round(Number(subtotal || 0) * 100),
         discount: Math.round(Number(discount || 0) * 100),
-        paidAmount: Math.round(Number(paidAmount || 0) * 100),
-        items: mutationItems,
+        soldId: soldId || null,
       };
       if (isNew) {
         const result = await api.mutate(CREATE_PAYMENT, { input });
@@ -157,11 +164,14 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
           navigate({ to: `/consignment/payments/${id}` });
         }
       } else {
-        const { storeId, ...updateInput } = input;
+        const { storeId: paymentStoreId, ...updateInput } = input;
         await api.mutate(UPDATE_PAYMENT, {
           input: { id: params.id, ...updateInput },
         });
-        navigate({ to: "/consignment/payments", search: { storeId } });
+        navigate({
+          to: "/consignment/payments",
+          search: { storeId: paymentStoreId },
+        });
       }
     } finally {
       setSaving(false);
@@ -179,6 +189,10 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
     }
   }
 
+  const subtotalValue = Math.round(Number(subtotal || 0) * 100);
+  const discountValue = Math.round(Number(discount || 0) * 100);
+  const totalValue = subtotalValue - discountValue;
+
   return (
     <SimplePage
       title={isNew ? "New Payment" : "Edit Payment"}
@@ -189,11 +203,8 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
               Delete
             </Button>
           ) : null}
-          <Button
-            onClick={save}
-            disabled={saving || !storeId || items.length === 0}
-          >
-            {saving ? "Saving…" : "Save"}
+          <Button onClick={save} disabled={saving || !storeId}>
+            {saving ? "Saving..." : "Save"}
           </Button>
         </>
       }
@@ -217,6 +228,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
               </FieldContent>
             </Field>
           </div>
+
           <div className="space-y-2 col-span-6">
             <Field>
               <FieldLabel>Payment date</FieldLabel>
@@ -229,6 +241,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
               </FieldContent>
             </Field>
           </div>
+
           <div className="space-y-2 col-span-6">
             <Field>
               <FieldLabel>Payment policy</FieldLabel>
@@ -241,6 +254,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
               </FieldContent>
             </Field>
           </div>
+
           <div className="space-y-2 col-span-6">
             <Field>
               <FieldLabel>Payment method</FieldLabel>
@@ -257,6 +271,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
               </FieldContent>
             </Field>
           </div>
+
           <div className="space-y-2 col-span-6">
             <Field>
               <FieldLabel>Payment status</FieldLabel>
@@ -273,6 +288,22 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
               </FieldContent>
             </Field>
           </div>
+
+          <div className="space-y-2 col-span-6">
+            <Field>
+              <FieldLabel>Subtotal</FieldLabel>
+              <FieldContent>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={subtotal}
+                  onChange={(event) => setSubtotal(event.target.value)}
+                />
+              </FieldContent>
+            </Field>
+          </div>
+
           <div className="space-y-2 col-span-6">
             <Field>
               <FieldLabel>Discount</FieldLabel>
@@ -285,38 +316,34 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
                   onChange={(event) => setDiscount(event.target.value)}
                 />
               </FieldContent>
+              <FieldDescription>
+                Computed total: {formatCurrency(totalValue, "USD")}
+              </FieldDescription>
             </Field>
           </div>
-          <div className="space-y-2 col-span-6">
+
+          <div className="space-y-2 col-span-12">
             <Field>
-              <FieldLabel>Paid amount</FieldLabel>
+              <FieldLabel>Linked sold (optional)</FieldLabel>
               <FieldContent>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={paidAmount}
-                  onChange={(event) => setPaidAmount(event.target.value)}
-                />
+                <select
+                  title="Linked sold"
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  value={soldId}
+                  onChange={(event) => setSoldId(event.target.value)}
+                >
+                  <option value="">Not linked</option>
+                  {soldOptions.map((option) => (
+                    <option value={option.id} key={option.id}>
+                      {String(option.soldDate).slice(0, 10)} - {option.items?.length ?? 0} items - {formatCurrency(option.total, "USD")}
+                    </option>
+                  ))}
+                </select>
               </FieldContent>
-              <FieldDescription>
-                Current paid amount preview:{" "}
-                {formatCurrency(
-                  Number(paidAmount || 0),
-                  items?.[0]?.currency || "USD",
-                )}
-              </FieldDescription>
             </Field>
           </div>
         </div>
       </Card>
-      <LineItemsEditor
-        storeId={storeId}
-        value={items}
-        onChange={setItems}
-        calculateMaxQty="in-payment"
-        initialDocumentQtyByQuotation={initialPaymentQtyByQuotation}
-      />
     </SimplePage>
   );
 }
