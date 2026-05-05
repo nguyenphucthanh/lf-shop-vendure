@@ -123,17 +123,21 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
         });
         const id = result?.createConsignmentQuotation?.id;
         if (id) {
+          toast.success("Quotation created successfully");
           navigate({ to: `/consignment/quotations/${id}` });
         }
       } else {
         await api.mutate(UPDATE_QUOTATION, {
           input: { id: params.id, consignmentPrice: price, note: note || null },
         });
+        toast.success("Quotation updated successfully");
         navigate({
           to: "/consignment/quotations",
           search: { storeId },
         });
       }
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -144,6 +148,7 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
     if (!window.confirm("Delete this quotation?")) return;
     try {
       await api.mutate(DELETE_QUOTATION, { id: params.id });
+      toast.success("Quotation deleted successfully");
       navigate({ to: "/consignment/quotations", search: { storeId } });
     } catch (error) {
       toast.error(getApiErrorMessage(error));

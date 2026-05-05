@@ -168,6 +168,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
         const result = await api.mutate(CREATE_PAYMENT, { input });
         const id = result?.createConsignmentPayment?.id;
         if (id) {
+          toast.success("Payment created successfully");
           navigate({ to: `/consignment/payments/${id}` });
         }
       } else {
@@ -175,11 +176,14 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
         await api.mutate(UPDATE_PAYMENT, {
           input: { id: params.id, ...updateInput },
         });
+        toast.success("Payment updated successfully");
         navigate({
           to: "/consignment/payments",
           search: { storeId: paymentStoreId },
         });
       }
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -190,6 +194,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
     if (!window.confirm("Delete this payment?")) return;
     try {
       await api.mutate(DELETE_PAYMENT, { id: params.id });
+      toast.success("Payment deleted successfully");
       navigate({ to: "/consignment/payments", search: { storeId } });
     } catch (error) {
       toast.error(getApiErrorMessage(error));

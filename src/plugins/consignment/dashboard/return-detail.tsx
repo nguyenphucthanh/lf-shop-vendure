@@ -133,13 +133,17 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
         const result = await api.mutate(CREATE_RETURN, { input });
         const id = result?.createConsignmentReturn?.id;
         if (id) {
+          toast.success("Return created successfully");
           navigate({ to: `/consignment/returns/${id}` });
         }
       } else {
         const { storeId, ...nextInput } = input;
         await api.mutate(UPDATE_RETURN, { input: { id: params.id, ...nextInput } });
+        toast.success("Return updated successfully");
         navigate({ to: "/consignment/returns", search: { storeId } });
       }
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -150,6 +154,7 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
     if (!window.confirm("Delete this return?")) return;
     try {
       await api.mutate(DELETE_RETURN, { id: params.id });
+      toast.success("Return deleted successfully");
       navigate({ to: "/consignment/returns", search: { storeId } });
     } catch (error) {
       toast.error(getApiErrorMessage(error));

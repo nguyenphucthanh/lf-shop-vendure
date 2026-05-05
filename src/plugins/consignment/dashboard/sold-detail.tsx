@@ -204,6 +204,7 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
       if (!paymentId) {
         throw new Error("Cannot create payment");
       }
+      toast.success("Payment created successfully");
       navigate({ to: `/consignment/payments/${paymentId}` });
     } catch (error) {
       toast.error(getApiErrorMessage(error));
@@ -228,6 +229,7 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
         const result = await api.mutate(CREATE_SOLD, { input });
         const id = result?.createConsignmentSold?.id;
         if (id) {
+          toast.success("Sold record created successfully");
           navigate({ to: `/consignment/solds/${id}` });
         }
       } else {
@@ -235,11 +237,14 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
         await api.mutate(UPDATE_SOLD, {
           input: { id: params.id, ...updateInput },
         });
+        toast.success("Sold record updated successfully");
         navigate({
           to: "/consignment/solds",
           search: { storeId: soldStoreId },
         });
       }
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -250,6 +255,7 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
     if (!window.confirm("Delete this sold record?")) return;
     try {
       await api.mutate(DELETE_SOLD, { id: params.id });
+      toast.success("Sold record deleted successfully");
       navigate({ to: "/consignment/solds", search: { storeId } });
     } catch (error) {
       toast.error(getApiErrorMessage(error));

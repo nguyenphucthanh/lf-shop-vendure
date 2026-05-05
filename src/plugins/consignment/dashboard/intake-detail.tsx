@@ -133,6 +133,7 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
         const result = await api.mutate(CREATE_INTAKE, { input });
         const id = result?.createConsignmentIntake?.id;
         if (id) {
+          toast.success("Intake created successfully");
           navigate({ to: `/consignment/intakes/${id}` });
         }
       } else {
@@ -140,8 +141,11 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
         await api.mutate(UPDATE_INTAKE, {
           input: { id: params.id, ...nextInput },
         });
+        toast.success("Intake updated successfully");
         navigate({ to: "/consignment/intakes", search: { storeId } });
       }
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -152,6 +156,7 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
     if (!window.confirm("Delete this intake?")) return;
     try {
       await api.mutate(DELETE_INTAKE, { id: params.id });
+      toast.success("Intake deleted successfully");
       navigate({ to: "/consignment/intakes", search: { storeId } });
     } catch (error) {
       toast.error(getApiErrorMessage(error));
