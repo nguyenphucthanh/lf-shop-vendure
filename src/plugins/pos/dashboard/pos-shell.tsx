@@ -80,7 +80,7 @@ export function PosShell({ requestedOrderId }: PosShellProps) {
   }
 
   return (
-    <div className="bg-background flex h-screen w-full flex-col overflow-hidden">
+    <div className="bg-background flex h-[calc(100vh-64px)] w-full flex-col overflow-hidden">
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
       <header className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 z-10 flex h-12 shrink-0 items-center justify-between border-b px-4 backdrop-blur">
         <div className="flex items-center gap-3">
