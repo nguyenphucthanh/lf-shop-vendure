@@ -140,6 +140,20 @@ const GET_AVAILABLE_COUPON_PROMOTIONS = graphql(`
         startsAt
         endsAt
         enabled
+        actions {
+          code
+          args {
+            name
+            value
+          }
+        }
+        conditions {
+          code
+          args {
+            name
+            value
+          }
+        }
       }
     }
   }
@@ -781,6 +795,14 @@ export interface PosCouponPromotion {
   name: string;
   description: string;
   couponCode: string;
+  actions: Array<{
+    code: string;
+    args: Array<{ name: string; value: string }>;
+  }>;
+  conditions: Array<{
+    code: string;
+    args: Array<{ name: string; value: string }>;
+  }>;
 }
 
 interface UsePosOrderOptions {
@@ -907,7 +929,7 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
       const result = await api.query(GET_AVAILABLE_COUPON_PROMOTIONS, {});
       const items = result?.promotions?.items ?? [];
       const normalized = items
-        .filter((item) => item.enabled && !!item.couponCode)
+        .filter((item) => item.enabled)
         .filter((item) => {
           const startsAt = item.startsAt ? Date.parse(item.startsAt) : null;
           const endsAt = item.endsAt ? Date.parse(item.endsAt) : null;
@@ -915,12 +937,23 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
           const notExpired = endsAt == null || endsAt >= now;
           return started && notExpired;
         })
-        .map((item) => ({
-          id: item.id,
-          name: item.name,
-          description: item.description,
-          couponCode: item.couponCode,
-        }));
+        .flatMap((item) => {
+          const couponCode = item.couponCode;
+          if (!couponCode) {
+            return [];
+          }
+
+          return [
+            {
+              id: item.id,
+              name: item.name,
+              description: item.description,
+              couponCode,
+              actions: item.actions,
+              conditions: item.conditions,
+            },
+          ];
+        });
       setAvailablePromotions(normalized);
     } catch {
       setAvailablePromotions([]);

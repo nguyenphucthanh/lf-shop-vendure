@@ -45,9 +45,14 @@ export function CartPanel({
   onCheckout,
   onClearError,
 }: Props) {
+  const LINE_ITEM_ACTION_CODE = "products_percentage_discount";
   const { formatCurrency } = useLocalFormat();
   const [promotionDrawerOpen, setPromotionDrawerOpen] = useState(false);
   const [promotionFilter, setPromotionFilter] = useState("");
+  const [linePromotionDrawerOpen, setLinePromotionDrawerOpen] = useState(false);
+  const [linePromotionFilter, setLinePromotionFilter] = useState("");
+  const [activeDiscountLine, setActiveDiscountLine] =
+    useState<PosOrderLine | null>(null);
   const currencyCode = order?.currencyCode ?? "USD";
   const formatMoney = (amount: number) => formatCurrency(amount, currencyCode);
   const lines = useMemo(() => order?.lines ?? [], [order]);
@@ -80,6 +85,53 @@ export function CartPanel({
       );
     });
   }, [availablePromotions, promotionFilter]);
+
+  const lineFilteredPromotions = useMemo(() => {
+    if (!activeDiscountLine) {
+      return [];
+    }
+
+    const productVariantId = activeDiscountLine.productVariant.id;
+    const productId = activeDiscountLine.productVariant.product.id;
+    const term = linePromotionFilter.trim().toLowerCase();
+
+    return availablePromotions
+      .filter((promotion) =>
+        promotion.actions.some(
+          (action) => action.code === LINE_ITEM_ACTION_CODE,
+        ),
+      )
+      .filter((promotion) =>
+        promotionTargetsVariant(promotion, productVariantId, productId),
+      )
+      .filter((promotion) => {
+        if (!term) return true;
+        return (
+          promotion.name.toLowerCase().includes(term) ||
+          promotion.couponCode.toLowerCase().includes(term) ||
+          promotion.description.toLowerCase().includes(term)
+        );
+      });
+  }, [
+    activeDiscountLine,
+    availablePromotions,
+    linePromotionFilter,
+    LINE_ITEM_ACTION_CODE,
+  ]);
+
+  function openLineDiscountDrawer(line: PosOrderLine) {
+    setActiveDiscountLine(line);
+    setLinePromotionFilter("");
+    setLinePromotionDrawerOpen(true);
+  }
+
+  function closeLineDiscountDrawer(nextOpen: boolean) {
+    setLinePromotionDrawerOpen(nextOpen);
+    if (!nextOpen) {
+      setActiveDiscountLine(null);
+      setLinePromotionFilter("");
+    }
+  }
 
   async function handleTogglePromotion(code: string, checked: boolean) {
     if (loading) return;
@@ -133,6 +185,7 @@ export function CartPanel({
                 line={line}
                 formatCurrency={formatMoney}
                 onAdjust={(qty) => onAdjustLine(line.id, qty)}
+                onOpenLineDiscount={() => openLineDiscountDrawer(line)}
                 onRemove={() => onRemoveLine(line.id)}
               />
             ))}
@@ -141,7 +194,7 @@ export function CartPanel({
       </div>
 
       {/* Footer */}
-      {!isEmpty && (
+      {!isEmpty && order && (
         <div className="border-border space-y-3 border-t px-4 py-3">
           {/* Promotion picker */}
           <Button
@@ -284,8 +337,115 @@ export function CartPanel({
           </div>
         </SheetContent>
       </Sheet>
+
+      <Sheet
+        open={linePromotionDrawerOpen}
+        onOpenChange={closeLineDiscountDrawer}
+      >
+        <SheetContent side="right" className="overflow-y-auto sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Promotions</SheetTitle>
+            <SheetDescription>
+              {activeDiscountLine
+                ? `Pick one or more line promotions for ${activeDiscountLine.productVariant.name}.`
+                : "Pick one or more line promotions."}
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-3 px-4 py-4">
+            <Input
+              type="text"
+              placeholder="Filter promotions"
+              value={linePromotionFilter}
+              onChange={(event) => setLinePromotionFilter(event.target.value)}
+            />
+
+            {loadingPromotions ? (
+              <div className="text-muted-foreground py-6 text-center text-sm">
+                Loading promotions…
+              </div>
+            ) : lineFilteredPromotions.length === 0 ? (
+              <div className="text-muted-foreground py-6 text-center text-sm">
+                No line promotions found.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {lineFilteredPromotions.map((promotion) => {
+                  const isChecked = appliedCouponSet.has(promotion.couponCode);
+                  return (
+                    <label
+                      key={promotion.id}
+                      className="border-border hover:bg-muted/40 flex cursor-pointer items-start gap-3 rounded-md border p-3"
+                    >
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={(checked) =>
+                          void handleTogglePromotion(
+                            promotion.couponCode,
+                            Boolean(checked),
+                          )
+                        }
+                        disabled={loading}
+                        className="mt-0.5"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="text-foreground block truncate text-sm font-medium">
+                          {promotion.name}
+                        </span>
+                        <span className="text-primary block text-xs font-semibold">
+                          {promotion.couponCode}
+                        </span>
+                        {promotion.description ? (
+                          <span className="text-muted-foreground mt-1 block text-xs">
+                            {promotion.description}
+                          </span>
+                        ) : null}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
+}
+
+function promotionTargetsVariant(
+  promotion: PosCouponPromotion,
+  productVariantId: string,
+  productId: string,
+): boolean {
+  const allArgs = [...promotion.actions, ...promotion.conditions].flatMap(
+    (entry) => entry.args,
+  );
+
+  return allArgs.some((arg) => {
+    const value = arg.value;
+    if (!value) return false;
+    if (matchesIdToken(value, productVariantId)) return true;
+    if (matchesIdToken(value, productId)) return true;
+    return false;
+  });
+}
+
+function matchesIdToken(rawValue: string, id: string): boolean {
+  if (rawValue === id) {
+    return true;
+  }
+
+  if (rawValue.includes(`"${id}"`)) {
+    return true;
+  }
+
+  const tokens = rawValue
+    .split(/[\s,|]+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+  return tokens.includes(id);
 }
 
 // ─── Cart Line Item ───────────────────────────────────────────────────────────
@@ -294,6 +454,7 @@ interface LineItemProps {
   line: PosOrderLine;
   formatCurrency: (amount: number) => string;
   onAdjust: (qty: number) => void;
+  onOpenLineDiscount: () => void;
   onRemove: () => void;
 }
 
@@ -301,6 +462,7 @@ function CartLineItem({
   line,
   formatCurrency,
   onAdjust,
+  onOpenLineDiscount,
   onRemove,
 }: LineItemProps) {
   const hasDiscount = line.discountedLinePriceWithTax < line.linePriceWithTax;
@@ -338,16 +500,28 @@ function CartLineItem({
               </p>
             )}
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onRemove}
-            aria-label="Remove item"
-            className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0 p-0 transition-colors"
-          >
-            <Trash2Icon className="h-3.5 w-3.5" />
-          </Button>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onOpenLineDiscount}
+              aria-label="Open line discount promotions"
+              className="text-muted-foreground hover:text-foreground h-7 px-2 text-xs transition-colors"
+            >
+              Discount
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onRemove}
+              aria-label="Remove item"
+              className="text-muted-foreground hover:text-destructive h-7 w-7 p-0 transition-colors"
+            >
+              <Trash2Icon className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
 
         <div className="flex items-center justify-between">
