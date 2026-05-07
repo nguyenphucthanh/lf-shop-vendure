@@ -123,6 +123,28 @@ const GET_LATEST_DRAFT_ORDER = graphql(`
   }
 `);
 
+const GET_AVAILABLE_COUPON_PROMOTIONS = graphql(`
+  query PosAvailableCouponPromotions {
+    promotions(
+      options: {
+        filter: { enabled: { eq: true }, couponCode: { isNull: false } }
+        sort: { updatedAt: DESC }
+        take: 100
+      }
+    ) {
+      items {
+        id
+        name
+        description
+        couponCode
+        startsAt
+        endsAt
+        enabled
+      }
+    }
+  }
+`);
+
 const CREATE_DRAFT_ORDER = graphql(`
   mutation PosCreateDraftOrder {
     createDraftOrder {
@@ -754,6 +776,13 @@ export interface CompletedOrderInfo {
   code: string;
 }
 
+export interface PosCouponPromotion {
+  id: string;
+  name: string;
+  description: string;
+  couponCode: string;
+}
+
 interface UsePosOrderOptions {
   preferredOrderId?: string;
 }
@@ -763,6 +792,10 @@ interface UsePosOrderOptions {
 export function usePosOrder(options: UsePosOrderOptions = {}) {
   const { preferredOrderId } = options;
   const [order, setOrder] = useState<PosOrder | null>(null);
+  const [availablePromotions, setAvailablePromotions] = useState<
+    PosCouponPromotion[]
+  >([]);
+  const [loadingPromotions, setLoadingPromotions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const orderRef = useRef<PosOrder | null>(null);
@@ -866,6 +899,39 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
     },
     [],
   );
+
+  const refreshAvailablePromotions = useCallback(async () => {
+    setLoadingPromotions(true);
+    try {
+      const now = Date.now();
+      const result = await api.query(GET_AVAILABLE_COUPON_PROMOTIONS, {});
+      const items = result?.promotions?.items ?? [];
+      const normalized = items
+        .filter((item) => item.enabled && !!item.couponCode)
+        .filter((item) => {
+          const startsAt = item.startsAt ? Date.parse(item.startsAt) : null;
+          const endsAt = item.endsAt ? Date.parse(item.endsAt) : null;
+          const started = startsAt == null || startsAt <= now;
+          const notExpired = endsAt == null || endsAt >= now;
+          return started && notExpired;
+        })
+        .map((item) => ({
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          couponCode: item.couponCode,
+        }));
+      setAvailablePromotions(normalized);
+    } catch {
+      setAvailablePromotions([]);
+    } finally {
+      setLoadingPromotions(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshAvailablePromotions();
+  }, [refreshAvailablePromotions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1266,6 +1332,8 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
 
   return {
     order,
+    availablePromotions,
+    loadingPromotions,
     loading,
     error,
     lineCount,
@@ -1278,6 +1346,7 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
     setCustomer,
     completeOrder,
     resetOrder,
+    refreshAvailablePromotions,
     hasExplicitPreferredOrder: !!preferredOrderId,
   };
 }

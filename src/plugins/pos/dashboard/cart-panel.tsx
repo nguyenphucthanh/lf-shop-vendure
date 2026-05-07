@@ -1,23 +1,41 @@
-import { Button, Input, useLocalFormat } from "@vendure/dashboard";
+import {
+  Button,
+  Checkbox,
+  Input,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  useLocalFormat,
+} from "@vendure/dashboard";
 import { MinusIcon, PlusIcon, TagIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import type { PosOrder, PosOrderLine } from "./hooks/use-pos-order";
+import type {
+  PosCouponPromotion,
+  PosOrder,
+  PosOrderLine,
+} from "./hooks/use-pos-order";
 
 interface Props {
   order: PosOrder | null;
+  availablePromotions: PosCouponPromotion[];
+  loadingPromotions: boolean;
   loading: boolean;
   error: string | null;
   onAdjustLine: (lineId: string, qty: number) => void;
   onRemoveLine: (lineId: string) => void;
-  onApplyCoupon: (code: string) => void;
-  onRemoveCoupon: (code: string) => void;
+  onApplyCoupon: (code: string) => Promise<void> | void;
+  onRemoveCoupon: (code: string) => Promise<void> | void;
   onCheckout: () => void;
   onClearError: () => void;
 }
 
 export function CartPanel({
   order,
+  availablePromotions,
+  loadingPromotions,
   loading,
   error,
   onAdjustLine,
@@ -28,10 +46,15 @@ export function CartPanel({
   onClearError,
 }: Props) {
   const { formatCurrency } = useLocalFormat();
-  const [couponInput, setCouponInput] = useState("");
+  const [promotionDrawerOpen, setPromotionDrawerOpen] = useState(false);
+  const [promotionFilter, setPromotionFilter] = useState("");
   const currencyCode = order?.currencyCode ?? "USD";
   const formatMoney = (amount: number) => formatCurrency(amount, currencyCode);
   const lines = useMemo(() => order?.lines ?? [], [order]);
+  const appliedCouponSet = useMemo(
+    () => new Set(order?.couponCodes ?? []),
+    [order?.couponCodes],
+  );
 
   const isEmpty = useMemo(() => lines.length === 0, [lines]);
   const totalItems = useMemo(
@@ -43,11 +66,28 @@ export function CartPanel({
     [order],
   );
 
-  function handleApplyCoupon() {
-    const code = couponInput.trim();
-    if (!code) return;
-    onApplyCoupon(code);
-    setCouponInput("");
+  const filteredPromotions = useMemo(() => {
+    const term = promotionFilter.trim().toLowerCase();
+    if (!term) {
+      return availablePromotions;
+    }
+    return availablePromotions.filter((promotion) => {
+      const name = promotion.name.toLowerCase();
+      const code = promotion.couponCode.toLowerCase();
+      const description = promotion.description.toLowerCase();
+      return (
+        name.includes(term) || code.includes(term) || description.includes(term)
+      );
+    });
+  }, [availablePromotions, promotionFilter]);
+
+  async function handleTogglePromotion(code: string, checked: boolean) {
+    if (loading) return;
+    if (checked) {
+      await onApplyCoupon(code);
+    } else {
+      await onRemoveCoupon(code);
+    }
   }
 
   return (
@@ -103,29 +143,16 @@ export function CartPanel({
       {/* Footer */}
       {!isEmpty && (
         <div className="border-border space-y-3 border-t px-4 py-3">
-          {/* Coupon input */}
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <TagIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
-              <Input
-                type="text"
-                placeholder="Coupon code"
-                value={couponInput}
-                onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
-                className="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border py-1.5 pr-2 pl-8 text-sm focus-visible:ring-2 focus-visible:outline-none"
-              />
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleApplyCoupon}
-              disabled={!couponInput.trim() || loading}
-              className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md px-3 py-1.5 text-sm font-medium disabled:opacity-40"
-            >
-              Apply
-            </Button>
-          </div>
+          {/* Promotion picker */}
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setPromotionDrawerOpen(true)}
+            className="bg-secondary text-secondary-foreground hover:bg-secondary/80 w-full rounded-md px-3 py-1.5 text-sm font-medium"
+          >
+            <TagIcon className="mr-1 h-3.5 w-3.5" />
+            Add promo
+          </Button>
 
           {/* Applied coupons */}
           {order.couponCodes.map((code) => (
@@ -190,6 +217,73 @@ export function CartPanel({
           </Button>
         </div>
       )}
+
+      <Sheet open={promotionDrawerOpen} onOpenChange={setPromotionDrawerOpen}>
+        <SheetContent side="right" className="overflow-y-auto sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Promotions</SheetTitle>
+            <SheetDescription>
+              Pick one or more promotions to apply to this cart.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-3 px-4 py-4">
+            <Input
+              type="text"
+              placeholder="Filter promotions"
+              value={promotionFilter}
+              onChange={(event) => setPromotionFilter(event.target.value)}
+            />
+
+            {loadingPromotions ? (
+              <div className="text-muted-foreground py-6 text-center text-sm">
+                Loading promotions…
+              </div>
+            ) : filteredPromotions.length === 0 ? (
+              <div className="text-muted-foreground py-6 text-center text-sm">
+                No promotions found.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredPromotions.map((promotion) => {
+                  const isChecked = appliedCouponSet.has(promotion.couponCode);
+                  return (
+                    <label
+                      key={promotion.id}
+                      className="border-border hover:bg-muted/40 flex cursor-pointer items-start gap-3 rounded-md border p-3"
+                    >
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={(checked) =>
+                          void handleTogglePromotion(
+                            promotion.couponCode,
+                            Boolean(checked),
+                          )
+                        }
+                        disabled={loading}
+                        className="mt-0.5"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="text-foreground block truncate text-sm font-medium">
+                          {promotion.name}
+                        </span>
+                        <span className="text-primary block text-xs font-semibold">
+                          {promotion.couponCode}
+                        </span>
+                        {promotion.description ? (
+                          <span className="text-muted-foreground mt-1 block text-xs">
+                            {promotion.description}
+                          </span>
+                        ) : null}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

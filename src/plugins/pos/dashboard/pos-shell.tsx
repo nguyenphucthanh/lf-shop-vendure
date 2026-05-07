@@ -15,6 +15,8 @@ interface PosShellProps {
 export function PosShell({ requestedOrderId }: PosShellProps) {
   const {
     order,
+    availablePromotions,
+    loadingPromotions,
     loading,
     error,
     lineCount,
@@ -115,6 +117,8 @@ export function PosShell({ requestedOrderId }: PosShellProps) {
         <aside className="border-border bg-background hidden w-80 shrink-0 border-l md:flex md:flex-col lg:w-96">
           <CartPanel
             order={order}
+            availablePromotions={availablePromotions}
+            loadingPromotions={loadingPromotions}
             loading={loading}
             error={error}
             onAdjustLine={adjustLine}
@@ -166,6 +170,8 @@ export function PosShell({ requestedOrderId }: PosShellProps) {
             <div className="flex-1 overflow-hidden">
               <CartPanel
                 order={order}
+                availablePromotions={availablePromotions}
+                loadingPromotions={loadingPromotions}
                 loading={loading}
                 error={error}
                 onAdjustLine={adjustLine}
