@@ -28,7 +28,7 @@ import {
   PageTitle,
   useLocalFormat,
 } from "@vendure/dashboard";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Trash2 } from "lucide-react";
 
 import { graphql } from "@/gql";
@@ -472,7 +472,7 @@ export function LineItemsEditor(props: {
     setQuantityAggregatesLoading(false);
   }, [props.storeId]);
 
-  async function loadQuantityAggregates() {
+  const loadQuantityAggregates = useCallback(async () => {
     if (!props.storeId || props.calculateMaxQty === false) return;
     if (quantityAggregatesLoading) return;
     if (Object.keys(quantityByQuotationId).length > 0) return;
@@ -496,14 +496,24 @@ export function LineItemsEditor(props: {
     } finally {
       setQuantityAggregatesLoading(false);
     }
-  }
+  }, [
+    props.storeId,
+    props.calculateMaxQty,
+    quantityAggregatesLoading,
+    quantityByQuotationId,
+  ]);
 
   useEffect(() => {
     if (props.calculateMaxQty === false || !props.storeId) return;
     const hasSelectedQuotation = props.value.some((line) => !!line.quotationId);
     if (!hasSelectedQuotation) return;
     void loadQuantityAggregates();
-  }, [props.calculateMaxQty, props.storeId, props.value]);
+  }, [
+    props.calculateMaxQty,
+    props.storeId,
+    props.value,
+    loadQuantityAggregates,
+  ]);
 
   function getMaxQty(line: LineItemDraft) {
     if (props.calculateMaxQty === false || !line.quotationId) return undefined;

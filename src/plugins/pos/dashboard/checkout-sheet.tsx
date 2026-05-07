@@ -126,7 +126,7 @@ export function CheckoutSheet({
     if (paymentMethods.length > 0 && !selectedMethod) {
       setSelectedMethod(paymentMethods[0]);
     }
-  }, [paymentMethods]);
+  }, [paymentMethods, selectedMethod]);
 
   useEffect(() => {
     if (!open || !order?.id) {
@@ -153,7 +153,7 @@ export function CheckoutSheet({
     if (shippingMethods.length > 0 && !selectedShippingMethod) {
       setSelectedShippingMethod(shippingMethods[0]);
     }
-  }, [shippingMethods]);
+  }, [shippingMethods, selectedShippingMethod]);
 
   if (!open) return null;
 

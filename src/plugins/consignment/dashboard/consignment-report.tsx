@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 
 import { graphql } from "@/gql";
-import { getTranslatedName, SortButton, SortDir } from "./shared";
+import { getTranslatedName, SortButton, SortDir, SortKey } from "./shared";
 
 const GET_REPORT = graphql(`
   query ConsignmentReport($storeId: ID!) {
@@ -93,15 +93,6 @@ const GET_RETURNED_SUMMARY = graphql(`
 `);
 
 type ReportRow = ResultOf<typeof GET_REPORT>["consignmentReport"][number];
-type LocalSortKey =
-  | "name"
-  | "sku"
-  | "price"
-  | "intake"
-  | "sold"
-  | "returned"
-  | "debt";
-
 export function ConsignmentReportPage(props: { storeId: string }) {
   const { formatCurrency } = useLocalFormat();
   const { activeChannel } = useChannel();
@@ -117,10 +108,10 @@ export function ConsignmentReportPage(props: { storeId: string }) {
   });
   const [returnSummary, setReturnSummary] = useState(0);
   const [intakeSummary, setIntakeSummary] = useState(0);
-  const [sortKey, setSortKey] = useState<LocalSortKey>("intake");
+  const [sortKey, setSortKey] = useState<SortKey>("intake");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  function handleSort(key: LocalSortKey) {
+  function handleSort(key: SortKey) {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
@@ -351,7 +342,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                     sortKey="sku"
                     current={sortKey}
                     dir={sortDir}
-                    onSort={handleSort as any}
+                    onSort={handleSort}
                   />
                 </TableHead>
                 <TableHead>
@@ -360,7 +351,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                     sortKey="name"
                     current={sortKey}
                     dir={sortDir}
-                    onSort={handleSort as any}
+                    onSort={handleSort}
                   />
                 </TableHead>
                 <TableHead>
@@ -369,7 +360,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                     sortKey="price"
                     current={sortKey}
                     dir={sortDir}
-                    onSort={handleSort as any}
+                    onSort={handleSort}
                   />
                 </TableHead>
                 <TableHead>
@@ -378,7 +369,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                     sortKey="intake"
                     current={sortKey}
                     dir={sortDir}
-                    onSort={handleSort as any}
+                    onSort={handleSort}
                   />
                 </TableHead>
                 <TableHead>
@@ -387,7 +378,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                     sortKey="sold"
                     current={sortKey}
                     dir={sortDir}
-                    onSort={handleSort as any}
+                    onSort={handleSort}
                   />
                 </TableHead>
                 <TableHead>
@@ -396,7 +387,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                     sortKey="returned"
                     current={sortKey}
                     dir={sortDir}
-                    onSort={handleSort as any}
+                    onSort={handleSort}
                   />
                 </TableHead>
                 <TableHead>
@@ -405,7 +396,7 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                     sortKey="debt"
                     current={sortKey}
                     dir={sortDir}
-                    onSort={handleSort as any}
+                    onSort={handleSort}
                   />
                 </TableHead>
               </TableRow>

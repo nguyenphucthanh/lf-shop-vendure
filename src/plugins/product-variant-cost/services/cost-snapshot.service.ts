@@ -71,7 +71,10 @@ export class CostSnapshotService implements OnApplicationBootstrap {
       return;
     }
 
-    const costMap = new Map<string, any>();
+    type ResolvedCost = Awaited<
+      ReturnType<ProductVariantCostService["resolveCostForOrderLine"]>
+    >;
+    const costMap = new Map<string, ResolvedCost>();
     for (const line of linesToSnapshot) {
       const channelId = line.sellerChannelId ?? ctx.channelId;
       const key = `${line.productVariantId}:${channelId}:${order.currencyCode}`;

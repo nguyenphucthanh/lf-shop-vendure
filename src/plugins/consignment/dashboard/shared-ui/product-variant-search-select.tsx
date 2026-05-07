@@ -55,7 +55,7 @@ export function ProductVariantSearchSelect({
   const variantConfig = createRelationSelectorConfig<
     ResultOf<typeof PRODUCT_VARIANTS_LIST>["productVariants"]["items"][0]
   >({
-    listQuery: PRODUCT_VARIANTS_LIST as any,
+    listQuery: PRODUCT_VARIANTS_LIST,
     idKey: "id",
     labelKey: "name",
     placeholder,

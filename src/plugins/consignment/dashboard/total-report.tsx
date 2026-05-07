@@ -251,7 +251,7 @@ export function TotalReportPage() {
                         sortKey="name"
                         current={sortKey}
                         dir={sortDir}
-                        onSort={handleSort as any}
+                        onSort={handleSort}
                       />
                     </TableHead>
                     <TableHead>
@@ -260,7 +260,7 @@ export function TotalReportPage() {
                         sortKey="sku"
                         current={sortKey}
                         dir={sortDir}
-                        onSort={handleSort as any}
+                        onSort={handleSort}
                       />
                     </TableHead>
                     <TableHead className="text-right">
@@ -269,7 +269,7 @@ export function TotalReportPage() {
                         sortKey="intake"
                         current={sortKey}
                         dir={sortDir}
-                        onSort={handleSort as any}
+                        onSort={handleSort}
                       />
                     </TableHead>
                     <TableHead className="text-right">
@@ -278,7 +278,7 @@ export function TotalReportPage() {
                         sortKey="sold"
                         current={sortKey}
                         dir={sortDir}
-                        onSort={handleSort as any}
+                        onSort={handleSort}
                       />
                     </TableHead>
                     <TableHead className="text-right">
@@ -287,7 +287,7 @@ export function TotalReportPage() {
                         sortKey="returned"
                         current={sortKey}
                         dir={sortDir}
-                        onSort={handleSort as any}
+                        onSort={handleSort}
                       />
                     </TableHead>
                     <TableHead className="text-right">
@@ -296,7 +296,7 @@ export function TotalReportPage() {
                         sortKey="available"
                         current={sortKey}
                         dir={sortDir}
-                        onSort={handleSort as any}
+                        onSort={handleSort}
                       />
                     </TableHead>
                     <TableHead className="w-36">Sell-through</TableHead>

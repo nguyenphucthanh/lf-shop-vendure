@@ -14,8 +14,11 @@
     "start:worker": "node ./dist/index-worker.js",
     "start": "concurrently npm:start:*",
     "typecheck": "tsc --noEmit",
+    "typecheck:plugins": "tsc -p tsconfig.plugins.json",
     "lint": "eslint . --ext .ts,.tsx",
+    "lint:plugins": "eslint src/plugins --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "check:plugins": "npm run typecheck:plugins && npm run lint:plugins",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "prepare": "husky install"

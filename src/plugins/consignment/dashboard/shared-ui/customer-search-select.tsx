@@ -9,7 +9,7 @@ import {
   ComboboxList,
   graphql,
 } from "@vendure/dashboard";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 // Define the GraphQL query for customers
 const customerListQuery = graphql(`
@@ -84,31 +84,34 @@ export function CustomerSearchSelect({
   const [options, setOptions] = useState<CustomerItem[]>([]);
   const [selected, setSelected] = useState<CustomerItem | null>(null);
 
-  const buildFilter = (searchTerm: string) => {
-    const filters: any[] = [];
-    const normalizedTerm = searchTerm.trim();
-    const isConsignmentFilter = filterOptions?.isConsignment ?? true;
+  const buildFilter = useCallback(
+    (searchTerm: string) => {
+      const filters: Array<Record<string, unknown>> = [];
+      const normalizedTerm = searchTerm.trim();
+      const isConsignmentFilter = filterOptions?.isConsignment ?? true;
 
-    if (normalizedTerm) {
-      const regex = toCaseInsensitiveContainsRegex(normalizedTerm);
+      if (normalizedTerm) {
+        const regex = toCaseInsensitiveContainsRegex(normalizedTerm);
+        filters.push({
+          _or: [
+            { emailAddress: { regex } },
+            { firstName: { regex } },
+            { lastName: { regex } },
+            { title: { regex } },
+          ],
+        });
+      }
+
       filters.push({
-        _or: [
-          { emailAddress: { regex } },
-          { firstName: { regex } },
-          { lastName: { regex } },
-          { title: { regex } },
-        ],
+        consignmentStore: { eq: isConsignmentFilter },
       });
-    }
 
-    filters.push({
-      consignmentStore: { eq: isConsignmentFilter },
-    });
-
-    if (filters.length === 0) return {};
-    if (filters.length === 1) return filters[0];
-    return { _and: filters };
-  };
+      if (filters.length === 0) return {};
+      if (filters.length === 1) return filters[0];
+      return { _and: filters };
+    },
+    [filterOptions?.isConsignment],
+  );
 
   useEffect(() => {
     if (!value) {
@@ -175,7 +178,7 @@ export function CustomerSearchSelect({
       active = false;
       clearTimeout(timeout);
     };
-  }, [term, disabled, filterOptions?.isConsignment, take, debounceMs]);
+  }, [term, disabled, take, debounceMs, buildFilter]);
 
   return (
     <Combobox

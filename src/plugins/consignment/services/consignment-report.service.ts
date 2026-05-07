@@ -164,14 +164,14 @@ export class ConsignmentReportService {
         // Vendure returns name in current language context, add it with empty languageCode as fallback
         productNameTranslations.push({
           languageCode: "",
-          name: product.name as any,
+          name: product.name,
         });
       }
       if (Array.isArray(product?.translations)) {
         for (const translation of product.translations) {
           productNameTranslations.push({
             languageCode: translation.languageCode,
-            name: translation.name as any,
+            name: translation.name,
           });
         }
       }
@@ -185,14 +185,14 @@ export class ConsignmentReportService {
         // Vendure returns name in current language context, add it with empty languageCode as fallback
         variantNameTranslations.push({
           languageCode: "",
-          name: variant.name as any,
+          name: variant.name,
         });
       }
       if (Array.isArray(variant?.translations)) {
         for (const translation of variant.translations) {
           variantNameTranslations.push({
             languageCode: translation.languageCode,
-            name: translation.name as any,
+            name: translation.name,
           });
         }
       }

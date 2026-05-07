@@ -31,7 +31,7 @@ export function CartPanel({
   const [couponInput, setCouponInput] = useState("");
   const currencyCode = order?.currencyCode ?? "USD";
   const formatMoney = (amount: number) => formatCurrency(amount, currencyCode);
-  const lines = order?.lines ?? [];
+  const lines = useMemo(() => order?.lines ?? [], [order]);
 
   const isEmpty = useMemo(() => lines.length === 0, [lines]);
   const totalItems = useMemo(

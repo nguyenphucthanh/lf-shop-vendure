@@ -24,5 +24,12 @@ echo "$STAGED_FILES" | xargs npx eslint --fix
 # Re-stage the files after formatting/linting
 echo "$STAGED_FILES" | xargs git add
 
+# Run plugin-specific checks only when plugin files are staged
+PLUGIN_STAGED_FILES=$(echo "$STAGED_FILES" | grep -E '^src/plugins/' || true)
+if [ -n "$PLUGIN_STAGED_FILES" ]; then
+  echo "🧪 Running plugin checks (typecheck + lint)..."
+  npm run check:plugins
+fi
+
 echo "✅ Pre-commit checks passed!"
 exit 0

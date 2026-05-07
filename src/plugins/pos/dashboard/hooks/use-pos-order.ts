@@ -770,16 +770,16 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
   // Serialize mutations so fast taps are queued instead of dropped.
   const runQueueRef = useRef<Promise<unknown>>(Promise.resolve());
 
-  function setCurrentOrder(nextOrder: PosOrder | null) {
+  const setCurrentOrder = useCallback((nextOrder: PosOrder | null) => {
     orderRef.current = nextOrder;
     setOrder(nextOrder);
-  }
+  }, []);
 
-  function clearError() {
+  const clearError = useCallback(() => {
     setError(null);
-  }
+  }, []);
 
-  async function ensureOrder(): Promise<string> {
+  const ensureOrder = useCallback(async (): Promise<string> => {
     if (orderRef.current?.id) return orderRef.current.id;
     await initialLoadRef.current;
     if (orderRef.current?.id) return orderRef.current.id;
@@ -800,66 +800,72 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
       lines: result.createDraftOrder.lines,
     });
     return id;
-  }
+  }, [setCurrentOrder]);
 
-  function applyOrderResult(
-    result: Record<string, unknown> | null | undefined,
-    key: string,
-  ) {
-    const data = result?.[key];
-    if (!data) return;
-    if (
-      typeof data === "object" &&
-      "errorCode" in data &&
-      typeof (data as { errorCode: unknown }).errorCode === "string"
-    ) {
-      const message =
-        (data as { message?: unknown }).message ?? "Operation failed";
-      setError(String(message));
-      return;
-    }
-    setCurrentOrder(data as PosOrder);
-  }
-
-  function extractMutationError(
-    result: Record<string, unknown> | null | undefined,
-    key: string,
-  ): string | null {
-    const data = result?.[key];
-    if (!data || typeof data !== "object") {
-      return null;
-    }
-    if (
-      "errorCode" in data &&
-      "message" in data &&
-      typeof (data as { message?: unknown }).message === "string"
-    ) {
-      return String((data as { message?: unknown }).message);
-    }
-    return null;
-  }
-
-  async function run<T>(fn: () => Promise<T>): Promise<T | undefined> {
-    const execute = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        return await fn();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
-        return undefined;
-      } finally {
-        setLoading(false);
+  const applyOrderResult = useCallback(
+    (result: Record<string, unknown> | null | undefined, key: string) => {
+      const data = result?.[key];
+      if (!data) return;
+      if (
+        typeof data === "object" &&
+        "errorCode" in data &&
+        typeof (data as { errorCode: unknown }).errorCode === "string"
+      ) {
+        const message =
+          (data as { message?: unknown }).message ?? "Operation failed";
+        setError(String(message));
+        return;
       }
-    };
+      setCurrentOrder(data as PosOrder);
+    },
+    [setCurrentOrder],
+  );
 
-    const scheduled = runQueueRef.current.then(execute, execute);
-    runQueueRef.current = scheduled.then(
-      () => undefined,
-      () => undefined,
-    );
-    return scheduled;
-  }
+  const extractMutationError = useCallback(
+    (
+      result: Record<string, unknown> | null | undefined,
+      key: string,
+    ): string | null => {
+      const data = result?.[key];
+      if (!data || typeof data !== "object") {
+        return null;
+      }
+      if (
+        "errorCode" in data &&
+        "message" in data &&
+        typeof (data as { message?: unknown }).message === "string"
+      ) {
+        return String((data as { message?: unknown }).message);
+      }
+      return null;
+    },
+    [],
+  );
+
+  const run = useCallback(
+    async <T>(fn: () => Promise<T>): Promise<T | undefined> => {
+      const execute = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          return await fn();
+        } catch (e) {
+          setError(e instanceof Error ? e.message : String(e));
+          return undefined;
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const scheduled = runQueueRef.current.then(execute, execute);
+      runQueueRef.current = scheduled.then(
+        () => undefined,
+        () => undefined,
+      );
+      return scheduled;
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -924,7 +930,7 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
     return () => {
       cancelled = true;
     };
-  }, [preferredOrderId]);
+  }, [preferredOrderId, setCurrentOrder]);
 
   const addItem = useCallback(
     async (productVariantId: string) => {
@@ -950,7 +956,7 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
         }
       });
     },
-    [order],
+    [applyOrderResult, ensureOrder, order, run],
   );
 
   const adjustLine = useCallback(
@@ -973,7 +979,7 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
         }
       });
     },
-    [order],
+    [applyOrderResult, order, run],
   );
 
   const removeLine = useCallback(
@@ -987,7 +993,7 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
         applyOrderResult(result, "removeDraftOrderLine");
       });
     },
-    [order],
+    [applyOrderResult, order, run],
   );
 
   const applyCoupon = useCallback(
@@ -1001,7 +1007,7 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
         applyOrderResult(result, "applyCouponCodeToDraftOrder");
       });
     },
-    [order],
+    [applyOrderResult, order, run],
   );
 
   const removeCoupon = useCallback(
@@ -1015,7 +1021,7 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
         applyOrderResult(result, "removeCouponCodeFromDraftOrder");
       });
     },
-    [order],
+    [applyOrderResult, order, run],
   );
 
   const setCustomer = useCallback(
@@ -1030,7 +1036,7 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
         applyOrderResult(result, "setCustomerForDraftOrder");
       });
     },
-    [order],
+    [applyOrderResult, order, run],
   );
 
   const completeOrder = useCallback(
@@ -1248,13 +1254,13 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
       });
       return completedOrder;
     },
-    [order],
+    [applyOrderResult, extractMutationError, order, run],
   );
 
   const resetOrder = useCallback(() => {
     setCurrentOrder(null);
     setError(null);
-  }, []);
+  }, [setCurrentOrder]);
 
   const lineCount = order?.lines.reduce((sum, l) => sum + l.quantity, 0) ?? 0;
 
