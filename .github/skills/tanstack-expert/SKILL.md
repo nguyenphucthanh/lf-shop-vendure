@@ -1,10 +1,95 @@
-# TanStack Expert Skill
+---
+name: tanstack-expert
+description: "TanStack expert for React Query and React Table. Use when: build data tables with sorting/filtering/pagination, manage server-side state with queries and mutations, optimize data fetching, setup infinite queries, handle stale data, configure caching strategies, implement paginated lists, create reusable table hooks, TanStack best practices, React Query configuration, React Table column definitions."
+argument-hint: "Describe the table feature, data fetching issue, or TanStack pattern to implement"
+---
 
-## Overview
+# TanStack Expert
 
-Expert guidance on TanStack libraries (React Table, React Query, React Router) used in Vendure dashboard development. Focuses on client-side data manipulation, sorting, filtering, and pagination.
+Expert guidance on **TanStack React Query** and **TanStack React Table** for this Vendure dashboard project.
 
-## TanStack React Table Best Practices
+## When to Use
+
+- Building or optimizing data tables with sorting, filtering, and pagination
+- Fetching and caching server data from Vendure GraphQL API
+- Managing complex query states (loading, error, refetch, etc.)
+- Implementing mutations with optimistic updates
+- Structuring paginated list pages with filters
+- Configuring cache invalidation strategies
+- Debugging stale data or refetch issues
+- Setting up infinite scroll or pagination patterns
+
+---
+
+## 0. Stack Overview
+
+### Installed Versions
+
+- **React Query** (TanStack Query v5): Server-side state management
+- **React Table** (TanStack Table v8): Unstyled, headless table library
+- **@vendure/dashboard**: Exports pre-built table components and hooks using these libraries
+
+### Import Pattern
+
+```tsx
+// For components & hooks from @vendure/dashboard
+import { DataTable, useLocalFormat } from "@vendure/dashboard";
+
+// For direct TanStack usage (if needed)
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { ColumnDef, useReactTable } from "@tanstack/react-table";
+```
+
+---
+
+## 1. Data Tables (React Table)
+
+### Basic Pattern: Using `@vendure/dashboard` DataTable
+
+Most tables should use the pre-built `DataTable` component:
+
+```tsx
+import {
+  DataTable,
+  useLocalFormat,
+  Button,
+  DropdownMenu,
+} from "@vendure/dashboard";
+import { useQuery } from "@tanstack/react-query";
+
+export function ProductList() {
+  const { formatCurrency } = useLocalFormat();
+
+  // Fetch data
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["products"],
+    queryFn: () => api.query(LIST_PRODUCTS, {}),
+  });
+
+  // Define columns
+  const columns = [
+    {
+      accessorKey: "name",
+      header: "Product Name",
+    },
+    {
+      accessorKey: "priceWithTax",
+      header: "Price",
+      cell: (info) =>
+        formatCurrency(info.getValue(), "USD"),
+    },
+  ];
+
+  return (
+    <DataTable
+      columns={columns}
+      data={data?.products?.items ?? []}
+      isLoading={isLoading}
+      error={error}
+    />
+  );
+}
+```
 
 ### Column Definition Patterns
 

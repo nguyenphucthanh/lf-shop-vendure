@@ -1,5 +1,7 @@
 # Vendure Documentation
 
+> 📚 **When to Use**: This file is triggered via the `vendure-docs` skill or manual reference. It's primarily for backend/server code (entities, services, resolvers, strategies) in `src/plugins/`, `src/vendure-config.ts`, and migrations. For dashboard UI components, use the ui.instructions.md instead.
+
 > Vendure is a headless commerce framework built on Node.js with TypeScript.
 > This file lists all documentation pages available in markdown format for LLM consumption.
 

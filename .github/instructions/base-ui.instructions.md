@@ -4,6 +4,8 @@ applyTo: "**/*.tsx"
 
 # Base UI
 
+> ⚠️ **Reference Only**: This is reference documentation for Base UI patterns and concepts. In this project, **always import components from `@vendure/dashboard` first**. Only consult this guide for styling patterns and composition techniques when `@vendure/dashboard` doesn't have a pre-built component.
+
 This is the documentation for the `@base-ui/react` package.
 It contains a collection of components and utilities for building user interfaces in React.
 The library is designed to be composable and styling agnostic.

@@ -4,6 +4,8 @@ applyTo: "**/*.tsx"
 
 # shadcn/ui
 
+> ⚠️ **Reference Only**: This is reference documentation for shadcn/ui patterns and concepts. In this project, **always import components from `@vendure/dashboard` first**, which is a curated fork of shadcn/ui. Only consult this guide for styling patterns and best practices when `@vendure/dashboard` doesn't have a pre-built component.
+
 > shadcn/ui is a collection of beautifully-designed, accessible components and a code distribution platform. It is built with TypeScript, Tailwind CSS, and Radix UI primitives. It supports multiple frameworks including Next.js, Vite, Remix, Astro, and more. Open Source. Open Code. AI-Ready. It also comes with a command-line tool to install and manage components and a registry system to publish and distribute code.
 
 ## Overview
