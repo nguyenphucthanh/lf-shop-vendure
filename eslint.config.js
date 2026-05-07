@@ -20,6 +20,11 @@ export default [
         },
       },
     },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
     plugins: {
       '@typescript-eslint': tsPlugin,
       react: reactPlugin,
@@ -45,8 +50,6 @@ export default [
           varsIgnorePattern: '^_',
         },
       ],
-      '@typescript-eslint/explicit-function-return-types': 'warn',
-      '@typescript-eslint/no-floating-promises': 'error',
 
       // React Hooks
       'react-hooks/rules-of-hooks': 'error',

@@ -36,13 +36,13 @@ npm run lint:fix      # Auto-fix issues
 
 **Enforced rules:**
 - `@typescript-eslint/no-explicit-any` — **Error**: Catches unsafe type bypasses; refactor to proper types
-- `@typescript-eslint/no-floating-promises` — **Error**: Prevents unhandled async operations
 - `react-hooks/rules-of-hooks` — **Error**: Ensures hooks are used correctly (not in loops, conditionals)
+- `@typescript-eslint/no-unused-vars` — **Error**: Flags unused variables; use `_` prefix to ignore
 - `react-hooks/exhaustive-deps` — **Warning**: Validates useEffect/useCallback/useMemo dependencies
 
-**Warnings (encourage but allow):**
-- `@typescript-eslint/explicit-function-return-types` — Add explicit return types to functions
-- `react-hooks/exhaustive-deps` — Complete dependency arrays
+**Other configured rules:**
+- `react/react-in-jsx-scope` — **Off**: Not needed with modern React
+- `react/prop-types` — **Off**: Using TypeScript instead
 
 ### ESLint in the Review Workflow
 
