@@ -21,6 +21,47 @@ Expert-level React guidance scoped to this project: TypeScript, Tailwind CSS, Ba
 
 ---
 
+## 0. ESLint Integration
+
+### Running ESLint
+
+This project uses ESLint with TypeScript and React plugin support. Run linting with:
+
+```bash
+npm run lint          # Check for linting issues
+npm run lint:fix      # Auto-fix issues
+```
+
+### ESLint Rules for This Project
+
+**Enforced rules:**
+- `@typescript-eslint/no-explicit-any` — **Error**: Catches unsafe type bypasses; refactor to proper types
+- `@typescript-eslint/no-floating-promises` — **Error**: Prevents unhandled async operations
+- `react-hooks/rules-of-hooks` — **Error**: Ensures hooks are used correctly (not in loops, conditionals)
+- `react-hooks/exhaustive-deps` — **Warning**: Validates useEffect/useCallback/useMemo dependencies
+
+**Warnings (encourage but allow):**
+- `@typescript-eslint/explicit-function-return-types` — Add explicit return types to functions
+- `react-hooks/exhaustive-deps` — Complete dependency arrays
+
+### ESLint in the Review Workflow
+
+When optimizing or reviewing code:
+
+1. **Run linting first** to catch type, hook, and async safety issues automatically
+2. **Fix errors** (`any` types, floating promises, hook violations)
+3. **Address warnings** (return types, deps arrays)
+4. **Then apply manual review** from §8 (Review Checklist) for design, performance, and correctness
+
+Example workflow:
+```bash
+npm run lint:fix      # Auto-fix formatting and simple issues
+git diff              # Review what was changed
+npm run lint          # Verify no more errors
+```
+
+---
+
 ## 1. Component Design Patterns
 
 ### Composition over configuration
@@ -337,6 +378,9 @@ it('renders quotation rows', async () => {
 ## Review Checklist
 
 When reviewing a React component, check in this order:
+
+### Pre-Flight (ESLint)
+0. **Run ESLint** — `npm run lint` to catch type, hook, and async safety issues automatically. Fix all errors and address warnings before proceeding to manual review.
 
 ### General
 1. **Correctness** — Does it handle loading, error, and empty states?

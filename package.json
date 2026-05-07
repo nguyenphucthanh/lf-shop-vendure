@@ -12,7 +12,9 @@
     "build:dashboard": "vite build",
     "start:server": "node ./dist/index.js",
     "start:worker": "node ./dist/index-worker.js",
-    "start": "concurrently npm:start:*"
+    "start": "concurrently npm:start:*",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix"
   },
   "dependencies": {
     "@vendure/asset-server-plugin": "3.6.2",
@@ -24,8 +26,13 @@
     "pg": "8.20.0"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
     "@vendure/cli": "3.6.2",
     "concurrently": "9.2.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "prettier": "^3.8.3",
     "ts-node": "10.9.2",
     "typescript": "5.8.2"
