@@ -31,7 +31,7 @@ import {
   useLocalFormat,
 } from "@vendure/dashboard";
 import { ExternalLink } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { graphql } from "@/gql";
 import { toast } from "sonner";
@@ -139,6 +139,14 @@ type ReportData = {
   };
 };
 
+type DailySalesPoint = {
+  dateKey: string;
+  shortLabel: string;
+  fullLabel: string;
+  revenue: number;
+  currencyCode: string;
+};
+
 type OrderDetail = {
   id: string;
   code: string;
@@ -238,6 +246,64 @@ export function SalesMarginReport() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [orderDetail, setOrderDetail] = useState<OrderDetail | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
+
+  const dailySales = useMemo<DailySalesPoint[]>(() => {
+    if (!report) {
+      return [];
+    }
+
+    const byDate = new Map<
+      string,
+      {
+        revenue: number;
+        currencyCode: string;
+      }
+    >();
+
+    for (const row of report.rows) {
+      const date = new Date(row.orderDate);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const key = `${year}-${month}-${day}`;
+
+      const current = byDate.get(key);
+      if (current) {
+        current.revenue += row.lineTotal;
+      } else {
+        byDate.set(key, {
+          revenue: row.lineTotal,
+          currencyCode: row.currencyCode,
+        });
+      }
+    }
+
+    return [...byDate.entries()]
+      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+      .map(([dateKey, value]) => {
+        const date = new Date(`${dateKey}T00:00:00`);
+        return {
+          dateKey,
+          shortLabel: date.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+          }),
+          fullLabel: date.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          }),
+          revenue: value.revenue,
+          currencyCode: value.currencyCode,
+        };
+      });
+  }, [report]);
+
+  const maxDailyRevenue = useMemo(() => {
+    return dailySales.reduce((max, point) => {
+      return Math.max(max, point.revenue);
+    }, 0);
+  }, [dailySales]);
 
   const runReport = useCallback(
     async (f?: string, t?: string) => {
@@ -450,6 +516,48 @@ export function SalesMarginReport() {
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Sales by Date</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {dailySales.length > 0 ? (
+                <div className="overflow-x-auto pb-1">
+                  <div className="flex min-w-max items-end gap-2">
+                    {dailySales.map((point) => {
+                      const height =
+                        maxDailyRevenue > 0
+                          ? Math.max((point.revenue / maxDailyRevenue) * 100, 2)
+                          : 2;
+
+                      return (
+                        <div
+                          key={point.dateKey}
+                          className="flex w-12 shrink-0 flex-col items-center gap-2"
+                          title={`${point.fullLabel}: ${fmt(point.revenue, point.currencyCode)}`}
+                        >
+                          <div className="flex h-40 w-full items-end rounded-md bg-muted/40 p-1">
+                            <div
+                              className="w-full rounded-sm bg-primary"
+                              style={{ height: `${height}%` }}
+                            />
+                          </div>
+                          <span className="text-[11px] text-muted-foreground text-center leading-tight">
+                            {point.shortLabel}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="py-6 text-sm text-muted-foreground">
+                  No sales data available for charting in this period.
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Detail table */}
           <Card>
