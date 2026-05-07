@@ -1,7 +1,6 @@
 import {
   api,
   Card,
-  CardContent,
   CardHeader,
   CardTitle,
   cn,
@@ -24,7 +23,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Package, Store, Wallet } from "lucide-react";
 
 import { graphql } from "@/gql";
-import { getTranslatedName, SortButton, SortDir, SortKey } from "./shared";
+import { SortButton, SummaryStatCard } from "~/components/dashboard";
+import { getTranslatedName, SortDir, SortKey } from "./shared";
 
 const GET_TOTAL_REPORT = graphql(`
   query ConsignmentTotalReport {
@@ -171,61 +171,33 @@ export function TotalReportPage() {
         <FullWidthPageBlock blockId="main" className="space-y-6">
           {/* Summary cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Card size="sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Stores with Quotations
-                </CardTitle>
-                <Store className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">
-                  {loading ? "—" : summary.totalStores}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Stores with at least one quotation
-                </p>
-              </CardContent>
-            </Card>
+            <SummaryStatCard
+              title="Stores with Quotations"
+              icon={<Store className="h-4 w-4 text-muted-foreground" />}
+              value={loading ? "—" : summary.totalStores}
+              description="Stores with at least one quotation"
+            />
 
-            <Card size="sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Collected Payments
-                </CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">
-                  {loading
-                    ? "—"
-                    : formatCurrency(
-                        summary.totalCollectedPayments,
-                        defaultCurrency,
-                      )}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Completed payments only
-                </p>
-              </CardContent>
-            </Card>
+            <SummaryStatCard
+              title="Collected Payments"
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+              value={
+                loading
+                  ? "—"
+                  : formatCurrency(
+                      summary.totalCollectedPayments,
+                      defaultCurrency,
+                    )
+              }
+              description="Completed payments only"
+            />
 
-            <Card size="sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Intake Items
-                </CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">
-                  {loading ? "—" : summary.totalIntakeItems.toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Units received across all stores
-                </p>
-              </CardContent>
-            </Card>
+            <SummaryStatCard
+              title="Total Intake Items"
+              icon={<Package className="h-4 w-4 text-muted-foreground" />}
+              value={loading ? "—" : summary.totalIntakeItems.toLocaleString()}
+              description="Units received across all stores"
+            />
           </div>
 
           {/* Variants table */}

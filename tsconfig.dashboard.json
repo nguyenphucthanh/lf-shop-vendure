@@ -9,9 +9,15 @@
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "paths": {
+      "~/*": ["./src/*"],
       "@/gql": ["./src/gql/graphql.ts"],
       "@/vdb/*": ["./node_modules/@vendure/dashboard/src/lib/*"]
     }
   },
-  "include": ["src/plugins/**/dashboard/**/*", "src/gql/**/*.ts", "vite.*.*ts"]
+  "include": [
+    "src/plugins/**/dashboard/**/*",
+    "src/components/**/*",
+    "src/gql/**/*.ts",
+    "vite.*.*ts"
+  ]
 }

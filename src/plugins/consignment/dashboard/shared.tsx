@@ -29,48 +29,13 @@ import {
   useLocalFormat,
 } from "@vendure/dashboard";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 import { graphql } from "@/gql";
 import { CustomerSearchSelect } from "./shared-ui";
 
 export type SortKey = string;
 export type SortDir = "asc" | "desc";
-
-export function SortButton({
-  label,
-  sortKey,
-  current,
-  dir,
-  onSort,
-}: {
-  label: string;
-  sortKey: SortKey;
-  current: SortKey;
-  dir: SortDir;
-  onSort: (key: SortKey) => void;
-}) {
-  const active = current === sortKey;
-  return (
-    <Button
-      variant="ghost"
-      className="flex items-center gap-1 font-semibold px-0 h-auto"
-      onClick={() => onSort(sortKey)}
-      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
-    >
-      {label}
-      {active ? (
-        dir === "asc" ? (
-          <ArrowUp className="h-3 w-3" />
-        ) : (
-          <ArrowDown className="h-3 w-3" />
-        )
-      ) : (
-        <ArrowUpDown className="h-3 w-3 opacity-40" />
-      )}
-    </Button>
-  );
-}
 
 export const GET_STORE = graphql(`
   query ConsignmentStore($id: String!) {

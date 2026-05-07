@@ -3,8 +3,6 @@ import {
   AlertDescription,
   api,
   Card,
-  CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
   cn,
@@ -29,7 +27,8 @@ import {
 } from "lucide-react";
 
 import { graphql } from "@/gql";
-import { getTranslatedName, SortButton, SortDir, SortKey } from "./shared";
+import { SortButton, SummaryStatCard } from "~/components/dashboard";
+import { getTranslatedName, SortDir, SortKey } from "./shared";
 
 const GET_REPORT = graphql(`
   query ConsignmentReport($storeId: ID!) {
@@ -227,79 +226,43 @@ export function ConsignmentReportPage(props: { storeId: string }) {
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
         <div>
-          <Card size="sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                ∑ Intake
-              </CardTitle>
-              <BadgeDollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold">
-                {formatCurrency(intakeSummary, defaultCurrency)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Total value received from store
-              </p>
-            </CardContent>
-          </Card>
+          <SummaryStatCard
+            title="∑ Intake"
+            icon={<BadgeDollarSign className="h-4 w-4 text-muted-foreground" />}
+            value={formatCurrency(intakeSummary, defaultCurrency)}
+            description="Total value received from store"
+          />
         </div>
         <div>
-          <Card size="sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                ∑ Paid
-              </CardTitle>
+          <SummaryStatCard
+            title="∑ Paid"
+            icon={
               <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold">
-                {formatCurrency(paymentSummary.subtotal, defaultCurrency)}
-              </p>
-            </CardContent>
-            <CardFooter>
+            }
+            value={formatCurrency(paymentSummary.subtotal, defaultCurrency)}
+            footer={
               <p className="text-xs text-muted-foreground">
                 Discount in payments:{" "}
                 {formatCurrency(paymentSummary.discount, defaultCurrency)}
               </p>
-            </CardFooter>
-          </Card>
+            }
+          />
         </div>
         <div>
-          <Card size="sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                ∑ Returned
-              </CardTitle>
-              <PackageX className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold">
-                {formatCurrency(returnSummary, defaultCurrency)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Value of items returned to store
-              </p>
-            </CardContent>
-          </Card>
+          <SummaryStatCard
+            title="∑ Returned"
+            icon={<PackageX className="h-4 w-4 text-muted-foreground" />}
+            value={formatCurrency(returnSummary, defaultCurrency)}
+            description="Value of items returned to store"
+          />
         </div>
         <div>
-          <Card size="sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                ∑ Debt
-              </CardTitle>
-              <TrendingDown className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold">
-                {formatCurrency(debtSummary, defaultCurrency)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Intake − paid − returned
-              </p>
-            </CardContent>
-          </Card>
+          <SummaryStatCard
+            title="∑ Debt"
+            icon={<TrendingDown className="h-4 w-4 text-muted-foreground" />}
+            value={formatCurrency(debtSummary, defaultCurrency)}
+            description="Intake - paid - returned"
+          />
         </div>
       </div>
 

@@ -33,6 +33,7 @@ import {
 import { ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { SortButton, SummaryStatCard } from "~/components/dashboard";
 import { graphql } from "@/gql";
 import { toast } from "sonner";
 
@@ -147,6 +148,18 @@ type DailySalesPoint = {
   currencyCode: string;
 };
 
+type OrderSortKey =
+  | "order"
+  | "date"
+  | "product"
+  | "sku"
+  | "quantity"
+  | "unitPrice"
+  | "lineTotal"
+  | "unitCost"
+  | "lineCost"
+  | "margin";
+
 type OrderDetail = {
   id: string;
   code: string;
@@ -235,6 +248,8 @@ const PRESETS = [
   { value: "last-month", label: "Last month" },
 ];
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+
 export function SalesMarginReport() {
   const { formatCurrency } = useLocalFormat();
   const [preset, setPreset] = useState<string | null>("last-30");
@@ -246,6 +261,10 @@ export function SalesMarginReport() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [orderDetail, setOrderDetail] = useState<OrderDetail | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
+  const [orderSortKey, setOrderSortKey] = useState<OrderSortKey>("date");
+  const [orderSortDir, setOrderSortDir] = useState<"asc" | "desc">("desc");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(25);
 
   const dailySales = useMemo<DailySalesPoint[]>(() => {
     if (!report) {
@@ -304,6 +323,75 @@ export function SalesMarginReport() {
       return Math.max(max, point.revenue);
     }, 0);
   }, [dailySales]);
+
+  const sortedRows = useMemo(() => {
+    if (!report) {
+      return [];
+    }
+
+    const rows = [...report.rows];
+    rows.sort((a, b) => {
+      let result = 0;
+      switch (orderSortKey) {
+        case "order":
+          result = a.orderCode.localeCompare(b.orderCode);
+          break;
+        case "date":
+          result =
+            new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime();
+          break;
+        case "product":
+          result = a.productName.localeCompare(b.productName);
+          break;
+        case "sku":
+          result = a.sku.localeCompare(b.sku);
+          break;
+        case "quantity":
+          result = a.quantity - b.quantity;
+          break;
+        case "unitPrice":
+          result = a.unitPrice - b.unitPrice;
+          break;
+        case "lineTotal":
+          result = a.lineTotal - b.lineTotal;
+          break;
+        case "unitCost":
+          result = a.unitCost - b.unitCost;
+          break;
+        case "lineCost":
+          result = a.lineCost - b.lineCost;
+          break;
+        case "margin":
+          result = a.margin - b.margin;
+          break;
+        default:
+          result = 0;
+      }
+
+      return orderSortDir === "asc" ? result : -result;
+    });
+
+    return rows;
+  }, [report, orderSortDir, orderSortKey]);
+
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(sortedRows.length / pageSize));
+  }, [sortedRows.length, pageSize]);
+
+  const paginatedRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return sortedRows.slice(start, start + pageSize);
+  }, [page, pageSize, sortedRows]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [from, to, pageSize, orderSortKey, orderSortDir]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const runReport = useCallback(
     async (f?: string, t?: string) => {
@@ -366,6 +454,15 @@ export function SalesMarginReport() {
     setFrom(range.from);
     setTo(range.to);
     void runReport(range.from, range.to);
+  }
+
+  function handleOrderSort(key: OrderSortKey) {
+    if (orderSortKey === key) {
+      setOrderSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setOrderSortKey(key);
+      setOrderSortDir("desc");
+    }
   }
 
   // Run on first load
@@ -461,60 +558,33 @@ export function SalesMarginReport() {
       {report && (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <Card size="sm">
-              <CardHeader>
-                <CardTitle>Orders</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-right">
-                  {report.summary.orderCount}
-                </div>
-              </CardContent>
-            </Card>
-            <Card size="sm">
-              <CardHeader>
-                <CardTitle>Revenue</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-right">
-                  {fmt(
-                    report.summary.totalRevenue,
-                    report.summary.currencyCode,
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-            <Card size="sm">
-              <CardHeader>
-                <CardTitle>Cost</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-right">
-                  {fmt(report.summary.totalCost, report.summary.currencyCode)}
-                </div>
-              </CardContent>
-            </Card>
-            <Card size="sm">
-              <CardHeader>
-                <CardTitle>Margin</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-right">
-                  {fmt(report.summary.totalMargin, report.summary.currencyCode)}
-                </div>
-              </CardContent>
-            </Card>
-            <Card size="sm">
-              <CardHeader>
-                <CardTitle>Margin %</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-right">
-                  {report.summary.marginPercent}%
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+            <SummaryStatCard
+              title="Orders"
+              value={report.summary.orderCount.toLocaleString()}
+            />
+            <SummaryStatCard
+              title="Revenue"
+              value={fmt(
+                report.summary.totalRevenue,
+                report.summary.currencyCode,
+              )}
+            />
+            <SummaryStatCard
+              title="Cost"
+              value={fmt(report.summary.totalCost, report.summary.currencyCode)}
+            />
+            <SummaryStatCard
+              title="Margin"
+              value={fmt(
+                report.summary.totalMargin,
+                report.summary.currencyCode,
+              )}
+            />
+            <SummaryStatCard
+              title="Margin %"
+              value={`${report.summary.marginPercent}%`}
+            />
           </div>
 
           <Card>
@@ -564,22 +634,114 @@ export function SalesMarginReport() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Order</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">Unit Price</TableHead>
-                  <TableHead className="text-right">Line Total</TableHead>
-                  <TableHead className="text-right">Unit Cost</TableHead>
-                  <TableHead className="text-right">Line Cost</TableHead>
-                  <TableHead className="text-right">Margin</TableHead>
+                  <TableHead>
+                    <SortButton
+                      label="Order"
+                      sortKey="order"
+                      current={orderSortKey}
+                      dir={orderSortDir}
+                      onSort={handleOrderSort}
+                    />
+                  </TableHead>
+                  <TableHead>
+                    <SortButton
+                      label="Date"
+                      sortKey="date"
+                      current={orderSortKey}
+                      dir={orderSortDir}
+                      onSort={handleOrderSort}
+                    />
+                  </TableHead>
+                  <TableHead>
+                    <SortButton
+                      label="Product"
+                      sortKey="product"
+                      current={orderSortKey}
+                      dir={orderSortDir}
+                      onSort={handleOrderSort}
+                    />
+                  </TableHead>
+                  <TableHead>
+                    <SortButton
+                      label="SKU"
+                      sortKey="sku"
+                      current={orderSortKey}
+                      dir={orderSortDir}
+                      onSort={handleOrderSort}
+                    />
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex justify-end">
+                      <SortButton
+                        label="Qty"
+                        sortKey="quantity"
+                        current={orderSortKey}
+                        dir={orderSortDir}
+                        onSort={handleOrderSort}
+                      />
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex justify-end">
+                      <SortButton
+                        label="Unit Price"
+                        sortKey="unitPrice"
+                        current={orderSortKey}
+                        dir={orderSortDir}
+                        onSort={handleOrderSort}
+                      />
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex justify-end">
+                      <SortButton
+                        label="Line Total"
+                        sortKey="lineTotal"
+                        current={orderSortKey}
+                        dir={orderSortDir}
+                        onSort={handleOrderSort}
+                      />
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex justify-end">
+                      <SortButton
+                        label="Unit Cost"
+                        sortKey="unitCost"
+                        current={orderSortKey}
+                        dir={orderSortDir}
+                        onSort={handleOrderSort}
+                      />
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex justify-end">
+                      <SortButton
+                        label="Line Cost"
+                        sortKey="lineCost"
+                        current={orderSortKey}
+                        dir={orderSortDir}
+                        onSort={handleOrderSort}
+                      />
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex justify-end">
+                      <SortButton
+                        label="Margin"
+                        sortKey="margin"
+                        current={orderSortKey}
+                        dir={orderSortDir}
+                        onSort={handleOrderSort}
+                      />
+                    </div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {report.rows.map((row) => (
+                {paginatedRows.map((row, index) => (
                   <TableRow
-                    key={`${row.orderId}-${row.sku}`}
+                    key={`${row.orderId}-${row.sku}-${row.productName}-${index}`}
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => openOrder(row.orderId)}
                   >
@@ -611,11 +773,11 @@ export function SalesMarginReport() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {report.rows.length === 0 && (
+                {sortedRows.length === 0 && (
                   <TableRow>
                     <TableCell
                       colSpan={10}
-                      className="text-center text-muted-foreground py-8"
+                      className="py-8 text-center text-muted-foreground"
                     >
                       No orders with cost data found in this period.
                     </TableCell>
@@ -623,6 +785,52 @@ export function SalesMarginReport() {
                 )}
               </TableBody>
             </Table>
+            {sortedRows.length > 0 ? (
+              <div className="flex flex-col gap-3 border-t p-4 md:flex-row md:items-center md:justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Showing {(page - 1) * pageSize + 1}-
+                  {Math.min(page * pageSize, sortedRows.length)} of{" "}
+                  {sortedRows.length}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Rows:</span>
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={(value) => setPageSize(Number(value))}
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAGE_SIZE_OPTIONS.map((size) => (
+                        <SelectItem key={size} value={String(size)}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {page} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </Card>
         </>
       )}
