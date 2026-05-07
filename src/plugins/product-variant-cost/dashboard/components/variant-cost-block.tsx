@@ -80,11 +80,16 @@ export function VariantCostBlock({ context }: { context: PageContextValue }) {
   
   useEffect(() => {
     if (!variantId) return;
-    api.query(GET_VARIANT_COSTS, { variantId }).then((result) => {
+    let active = true;
+    void api.query(GET_VARIANT_COSTS, { variantId }).then((result) => {
+      if (!active) return;
       if (result?.productVariantCosts) {
         setCosts(result.productVariantCosts as VariantCost[]);
       }
     });
+    return () => {
+      active = false;
+    };
   }, [variantId]);
 
   const availableCurrencies: string[] =
@@ -93,10 +98,10 @@ export function VariantCostBlock({ context }: { context: PageContextValue }) {
     ];
 
   async function handleSave() {
-    if (!variantId || !editCost || !editCurrency) return;
+    if (!variantId || !editCost || !editCurrency || !activeChannel) return;
     const costInMinorUnits = Math.round(parseFloat(editCost) * 100);
     if (isNaN(costInMinorUnits) || costInMinorUnits < 0) {
-      toast("Invalid cost value");
+      toast.error("Invalid cost value");
       return;
     }
     setSaving(true);
@@ -104,7 +109,7 @@ export function VariantCostBlock({ context }: { context: PageContextValue }) {
       const result = await api.mutate(UPSERT_VARIANT_COST, {
         input: {
           variantId,
-          channelId: activeChannel!.id,
+          channelId: activeChannel.id,
           currencyCode: editCurrency as CurrencyCode,
           cost: costInMinorUnits,
         },
@@ -121,7 +126,7 @@ export function VariantCostBlock({ context }: { context: PageContextValue }) {
           return [...prev, updated];
         });
         setEditCost("");
-        toast("Cost saved");
+        toast.success("Cost saved");
       }
     } finally {
       setSaving(false);
@@ -133,7 +138,7 @@ export function VariantCostBlock({ context }: { context: PageContextValue }) {
     try {
       await api.mutate(DELETE_VARIANT_COST, { id });
       setCosts((prev) => prev.filter((c) => c.id !== id));
-      toast("Cost deleted");
+      toast.success("Cost deleted");
     } finally {
       setDeleting(null);
     }

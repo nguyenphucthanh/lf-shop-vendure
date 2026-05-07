@@ -282,6 +282,8 @@ export function SalesMarginReport() {
         if (result?.salesMarginReport) {
           setReport(result.salesMarginReport as ReportData);
         }
+      } catch {
+        toast.error("Failed to load report. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -309,14 +311,21 @@ export function SalesMarginReport() {
     setDrawerOpen(true);
     setOrderLoading(true);
     setOrderDetail(null);
+    let active = true;
     try {
       const result = await api.query(GET_ORDER_DETAIL, { id: orderId });
+      if (!active) return;
       if (result?.order) {
         setOrderDetail(result.order as OrderDetail);
       }
+    } catch {
+      if (active) toast.error("Failed to load order details.");
     } finally {
-      setOrderLoading(false);
+      if (active) setOrderLoading(false);
     }
+    return () => {
+      active = false;
+    };
   }
 
   const fmt = (value: number, code: string) => formatCurrency(value, code);
@@ -340,7 +349,7 @@ export function SalesMarginReport() {
                 value={from}
                 onChange={(e) => {
                   setFrom(e.target.value);
-                  setPreset("");
+                  setPreset(null);
                 }}
               />
             </FieldContent>
@@ -353,7 +362,7 @@ export function SalesMarginReport() {
                 value={to}
                 onChange={(e) => {
                   setTo(e.target.value);
-                  setPreset("");
+                  setPreset(null);
                 }}
               />
             </FieldContent>
@@ -460,9 +469,9 @@ export function SalesMarginReport() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {report.rows.map((row, i) => (
+                {report.rows.map((row) => (
                   <TableRow
-                    key={i}
+                    key={`${row.orderId}-${row.sku}`}
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => openOrder(row.orderId)}
                   >
