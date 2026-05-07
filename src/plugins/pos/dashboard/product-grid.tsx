@@ -1,6 +1,23 @@
-import { api, Button, Card, Input, useLocalFormat } from "@vendure/dashboard";
+import {
+  api,
+  Button,
+  Card,
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  Input,
+  useLocalFormat,
+  ComboboxChipsInput,
+  ComboboxValue,
+  ComboboxChips,
+  ComboboxChip,
+  useComboboxAnchor,
+} from "@vendure/dashboard";
 import { SearchIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { graphql } from "@/gql";
 
@@ -81,6 +98,7 @@ type Variant = {
 
 type FacetValue = { id: string; name: string };
 type Facet = { id: string; name: string; values: FacetValue[] };
+type FacetOption = { id: string; name: string; facetName: string };
 
 interface Props {
   cartQuantities: Record<string, number>;
@@ -97,6 +115,24 @@ export function ProductGrid({ cartQuantities, onAddItem }: Props) {
   const [variants, setVariants] = useState<Variant[]>([]);
   const [loadingVariants, setLoadingVariants] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const anchor = useComboboxAnchor();
+
+  const facetOptions = useMemo<FacetOption[]>(
+    () =>
+      facets.flatMap((facet) =>
+        facet.values.map((value) => ({
+          id: value.id,
+          name: value.name,
+          facetName: facet.name,
+        })),
+      ),
+    [facets],
+  );
+
+  const facetOptionsById = useMemo(
+    () => new Map(facetOptions.map((option) => [option.id, option])),
+    [facetOptions],
+  );
 
   // Load facets once
   useEffect(() => {
@@ -138,12 +174,6 @@ export function ProductGrid({ cartQuantities, onAddItem }: Props) {
     };
   }, [search, activeFacetValueIds]);
 
-  function toggleFacetValue(id: string) {
-    setActiveFacetValueIds((prev) =>
-      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id],
-    );
-  }
-
   return (
     <div className="flex h-full flex-col gap-3">
       {/* Search */}
@@ -158,41 +188,82 @@ export function ProductGrid({ cartQuantities, onAddItem }: Props) {
         />
       </div>
 
-      {/* Facet filter chips */}
+      {/* Facet filter combobox */}
       {facets.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {facets.flatMap((facet) =>
-            facet.values.map((value) => {
-              const active = activeFacetValueIds.includes(value.id);
-              return (
-                <Button
-                  key={value.id}
-                  type="button"
-                  variant={active ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => toggleFacetValue(value.id)}
-                  className={[
-                    "rounded-full border px-3 py-0.5 text-xs font-medium transition-colors",
-                    active
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-background text-muted-foreground hover:border-primary hover:text-primary",
-                  ].join(" ")}
-                >
-                  {value.name}
-                </Button>
-              );
-            }),
-          )}
+        <div className="flex flex-col gap-2">
+          <Combobox<string, true>
+            items={facetOptions.map((option) => option.id)}
+            multiple
+            value={activeFacetValueIds}
+            onValueChange={(nextValues) => setActiveFacetValueIds(nextValues)}
+            itemToStringValue={(itemId) => itemId}
+            itemToStringLabel={(itemId) => {
+              const option = facetOptionsById.get(itemId);
+              return option ? `${option.facetName}: ${option.name}` : itemId;
+            }}
+          >
+            <ComboboxChips ref={anchor} className="w-full">
+              <ComboboxValue placeholder="Filter by facets…">
+                {(values) => (
+                  <>
+                    {values.map((value: string) => {
+                      const option = facetOptionsById.get(value);
+                      return (
+                        <ComboboxChip key={value}>
+                          {option
+                            ? `${option.facetName}: ${option.name}`
+                            : value}
+                        </ComboboxChip>
+                      );
+                    })}
+                    <ComboboxChipsInput placeholder="Filter by facets" />
+                  </>
+                )}
+              </ComboboxValue>
+            </ComboboxChips>
+            <ComboboxContent anchor={anchor}>
+              {/* <ComboboxInput
+                placeholder="Filter by facet values..."
+                className="w-full"
+                showClear
+              /> */}
+              <ComboboxList>
+                <ComboboxCollection>
+                  {(itemId: string) => {
+                    const option = facetOptionsById.get(itemId);
+                    if (!option) return null;
+                    return (
+                      <ComboboxItem value={itemId} key={itemId}>
+                        <div className="flex w-full items-center justify-between gap-2">
+                          <span className="truncate">{option.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {option.facetName}
+                          </span>
+                        </div>
+                      </ComboboxItem>
+                    );
+                  }}
+                </ComboboxCollection>
+              </ComboboxList>
+              <ComboboxEmpty>No facet values found.</ComboboxEmpty>
+            </ComboboxContent>
+          </Combobox>
+
           {activeFacetValueIds.length > 0 && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveFacetValueIds([])}
-              className="text-muted-foreground hover:text-foreground rounded-full px-2 py-0.5 text-xs underline"
-            >
-              Clear
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="text-muted-foreground text-xs">
+                {activeFacetValueIds.length} selected
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveFacetValueIds([])}
+                className="text-muted-foreground hover:text-foreground rounded-full px-2 py-0.5 text-xs underline"
+              >
+                Clear
+              </Button>
+            </div>
           )}
         </div>
       )}
