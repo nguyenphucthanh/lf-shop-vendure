@@ -268,11 +268,12 @@ export function ProductGrid({ cartQuantities, onAddItem }: Props) {
         </div>
       )}
 
-      {/* Grid */}
+      {/* Grid on desktop, List on mobile */}
       <div
         className={[
-          "grid flex-1 content-start gap-3 overflow-y-auto pb-4",
-          "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
+          "flex-1 overflow-y-auto pb-4",
+          "flex flex-col gap-3 md:grid md:content-start md:gap-3",
+          "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
           loadingVariants ? "opacity-60" : "",
         ].join(" ")}
       >
@@ -289,16 +290,16 @@ export function ProductGrid({ cartQuantities, onAddItem }: Props) {
               onClick={() => onAddItem(variant.id)}
               className="focus-visible:ring-ring group h-auto rounded-xl p-0 text-left focus-visible:ring-2 focus-visible:outline-none"
             >
-              <Card className="bg-card border-border group-hover:border-primary relative flex w-full flex-col gap-0 overflow-hidden rounded-xl border py-0 transition-all active:scale-95">
+              <Card className="bg-card border-border group-hover:border-primary relative flex flex-row md:flex-col w-full gap-0 overflow-hidden rounded-xl border py-0 transition-all active:scale-95">
                 {/* Qty badge */}
                 {qty > 0 && (
-                  <span className="bg-primary text-primary-foreground absolute top-2 right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold">
+                  <span className="bg-primary text-primary-foreground absolute top-2 right-2 md:top-2 md:right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold">
                     {qty}
                   </span>
                 )}
 
                 {/* Image */}
-                <div className="bg-muted aspect-square w-full overflow-hidden">
+                <div className="bg-muted aspect-square w-20 flex-shrink-0 overflow-hidden md:w-full md:aspect-square">
                   {imageUrl ? (
                     <img
                       src={`${imageUrl}?w=240&h=240&mode=crop`}
@@ -306,25 +307,30 @@ export function ProductGrid({ cartQuantities, onAddItem }: Props) {
                       className="h-full w-full object-cover transition-transform group-hover:scale-105"
                     />
                   ) : (
-                    <div className="text-muted-foreground flex h-full w-full items-center justify-center text-3xl">
+                    <div className="text-muted-foreground flex h-full w-full items-center justify-center text-xl md:text-3xl">
                       📦
                     </div>
                   )}
                 </div>
 
                 {/* Info */}
-                <div className="flex flex-1 flex-col gap-0.5 p-2 text-left">
-                  <span className="text-foreground line-clamp-2 text-xs font-medium leading-tight">
-                    {variant.product.name}
-                  </span>
+                <div className="flex flex-1 flex-col gap-0.5 p-2 text-left justify-between">
+                  <div className="flex items-start justify-between gap-1">
+                    <span className="text-foreground line-clamp-1 md:line-clamp-2 text-xs font-medium leading-tight flex-1">
+                      {variant.product.name}
+                    </span>
+                    <span className="text-primary text-sm font-semibold flex-shrink-0">
+                      {formatCurrency(
+                        variant.priceWithTax,
+                        variant.currencyCode,
+                      )}
+                    </span>
+                  </div>
                   {variant.name !== variant.product.name && (
                     <span className="text-muted-foreground line-clamp-1 text-[11px]">
                       {variant.name}
                     </span>
                   )}
-                  <span className="text-primary mt-auto text-sm font-semibold">
-                    {formatCurrency(variant.priceWithTax, variant.currencyCode)}
-                  </span>
                 </div>
               </Card>
             </Button>
