@@ -15,7 +15,10 @@
     "start:worker": "node ./dist/index-worker.js",
     "start": "concurrently npm:start:*",
     "lint": "eslint . --ext .ts,.tsx",
-    "lint:fix": "eslint . --ext .ts,.tsx --fix"
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "prepare": "husky install"
   },
   "dependencies": {
     "@vendure/asset-server-plugin": "3.6.2",
@@ -34,6 +37,7 @@
     "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "husky": "^9.1.7",
     "prettier": "^3.8.3",
     "ts-node": "10.9.2",
     "typescript": "5.8.2"

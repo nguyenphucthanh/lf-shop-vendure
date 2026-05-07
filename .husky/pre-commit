@@ -1,0 +1,28 @@
+#!/bin/sh
+
+# Exit on error
+set -e
+
+# Get staged files (ts, tsx only)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' || true)
+
+if [ -z "$STAGED_FILES" ]; then
+  echo "✅ No TypeScript files to check"
+  exit 0
+fi
+
+echo "🔍 Running formatter and linter on staged files..."
+
+# Format with prettier
+echo "📝 Formatting with Prettier..."
+echo "$STAGED_FILES" | xargs npx prettier --write
+
+# Lint with eslint:fix
+echo "✨ Linting and fixing with ESLint..."
+echo "$STAGED_FILES" | xargs npx eslint --fix
+
+# Re-stage the files after formatting/linting
+echo "$STAGED_FILES" | xargs git add
+
+echo "✅ Pre-commit checks passed!"
+exit 0
