@@ -40,6 +40,20 @@ function getCostCurrencyCodeSnapshot(customFields: unknown): string | null {
   return null;
 }
 
+function getNonEmptyString(
+  ...values: Array<string | null | undefined>
+): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+  }
+  return undefined;
+}
+
 @Injectable()
 export class ProductVariantCostService {
   constructor(private connection: TransactionalConnection) {}
@@ -172,7 +186,11 @@ export class ProductVariantCostService {
       where: {
         orderPlacedAt: Between(from, to),
       },
-      relations: ["lines", "lines.productVariant"],
+      relations: [
+        "lines",
+        "lines.productVariant",
+        "lines.productVariant.product",
+      ],
       order: { orderPlacedAt: "DESC" },
     });
 
@@ -218,6 +236,17 @@ export class ProductVariantCostService {
         const unitCost = costSnapshot;
         const lineCost = unitCost * line.quantity;
         const margin = lineTotal - lineCost;
+        const variantName =
+          getNonEmptyString(
+            line.productVariant.name,
+            line.productVariant.sku,
+          ) ?? "Unknown variant";
+        const productName =
+          getNonEmptyString(
+            line.productVariant.product?.name,
+            variantName,
+            line.productVariant.sku,
+          ) ?? "Unknown product";
 
         totalRevenue += lineTotal;
         totalCost += lineCost;
@@ -226,8 +255,8 @@ export class ProductVariantCostService {
           orderId: String(order.id),
           orderCode: order.code,
           orderDate: order.orderPlacedAt ?? order.createdAt,
-          productName: line.productVariant.name,
-          variantName: line.productVariant.name,
+          productName,
+          variantName,
           sku: line.productVariant.sku,
           quantity: line.quantity,
           unitPrice,
