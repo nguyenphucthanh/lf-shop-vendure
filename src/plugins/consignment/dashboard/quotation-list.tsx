@@ -46,9 +46,14 @@ export function QuotationListPage(props: { storeId: string }) {
       setRows([]);
       return;
     }
+    let active = true;
     void api.query(LIST_QUOTATIONS, { storeId }).then((result) => {
+      if (!active) return;
       setRows(result?.consignmentQuotations ?? []);
     });
+    return () => {
+      active = false;
+    };
   }, [storeId]);
 
   return (

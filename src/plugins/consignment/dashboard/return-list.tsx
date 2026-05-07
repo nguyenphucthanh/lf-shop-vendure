@@ -44,9 +44,14 @@ export function ReturnListPage(props: { storeId: string }) {
       setRows([]);
       return;
     }
+    let active = true;
     void api.query(LIST_RETURNS, { storeId }).then((result) => {
+      if (!active) return;
       setRows(result?.consignmentReturns ?? []);
     });
+    return () => {
+      active = false;
+    };
   }, [storeId]);
 
   return (

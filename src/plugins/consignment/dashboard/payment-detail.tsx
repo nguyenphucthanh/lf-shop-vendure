@@ -136,16 +136,23 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
       setSoldOptions([]);
       return;
     }
+    let active = true;
     void api.query(GET_SOLD_OPTIONS, { storeId }).then((result) => {
+      if (!active) return;
       setSoldOptions((result?.consignmentSolds ?? []) as SoldOption[]);
     });
+    return () => {
+      active = false;
+    };
   }, [storeId]);
 
   useEffect(() => {
     if (isNew || !params.id) {
       return;
     }
+    let active = true;
     void api.query(GET_PAYMENT, { id: params.id }).then((result) => {
+      if (!active) return;
       const payment = result?.consignmentPayment;
       if (!payment) return;
       setStoreId(payment.storeId);
@@ -157,6 +164,9 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
       setDiscount(String((payment.discount ?? 0) / 100));
       setSoldId(payment.soldId ? String(payment.soldId) : "");
     });
+    return () => {
+      active = false;
+    };
   }, [isNew, params.id]);
 
   async function save() {

@@ -84,7 +84,9 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
 
   useEffect(() => {
     if (isNew || !params.id) return;
+    let active = true;
     void api.query(GET_QUOTATION, { id: params.id }).then((result) => {
+      if (!active) return;
       const quotation = result?.consignmentQuotation;
       if (!quotation) {
         return;
@@ -95,6 +97,9 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
       setCurrency(quotation.currency);
       setNote(quotation.note ?? "");
     });
+    return () => {
+      active = false;
+    };
   }, [isNew, params.id]);
 
   useEffect(() => {

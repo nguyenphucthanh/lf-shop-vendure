@@ -150,7 +150,9 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
     setLinkedPayment(null);
     setPaymentDrawerOpen(false);
     setLinkedPaymentLoading(true);
+    let active = true;
     void api.query(GET_SOLD, { id: params.id }).then((result) => {
+      if (!active) return;
       const sold = result?.consignmentSold;
       if (!sold) {
         setLinkedPaymentLoading(false);
@@ -181,15 +183,19 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
       void api
         .query(GET_LINKED_PAYMENT, { storeId: String(sold.storeId) })
         .then((paymentResult) => {
+          if (!active) return;
           const payment = (paymentResult?.consignmentPayments ?? []).find(
             (item) => String(item.soldId ?? "") === String(sold.id),
           );
           setLinkedPayment((payment as LinkedPayment | undefined) ?? null);
         })
         .finally(() => {
-          setLinkedPaymentLoading(false);
+          if (active) setLinkedPaymentLoading(false);
         });
     });
+    return () => {
+      active = false;
+    };
   }, [isNew, params.id]);
 
   async function createPaymentForSold() {

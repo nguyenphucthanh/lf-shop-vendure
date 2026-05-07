@@ -353,7 +353,7 @@ export function useProductVariant(id: string) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [id]);
 
   return variant;
 }

@@ -101,7 +101,9 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
 
   useEffect(() => {
     if (isNew || !params.id) return;
+    let active = true;
     void api.query(GET_INTAKE, { id: params.id }).then((result) => {
+      if (!active) return;
       const intake = result?.consignmentIntake;
       if (!intake) return;
       setStoreId(intake.storeId);
@@ -119,6 +121,9 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
         })),
       );
     });
+    return () => {
+      active = false;
+    };
   }, [isNew, params.id]);
 
   function printReceipt() {

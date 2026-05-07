@@ -68,9 +68,14 @@ export function PaymentListPage(props: { storeId: string }) {
       setRows([]);
       return;
     }
+    let active = true;
     void api.query(LIST_PAYMENTS, { storeId }).then((result) => {
+      if (!active) return;
       setRows(result?.consignmentPayments ?? []);
     });
+    return () => {
+      active = false;
+    };
   }, [storeId]);
 
   return (

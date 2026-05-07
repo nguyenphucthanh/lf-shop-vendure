@@ -34,6 +34,7 @@ const GET_RETURN = graphql(`
         quotationId
         quantity
         consignmentPriceSnapshot
+        currency
       }
     }
   }
@@ -90,14 +91,16 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
       setInitialReturnQtyByQuotation({});
       return;
     }
+    let active = true;
     void api.query(GET_RETURN, { id: params.id }).then((result) => {
+      if (!active) return;
       const ret = result?.consignmentReturn;
       if (!ret) return;
       setStoreId(ret.storeId);
       setReturnedDate(isoDate(ret.returnedDate));
       setReason(ret.reason ?? "");
       setItems(
-        (ret.items ?? []).map((item: any) => ({
+        (ret.items ?? []).map((item) => ({
           quotationId: item.quotationId,
           quantity: item.quantity,
           consignmentPriceSnapshot: item.consignmentPriceSnapshot ?? 0,
@@ -105,7 +108,7 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
         })),
       );
       const baseline = (ret.items ?? []).reduce<Record<string, number>>(
-        (acc, item: any) => {
+        (acc, item) => {
           acc[item.quotationId] = (acc[item.quotationId] ?? 0) + item.quantity;
           return acc;
         },
@@ -113,6 +116,9 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
       );
       setInitialReturnQtyByQuotation(baseline);
     });
+    return () => {
+      active = false;
+    };
   }, [isNew, params.id]);
 
   async function save() {

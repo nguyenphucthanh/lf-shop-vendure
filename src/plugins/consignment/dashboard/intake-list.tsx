@@ -47,9 +47,14 @@ export function IntakeListPage(props: { storeId: string }) {
       setRows([]);
       return;
     }
+    let active = true;
     void api.query(LIST_INTAKES, { storeId }).then((result) => {
+      if (!active) return;
       setRows(result?.consignmentIntakes ?? []);
     });
+    return () => {
+      active = false;
+    };
   }, [storeId]);
 
   return (
