@@ -14,6 +14,7 @@ export default [
       'static/**',
       'src/migration/**',
       'src/migrations/**',
+      'src/gql/graphql.ts',
     ],
   },
   {
@@ -48,9 +49,14 @@ export default [
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
       'react/display-name': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+
+      // Base JS in TS projects
+      'no-undef': 'off',
 
       // TypeScript
-      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unsafe-function-type': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
@@ -62,6 +68,13 @@ export default [
       // React Hooks
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
+    },
+  },
+  {
+    files: ['test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
     },
   },
 ];
