@@ -3,6 +3,7 @@ import { ShoppingBagIcon } from "lucide-react";
 
 import { LoadDraftOrderInPosButton } from "./load-draft-order-in-pos-button";
 import { PosShell } from "./pos-shell";
+import { CreateOrderButton } from "./create-order-button";
 
 function normalizeOrderId(value: unknown): string | undefined {
   if (typeof value === "number") {
@@ -22,6 +23,14 @@ function PosRoute(props: { route: AnyRoute }) {
 }
 
 defineDashboardExtension({
+  toolbarItems: [
+    {
+      id: "create-order",
+      component: CreateOrderButton,
+      position: { itemId: "alerts", order: "before" },
+      requiresPermission: "CreateOrder",
+    },
+  ],
   navSections: [
     {
       id: "pos",

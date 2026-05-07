@@ -1,19 +1,10 @@
 import { defineDashboardExtension } from "@vendure/dashboard";
 import { BarChartIcon } from "lucide-react";
 
-import { CreateOrderButton } from "./components/create-order-button";
 import { SalesMarginReport } from "./components/sales-margin-report";
 import { VariantCostBlock } from "./components/variant-cost-block";
 
 defineDashboardExtension({
-  toolbarItems: [
-    {
-      id: "create-order",
-      component: CreateOrderButton,
-      position: { itemId: "alerts", order: "before" },
-      requiresPermission: "CreateOrder",
-    },
-  ],
   navSections: [
     {
       id: "reports",
