@@ -1,20 +1,15 @@
 import {
   api,
   Button,
-  Card,
   Link,
   ResultOf,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   useLocalFormat,
 } from "@vendure/dashboard";
-import { useEffect, useState } from "react";
+import { ColumnDef } from "@tanstack/react-table";
+import { useEffect, useMemo, useState } from "react";
 
 import { graphql } from "@/gql";
+import { ClientDataTable } from "~/components/dashboard";
 
 const LIST_RETURNS = graphql(`
   query ConsignmentReturnList($storeId: ID!) {
@@ -32,12 +27,12 @@ const LIST_RETURNS = graphql(`
   }
 `);
 
+type ReturnRow = ResultOf<typeof LIST_RETURNS>["consignmentReturns"][number];
+
 export function ReturnListPage(props: { storeId: string }) {
   const { storeId } = props;
   const { formatCurrency } = useLocalFormat();
-  const [rows, setRows] = useState<
-    ResultOf<typeof LIST_RETURNS>["consignmentReturns"]
-  >([]);
+  const [rows, setRows] = useState<ReturnRow[]>([]);
 
   useEffect(() => {
     if (!storeId) {
@@ -54,6 +49,63 @@ export function ReturnListPage(props: { storeId: string }) {
     };
   }, [storeId]);
 
+  const columns = useMemo<ColumnDef<ReturnRow>[]>(
+    () => [
+      {
+        accessorKey: "returnedDate",
+        header: "Date",
+        cell: (info) => String(info.getValue()).slice(0, 10),
+        sortingFn: "alphanumeric",
+      },
+      {
+        id: "items",
+        header: "Items",
+        enableSorting: false,
+        cell: (info) => {
+          const items = info.row.original.items ?? [];
+          const totalQty = items.reduce((sum, item) => sum + item.quantity, 0);
+          return `${totalQty} items of ${items.length} products`;
+        },
+      },
+      {
+        accessorKey: "reason",
+        header: "Reason",
+        cell: (info) => (info.getValue() as string | null) ?? "—",
+        enableSorting: false,
+      },
+      {
+        accessorKey: "total",
+        header: "Total",
+        cell: (info) =>
+          formatCurrency(
+            info.getValue() as number,
+            info.row.original.items?.[0]?.currency || "USD",
+          ),
+        sortingFn: "basic",
+      },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: (info) => (
+          <Button
+            size="sm"
+            variant="secondary"
+            render={(buttonProps) => (
+              <Link
+                to={`/consignment/returns/${info.row.original.id}`}
+                {...buttonProps}
+              >
+                Edit
+              </Link>
+            )}
+          />
+        ),
+      },
+    ],
+    [formatCurrency],
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between">
@@ -69,62 +121,11 @@ export function ReturnListPage(props: { storeId: string }) {
           )}
         />
       </div>
-      <Card className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Items</TableHead>
-              <TableHead>Reason</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead className="w-[140px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>{String(row.returnedDate).slice(0, 10)}</TableCell>
-                <TableCell>
-                  {`${
-                    row.items?.reduce(
-                      (sum: number, item) => sum + item.quantity,
-                      0,
-                    ) ?? 0
-                  } items of ${row.items?.length ?? 0} products`}
-                </TableCell>
-                <TableCell>{row.reason ?? "—"}</TableCell>
-                <TableCell>
-                  {formatCurrency(row.total, row.items?.[0]?.currency || "USD")}
-                </TableCell>
-                <TableCell>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    render={(buttonProps) => (
-                      <Link
-                        to={`/consignment/returns/${row.id}`}
-                        {...buttonProps}
-                      >
-                        Edit
-                      </Link>
-                    )}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="text-center text-sm text-muted-foreground"
-                >
-                  No return records found.
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
-      </Card>
+      <ClientDataTable
+        columns={columns}
+        data={rows}
+        initialSorting={[{ id: "returnedDate", desc: true }]}
+      />
     </div>
   );
 }

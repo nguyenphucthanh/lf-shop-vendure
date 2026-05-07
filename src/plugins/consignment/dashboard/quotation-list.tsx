@@ -1,20 +1,15 @@
 import {
   api,
   Button,
-  Card,
   Link,
   ResultOf,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   useLocalFormat,
 } from "@vendure/dashboard";
-import { useEffect, useState } from "react";
+import { ColumnDef } from "@tanstack/react-table";
+import { useEffect, useMemo, useState } from "react";
 
 import { graphql } from "@/gql";
+import { ClientDataTable } from "~/components/dashboard";
 
 const LIST_QUOTATIONS = graphql(`
   query ConsignmentQuotationList($storeId: ID!) {
@@ -34,11 +29,13 @@ const LIST_QUOTATIONS = graphql(`
   }
 `);
 
+type QuotationRow = ResultOf<
+  typeof LIST_QUOTATIONS
+>["consignmentQuotations"][number];
+
 export function QuotationListPage(props: { storeId: string }) {
   const { storeId } = props;
-  const [rows, setRows] = useState<
-    ResultOf<typeof LIST_QUOTATIONS>["consignmentQuotations"]
-  >([]);
+  const [rows, setRows] = useState<QuotationRow[]>([]);
   const { formatCurrency } = useLocalFormat();
 
   useEffect(() => {
@@ -55,6 +52,77 @@ export function QuotationListPage(props: { storeId: string }) {
       active = false;
     };
   }, [storeId]);
+
+  const columns = useMemo<ColumnDef<QuotationRow>[]>(
+    () => [
+      {
+        id: "image",
+        header: "",
+        enableSorting: false,
+        cell: (info) =>
+          info.row.original.productVariantFeaturedAsset ? (
+            <img
+              src={info.row.original.productVariantFeaturedAsset.preview ?? ""}
+              alt={info.row.original.productVariantName}
+              className="w-12 h-12 rounded object-cover object-center"
+            />
+          ) : (
+            <span className="block w-12 h-12 rounded bg-muted" />
+          ),
+      },
+      {
+        accessorKey: "productVariantSku",
+        header: "SKU",
+        cell: (info) => (
+          <span className="font-mono text-xs text-muted-foreground">
+            {info.getValue() as string}
+          </span>
+        ),
+        sortingFn: "alphanumeric",
+      },
+      {
+        accessorKey: "productVariantName",
+        header: "Product",
+        sortingFn: "alphanumeric",
+      },
+      {
+        accessorKey: "consignmentPrice",
+        header: "Consignment Price",
+        cell: (info) =>
+          formatCurrency(
+            info.getValue() as number,
+            info.row.original.currency || "USD",
+          ),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "note",
+        header: "Note",
+        cell: (info) => (info.getValue() as string | null) ?? "—",
+        enableSorting: false,
+      },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: (info) => (
+          <Button
+            size="sm"
+            variant="secondary"
+            render={(buttonProps) => (
+              <Link
+                to={`/consignment/quotations/${info.row.original.id}`}
+                {...buttonProps}
+              >
+                Edit
+              </Link>
+            )}
+          />
+        ),
+      },
+    ],
+    [formatCurrency],
+  );
 
   return (
     <div className="space-y-4">
@@ -73,67 +141,11 @@ export function QuotationListPage(props: { storeId: string }) {
           )}
         />
       </div>
-      <Card className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead></TableHead>
-              <TableHead>SKU</TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead>Consignment Price</TableHead>
-              <TableHead>Note</TableHead>
-              <TableHead className="w-[140px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>
-                  {row.productVariantFeaturedAsset ? (
-                    <img
-                      src={row.productVariantFeaturedAsset?.preview ?? ""}
-                      alt={row.productVariantName}
-                      className="w-16 h-16 rounded object-cover object-center"
-                    />
-                  ) : (
-                    <span className="block w-16 h-16 rounded-xs bg-muted"></span>
-                  )}
-                </TableCell>
-                <TableCell>{row.productVariantSku}</TableCell>
-                <TableCell>{row.productVariantName}</TableCell>
-                <TableCell>
-                  {formatCurrency(row.consignmentPrice, row.currency || "USD")}
-                </TableCell>
-                <TableCell>{row.note ?? "—"}</TableCell>
-                <TableCell>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    render={(buttonProps) => (
-                      <Link
-                        to={`/consignment/quotations/${row.id}`}
-                        {...buttonProps}
-                      >
-                        Edit
-                      </Link>
-                    )}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="text-center text-sm text-muted-foreground"
-                >
-                  No quotations found for this store.
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
-      </Card>
+      <ClientDataTable
+        columns={columns}
+        data={rows}
+        initialSorting={[{ id: "productVariantSku", desc: false }]}
+      />
     </div>
   );
 }

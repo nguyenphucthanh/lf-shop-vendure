@@ -2,21 +2,13 @@ import {
   Alert,
   AlertDescription,
   api,
-  Card,
-  CardHeader,
-  CardTitle,
   cn,
   ResultOf,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   useChannel,
   useLocalFormat,
   VendureImage,
 } from "@vendure/dashboard";
+import { ColumnDef } from "@tanstack/react-table";
 import { useEffect, useMemo, useState } from "react";
 import {
   BadgeDollarSign,
@@ -27,8 +19,8 @@ import {
 } from "lucide-react";
 
 import { graphql } from "@/gql";
-import { SortButton, SummaryStatCard } from "~/components/dashboard";
-import { getTranslatedName, SortDir, SortKey } from "./shared";
+import { ClientDataTable, SummaryStatCard } from "~/components/dashboard";
+import { getTranslatedName } from "./shared";
 
 const GET_REPORT = graphql(`
   query ConsignmentReport($storeId: ID!) {
@@ -107,69 +99,116 @@ export function ConsignmentReportPage(props: { storeId: string }) {
   });
   const [returnSummary, setReturnSummary] = useState(0);
   const [intakeSummary, setIntakeSummary] = useState(0);
-  const [sortKey, setSortKey] = useState<SortKey>("intake");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  function handleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDir("desc");
-    }
-  }
-
-  const sorted = useMemo(() => {
-    return [...rows].sort((a, b) => {
-      let av: string | number;
-      let bv: string | number;
-      switch (sortKey) {
-        case "name": {
-          const aName = getTranslatedName(
-            a.productNameTranslations ?? [],
-          ).toLowerCase();
-          const bName = getTranslatedName(
-            b.productNameTranslations ?? [],
-          ).toLowerCase();
-          av = aName;
-          bv = bName;
-          break;
-        }
-        case "sku": {
-          av = (a.sku ?? "").toLowerCase();
-          bv = (b.sku ?? "").toLowerCase();
-          break;
-        }
-        case "price":
-          av = a.consignmentPrice ?? 0;
-          bv = b.consignmentPrice ?? 0;
-          break;
-        case "intake":
-          av = a.intakeQty ?? 0;
-          bv = b.intakeQty ?? 0;
-          break;
-        case "sold":
-          av = a.soldQty ?? 0;
-          bv = b.soldQty ?? 0;
-          break;
-        case "returned":
-          av = a.returnedQty ?? 0;
-          bv = b.returnedQty ?? 0;
-          break;
-        case "debt":
-          av = a.debtQty ?? 0;
-          bv = b.debtQty ?? 0;
-          break;
-        default:
-          return 0;
-      }
-      const aNum = Number(av);
-      const bNum = Number(bv);
-      if (aNum < bNum) return sortDir === "asc" ? -1 : 1;
-      if (aNum > bNum) return sortDir === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [rows, sortKey, sortDir]);
+  const columns = useMemo<ColumnDef<ReportRow>[]>(
+    () => [
+      {
+        id: "image",
+        header: "",
+        enableSorting: false,
+        cell: (info) =>
+          info.row.original.featuredAsset ? (
+            <VendureImage
+              className="h-12 w-12 rounded object-cover"
+              asset={info.row.original.featuredAsset}
+              preset="thumb"
+            />
+          ) : (
+            <span>—</span>
+          ),
+      },
+      {
+        accessorKey: "sku",
+        header: "SKU",
+        cell: (info) => (
+          <span className="font-mono text-xs text-muted-foreground">
+            {info.getValue() as string}
+          </span>
+        ),
+        sortingFn: "alphanumeric",
+      },
+      {
+        accessorKey: "productNameTranslations",
+        header: "Product",
+        cell: (info) => (
+          <div>
+            <div className="font-medium text-sm">
+              {getTranslatedName(info.row.original.productNameTranslations)}
+            </div>
+            {getTranslatedName(info.row.original.variantNameTranslations) && (
+              <div className="text-xs text-muted-foreground">
+                {getTranslatedName(info.row.original.variantNameTranslations)}
+              </div>
+            )}
+          </div>
+        ),
+        sortingFn: (rowA, rowB) =>
+          getTranslatedName(rowA.original.productNameTranslations)
+            .toLowerCase()
+            .localeCompare(
+              getTranslatedName(
+                rowB.original.productNameTranslations,
+              ).toLowerCase(),
+            ),
+      },
+      {
+        accessorKey: "consignmentPrice",
+        header: "Quoted",
+        cell: (info) =>
+          formatCurrency(info.getValue() as number, defaultCurrency),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "intakeQty",
+        header: "Intake Qty",
+        cell: (info) => (
+          <div className="text-right tabular-nums">
+            {info.getValue() as number}
+          </div>
+        ),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "soldQty",
+        header: "Sold Qty",
+        cell: (info) => (
+          <div className="text-right tabular-nums">
+            {info.getValue() as number}
+          </div>
+        ),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "returnedQty",
+        header: "Returned Qty",
+        cell: (info) => (
+          <div className="text-right tabular-nums">
+            {info.getValue() as number}
+          </div>
+        ),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "debtQty",
+        header: "Debt Qty",
+        cell: (info) => {
+          const debt = info.getValue() as number;
+          return (
+            <div
+              className={cn(
+                "text-right tabular-nums font-semibold",
+                debt < 0 ? "text-red-600" : "",
+              )}
+            >
+              {debt}
+            </div>
+          );
+        },
+        sortingFn: "basic",
+      },
+    ],
+    [formatCurrency, defaultCurrency],
+  );
 
   useEffect(() => {
     if (!storeId) {
@@ -276,151 +315,12 @@ export function ConsignmentReportPage(props: { storeId: string }) {
         </Alert>
       ) : null}
 
-      <Card className="overflow-hidden p-0">
-        <CardHeader className="px-2 py-2">
-          <div className="flex items-center justify-between">
-            <CardTitle>
-              Report by items ({loading ? "…" : rows.length})
-            </CardTitle>
-            <span className="text-xs text-muted-foreground">
-              Click column headers to sort
-            </span>
-          </div>
-        </CardHeader>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead colSpan={4}>Product</TableHead>
-                <TableHead colSpan={1}>Intake</TableHead>
-                <TableHead colSpan={1}>Sold</TableHead>
-                <TableHead colSpan={1}>Returned</TableHead>
-                <TableHead colSpan={1}>Debt</TableHead>
-              </TableRow>
-              <TableRow>
-                <TableHead>Image</TableHead>
-                <TableHead>
-                  <SortButton
-                    label="SKU"
-                    sortKey="sku"
-                    current={sortKey}
-                    dir={sortDir}
-                    onSort={handleSort}
-                  />
-                </TableHead>
-                <TableHead>
-                  <SortButton
-                    label="Product"
-                    sortKey="name"
-                    current={sortKey}
-                    dir={sortDir}
-                    onSort={handleSort}
-                  />
-                </TableHead>
-                <TableHead>
-                  <SortButton
-                    label="Quoted"
-                    sortKey="price"
-                    current={sortKey}
-                    dir={sortDir}
-                    onSort={handleSort}
-                  />
-                </TableHead>
-                <TableHead>
-                  <SortButton
-                    label="Intake Qty"
-                    sortKey="intake"
-                    current={sortKey}
-                    dir={sortDir}
-                    onSort={handleSort}
-                  />
-                </TableHead>
-                <TableHead>
-                  <SortButton
-                    label="Sold Qty"
-                    sortKey="sold"
-                    current={sortKey}
-                    dir={sortDir}
-                    onSort={handleSort}
-                  />
-                </TableHead>
-                <TableHead>
-                  <SortButton
-                    label="Returned Qty"
-                    sortKey="returned"
-                    current={sortKey}
-                    dir={sortDir}
-                    onSort={handleSort}
-                  />
-                </TableHead>
-                <TableHead>
-                  <SortButton
-                    label="Debt Qty"
-                    sortKey="debt"
-                    current={sortKey}
-                    dir={sortDir}
-                    onSort={handleSort}
-                  />
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    className="text-center py-12 text-muted-foreground"
-                  >
-                    Loading…
-                  </TableCell>
-                </TableRow>
-              ) : (
-                sorted.map((row) => (
-                  <TableRow
-                    key={row.quotationId}
-                    className={cn(
-                      row.debtQty < 0 ? "bg-red-50 dark:bg-red-950/20" : "",
-                    )}
-                  >
-                    <TableCell>
-                      {row.featuredAsset ? (
-                        <VendureImage
-                          className="h-12 w-12 rounded object-cover"
-                          asset={row.featuredAsset}
-                          preset="thumb"
-                        />
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                    <TableCell>{row.sku}</TableCell>
-                    <TableCell>
-                      {getTranslatedName(row.productNameTranslations)}
-                    </TableCell>
-                    <TableCell>
-                      {formatCurrency(row.consignmentPrice, defaultCurrency)}
-                    </TableCell>
-                    <TableCell>{row.intakeQty}</TableCell>
-                    <TableCell>{row.soldQty}</TableCell>
-                    <TableCell>{row.returnedQty}</TableCell>
-                    <TableCell>{row.debtQty}</TableCell>
-                  </TableRow>
-                ))
-              )}
-              {!loading && rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={12}
-                    className="text-center text-sm text-muted-foreground"
-                  >
-                    No report data available.
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+      <ClientDataTable
+        columns={columns}
+        data={rows}
+        isLoading={loading}
+        initialSorting={[{ id: "intakeQty", desc: true }]}
+      />
     </div>
   );
 }

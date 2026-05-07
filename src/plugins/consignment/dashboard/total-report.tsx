@@ -1,30 +1,22 @@
 import {
   api,
-  Card,
-  CardHeader,
-  CardTitle,
   cn,
   Page,
   PageLayout,
   FullWidthPageBlock,
   PageTitle,
   ResultOf,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   useChannel,
   useLocalFormat,
   VendureImage,
 } from "@vendure/dashboard";
+import { ColumnDef } from "@tanstack/react-table";
 import { useEffect, useMemo, useState } from "react";
 import { Package, Store, Wallet } from "lucide-react";
 
 import { graphql } from "@/gql";
-import { SortButton, SummaryStatCard } from "~/components/dashboard";
-import { getTranslatedName, SortDir, SortKey } from "./shared";
+import { ClientDataTable, SummaryStatCard } from "~/components/dashboard";
+import { getTranslatedName } from "./shared";
 
 const GET_TOTAL_REPORT = graphql(`
   query ConsignmentTotalReport {
@@ -98,8 +90,6 @@ export function TotalReportPage() {
   });
   const [rows, setRows] = useState<TotalReportRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortKey, setSortKey] = useState<SortKey>("intake");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   useEffect(() => {
     setLoading(true);
@@ -117,52 +107,129 @@ export function TotalReportPage() {
       });
   }, []);
 
-  function handleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDir("desc");
-    }
-  }
-
-  const sorted = useMemo(() => {
-    return [...rows].sort((a, b) => {
-      let av: string | number;
-      let bv: string | number;
-      switch (sortKey) {
-        case "name":
-          av = getTranslatedName(a.productNameTranslations).toLowerCase();
-          bv = getTranslatedName(b.productNameTranslations).toLowerCase();
-          break;
-        case "sku":
-          av = a.sku.toLowerCase();
-          bv = b.sku.toLowerCase();
-          break;
-        case "intake":
-          av = a.totalIntakeQty;
-          bv = b.totalIntakeQty;
-          break;
-        case "sold":
-          av = a.totalSoldQty;
-          bv = b.totalSoldQty;
-          break;
-        case "returned":
-          av = a.totalReturnedQty;
-          bv = b.totalReturnedQty;
-          break;
-        case "available":
-          av = a.totalIntakeQty - a.totalSoldQty - a.totalReturnedQty;
-          bv = b.totalIntakeQty - b.totalSoldQty - b.totalReturnedQty;
-          break;
-        default:
-          return 0;
-      }
-      if (av < bv) return sortDir === "asc" ? -1 : 1;
-      if (av > bv) return sortDir === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [rows, sortKey, sortDir]);
+  const columns = useMemo<ColumnDef<TotalReportRow>[]>(
+    () => [
+      {
+        id: "image",
+        header: "",
+        enableSorting: false,
+        cell: (info) =>
+          info.row.original.featuredAsset ? (
+            <VendureImage
+              className="h-10 w-10 rounded object-cover"
+              asset={info.row.original.featuredAsset}
+              preset="thumb"
+            />
+          ) : (
+            <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </div>
+          ),
+      },
+      {
+        accessorKey: "productNameTranslations",
+        header: "Product",
+        cell: (info) => (
+          <div>
+            <div className="font-medium text-sm">
+              {getTranslatedName(info.row.original.productNameTranslations)}
+            </div>
+            {getTranslatedName(info.row.original.variantNameTranslations) && (
+              <div className="text-xs text-muted-foreground">
+                {getTranslatedName(info.row.original.variantNameTranslations)}
+              </div>
+            )}
+          </div>
+        ),
+        sortingFn: (rowA, rowB) =>
+          getTranslatedName(rowA.original.productNameTranslations)
+            .toLowerCase()
+            .localeCompare(
+              getTranslatedName(
+                rowB.original.productNameTranslations,
+              ).toLowerCase(),
+            ),
+      },
+      {
+        accessorKey: "sku",
+        header: "SKU",
+        cell: (info) => (
+          <span className="font-mono text-xs text-muted-foreground">
+            {info.getValue() as string}
+          </span>
+        ),
+        sortingFn: "alphanumeric",
+      },
+      {
+        accessorKey: "totalIntakeQty",
+        header: "Intake",
+        cell: (info) => (
+          <div className="text-right tabular-nums">
+            {info.getValue() as number}
+          </div>
+        ),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "totalSoldQty",
+        header: "Sold",
+        cell: (info) => (
+          <div className="text-right tabular-nums">
+            {info.getValue() as number}
+          </div>
+        ),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "totalReturnedQty",
+        header: "Returned",
+        cell: (info) => (
+          <div className="text-right tabular-nums">
+            {info.getValue() as number}
+          </div>
+        ),
+        sortingFn: "basic",
+      },
+      {
+        id: "available",
+        header: "Available",
+        accessorFn: (row) =>
+          row.totalIntakeQty - row.totalSoldQty - row.totalReturnedQty,
+        cell: (info) => {
+          const available = info.getValue() as number;
+          const isOut = available <= 0;
+          const isLow = available > 0 && available <= 3;
+          return (
+            <div
+              className={cn(
+                "text-right tabular-nums font-semibold",
+                isOut
+                  ? "text-red-600"
+                  : isLow
+                    ? "text-yellow-600"
+                    : "text-green-600",
+              )}
+            >
+              {available}
+            </div>
+          );
+        },
+        sortingFn: "basic",
+      },
+      {
+        id: "sellThrough",
+        header: "Sell-through",
+        enableSorting: false,
+        cell: (info) => (
+          <SellThroughBar
+            sold={info.row.original.totalSoldQty}
+            intake={info.row.original.totalIntakeQty}
+          />
+        ),
+      },
+    ],
+    [],
+  );
 
   return (
     <Page pageId="consignment-total-report" title="Consignment Total Report">
@@ -201,178 +268,12 @@ export function TotalReportPage() {
           </div>
 
           {/* Variants table */}
-          <Card className="overflow-hidden p-0">
-            <CardHeader className="px-4 py-3 border-b">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">
-                  Product Variants ({loading ? "…" : rows.length})
-                </CardTitle>
-                <span className="text-xs text-muted-foreground">
-                  Click column headers to sort
-                </span>
-              </div>
-            </CardHeader>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">Image</TableHead>
-                    <TableHead>
-                      <SortButton
-                        label="Product"
-                        sortKey="name"
-                        current={sortKey}
-                        dir={sortDir}
-                        onSort={handleSort}
-                      />
-                    </TableHead>
-                    <TableHead>
-                      <SortButton
-                        label="SKU"
-                        sortKey="sku"
-                        current={sortKey}
-                        dir={sortDir}
-                        onSort={handleSort}
-                      />
-                    </TableHead>
-                    <TableHead className="text-right">
-                      <SortButton
-                        label="Intake"
-                        sortKey="intake"
-                        current={sortKey}
-                        dir={sortDir}
-                        onSort={handleSort}
-                      />
-                    </TableHead>
-                    <TableHead className="text-right">
-                      <SortButton
-                        label="Sold"
-                        sortKey="sold"
-                        current={sortKey}
-                        dir={sortDir}
-                        onSort={handleSort}
-                      />
-                    </TableHead>
-                    <TableHead className="text-right">
-                      <SortButton
-                        label="Returned"
-                        sortKey="returned"
-                        current={sortKey}
-                        dir={sortDir}
-                        onSort={handleSort}
-                      />
-                    </TableHead>
-                    <TableHead className="text-right">
-                      <SortButton
-                        label="Available"
-                        sortKey="available"
-                        current={sortKey}
-                        dir={sortDir}
-                        onSort={handleSort}
-                      />
-                    </TableHead>
-                    <TableHead className="w-36">Sell-through</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={8}
-                        className="text-center py-12 text-muted-foreground"
-                      >
-                        Loading…
-                      </TableCell>
-                    </TableRow>
-                  ) : sorted.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={8}
-                        className="text-center py-12 text-muted-foreground"
-                      >
-                        No data found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    sorted.map((row) => {
-                      const available =
-                        row.totalIntakeQty -
-                        row.totalSoldQty -
-                        row.totalReturnedQty;
-                      const isLow = available > 0 && available <= 3;
-                      const isOut = available <= 0;
-                      return (
-                        <TableRow
-                          key={row.productVariantId}
-                          className={cn(
-                            isOut
-                              ? "bg-red-50 dark:bg-red-950/20"
-                              : isLow
-                                ? "bg-yellow-50 dark:bg-yellow-950/20"
-                                : "",
-                          )}
-                        >
-                          <TableCell>
-                            {row.featuredAsset ? (
-                              <VendureImage
-                                className="h-10 w-10 rounded object-cover"
-                                asset={row.featuredAsset}
-                                preset="thumb"
-                              />
-                            ) : (
-                              <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                                <Package className="h-4 w-4 text-muted-foreground" />
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-medium text-sm">
-                              {getTranslatedName(row.productNameTranslations)}
-                            </div>
-                            {getTranslatedName(row.variantNameTranslations) && (
-                              <div className="text-xs text-muted-foreground">
-                                {getTranslatedName(row.variantNameTranslations)}
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">
-                            {row.sku}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {row.totalIntakeQty}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {row.totalSoldQty}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {row.totalReturnedQty}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            <span
-                              className={cn(
-                                "font-semibold",
-                                isOut ? "text-red-600" : "",
-                                isLow ? "text-yellow-600" : "",
-                                !isOut && !isLow ? "text-green-600" : "",
-                              )}
-                            >
-                              {available}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <SellThroughBar
-                              sold={row.totalSoldQty}
-                              intake={row.totalIntakeQty}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </Card>
+          <ClientDataTable
+            columns={columns}
+            data={rows}
+            isLoading={loading}
+            initialSorting={[{ id: "totalIntakeQty", desc: true }]}
+          />
         </FullWidthPageBlock>
       </PageLayout>
     </Page>

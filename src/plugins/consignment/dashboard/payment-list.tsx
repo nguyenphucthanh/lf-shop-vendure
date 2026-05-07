@@ -1,21 +1,16 @@
 import {
   api,
   Button,
-  Card,
   Link,
   ResultOf,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   useChannel,
   useLocalFormat,
 } from "@vendure/dashboard";
-import { useEffect, useState } from "react";
+import { ColumnDef } from "@tanstack/react-table";
+import { useEffect, useMemo, useState } from "react";
 
 import { graphql } from "@/gql";
+import { ClientDataTable } from "~/components/dashboard";
 
 const LIST_PAYMENTS = graphql(`
   query ConsignmentPaymentList($storeId: ID!) {
@@ -43,25 +38,14 @@ const LIST_PAYMENTS = graphql(`
   }
 `);
 
+type PaymentRow = ResultOf<typeof LIST_PAYMENTS>["consignmentPayments"][number];
+
 export function PaymentListPage(props: { storeId: string }) {
   const { formatCurrency } = useLocalFormat();
   const { activeChannel } = useChannel();
   const { storeId } = props;
   const defaultCurrency = activeChannel?.defaultCurrencyCode ?? "USD";
-  const [rows, setRows] = useState<
-    ResultOf<typeof LIST_PAYMENTS>["consignmentPayments"]
-  >([]);
-
-  function getStatusClass(status?: string) {
-    const normalized = (status ?? "").toLowerCase();
-    if (normalized === "pending") {
-      return "font-semibold text-orange-600";
-    }
-    if (normalized === "completed") {
-      return "font-semibold text-green-600";
-    }
-    return "font-semibold";
-  }
+  const [rows, setRows] = useState<PaymentRow[]>([]);
 
   useEffect(() => {
     if (!storeId) {
@@ -77,6 +61,90 @@ export function PaymentListPage(props: { storeId: string }) {
       active = false;
     };
   }, [storeId]);
+
+  const columns = useMemo<ColumnDef<PaymentRow>[]>(
+    () => [
+      {
+        accessorKey: "paymentDate",
+        header: "Date",
+        cell: (info) => String(info.getValue()).slice(0, 10),
+        sortingFn: "alphanumeric",
+      },
+      {
+        id: "linkedSold",
+        header: "Linked Sold",
+        enableSorting: false,
+        cell: (info) => {
+          const sold = info.row.original.sold;
+          return sold?.id
+            ? `${String(sold.soldDate).slice(0, 10)} - ${sold.items?.length ?? 0} items`
+            : "Not linked";
+        },
+      },
+      {
+        accessorKey: "paymentMethod",
+        header: "Method",
+        sortingFn: "alphanumeric",
+      },
+      {
+        accessorKey: "paymentStatus",
+        header: "Status",
+        cell: (info) => {
+          const status = info.getValue() as string | null | undefined;
+          const normalized = (status ?? "").toLowerCase();
+          const className =
+            normalized === "pending"
+              ? "font-semibold text-orange-600"
+              : normalized === "completed"
+                ? "font-semibold text-green-600"
+                : "font-semibold";
+          return <span className={className}>{status}</span>;
+        },
+        sortingFn: "alphanumeric",
+      },
+      {
+        accessorKey: "subtotal",
+        header: "Subtotal",
+        cell: (info) =>
+          formatCurrency(info.getValue() as number, defaultCurrency),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "discount",
+        header: "Discount",
+        cell: (info) =>
+          formatCurrency(info.getValue() as number, defaultCurrency),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "total",
+        header: "Total",
+        cell: (info) =>
+          formatCurrency(info.getValue() as number, defaultCurrency),
+        sortingFn: "basic",
+      },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: (info) => (
+          <Button
+            size="sm"
+            variant="secondary"
+            render={(buttonProps) => (
+              <Link
+                to={`/consignment/payments/${info.row.original.id}`}
+                {...buttonProps}
+              >
+                Edit
+              </Link>
+            )}
+          />
+        ),
+      },
+    ],
+    [formatCurrency, defaultCurrency],
+  );
 
   return (
     <div className="space-y-4">
@@ -95,71 +163,11 @@ export function PaymentListPage(props: { storeId: string }) {
           New payment
         </Button>
       </div>
-      <Card className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Linked Sold</TableHead>
-              <TableHead>Method</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Subtotal</TableHead>
-              <TableHead>Discount</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead className="w-[140px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>{String(row.paymentDate).slice(0, 10)}</TableCell>
-                <TableCell>
-                  {row.sold?.id
-                    ? `${String(row.sold.soldDate).slice(0, 10)} - ${row.sold.items?.length ?? 0} items`
-                    : "Not linked"}
-                </TableCell>
-                <TableCell>{row.paymentMethod}</TableCell>
-                <TableCell className={getStatusClass(row.paymentStatus)}>
-                  {row.paymentStatus}
-                </TableCell>
-                <TableCell>
-                  {formatCurrency(row.subtotal, defaultCurrency)}
-                </TableCell>
-                <TableCell>
-                  {formatCurrency(row.discount, defaultCurrency)}
-                </TableCell>
-                <TableCell>
-                  {formatCurrency(row.total, defaultCurrency)}
-                </TableCell>
-                <TableCell>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    render={(buttonProps) => (
-                      <Link
-                        to={`/consignment/payments/${row.id}`}
-                        {...buttonProps}
-                      >
-                        Edit
-                      </Link>
-                    )}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="text-center text-sm text-muted-foreground"
-                >
-                  No payment records found.
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
-      </Card>
+      <ClientDataTable
+        columns={columns}
+        data={rows}
+        initialSorting={[{ id: "paymentDate", desc: true }]}
+      />
     </div>
   );
 }

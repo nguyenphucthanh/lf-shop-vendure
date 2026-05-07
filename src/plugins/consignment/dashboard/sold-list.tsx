@@ -1,20 +1,15 @@
 import {
   api,
   Button,
-  Card,
   Link,
   ResultOf,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   useLocalFormat,
 } from "@vendure/dashboard";
-import { useEffect, useState } from "react";
+import { ColumnDef } from "@tanstack/react-table";
+import { useEffect, useMemo, useState } from "react";
 
 import { graphql } from "@/gql";
+import { ClientDataTable } from "~/components/dashboard";
 
 const LIST_SOLDS = graphql(`
   query ConsignmentSoldList($storeId: ID!) {
@@ -36,12 +31,12 @@ const LIST_SOLDS = graphql(`
   }
 `);
 
+type SoldRow = ResultOf<typeof LIST_SOLDS>["consignmentSolds"][number];
+
 export function SoldListPage(props: { storeId: string }) {
   const { formatCurrency } = useLocalFormat();
   const { storeId } = props;
-  const [rows, setRows] = useState<
-    ResultOf<typeof LIST_SOLDS>["consignmentSolds"]
-  >([]);
+  const [rows, setRows] = useState<SoldRow[]>([]);
 
   useEffect(() => {
     if (!storeId) {
@@ -57,6 +52,79 @@ export function SoldListPage(props: { storeId: string }) {
       active = false;
     };
   }, [storeId]);
+
+  const columns = useMemo<ColumnDef<SoldRow>[]>(
+    () => [
+      {
+        accessorKey: "soldDate",
+        header: "Date",
+        cell: (info) => String(info.getValue()).slice(0, 10),
+        sortingFn: "alphanumeric",
+      },
+      {
+        id: "items",
+        header: "Items",
+        enableSorting: false,
+        cell: (info) => {
+          const items = info.row.original.items ?? [];
+          const summary = items
+            .slice(0, 2)
+            .map((item) => {
+              const sku = item.quotation?.productVariantSku ?? "-";
+              return `${sku} x${Number(item.quantity ?? 0)}`;
+            })
+            .join(", ");
+          const hasMore = items.length > 2;
+          return items.length > 0 ? `${summary}${hasMore ? ", ..." : ""}` : "-";
+        },
+      },
+      {
+        id: "qty",
+        header: "Qty",
+        accessorFn: (row) =>
+          (row.items ?? []).reduce(
+            (sum, item) => sum + Number(item.quantity ?? 0),
+            0,
+          ),
+        cell: (info) => (
+          <div className="text-right tabular-nums">
+            {info.getValue() as number}
+          </div>
+        ),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "total",
+        header: "Total",
+        cell: (info) =>
+          formatCurrency(
+            info.getValue() as number,
+            info.row.original.items?.[0]?.currency ?? "USD",
+          ),
+        sortingFn: "basic",
+      },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: (info) => (
+          <Button
+            size="sm"
+            variant="secondary"
+            render={(buttonProps) => (
+              <Link
+                to={`/consignment/solds/${info.row.original.id}`}
+                {...buttonProps}
+              >
+                Edit
+              </Link>
+            )}
+          />
+        ),
+      },
+    ],
+    [formatCurrency],
+  );
 
   return (
     <div className="space-y-4">
@@ -77,73 +145,11 @@ export function SoldListPage(props: { storeId: string }) {
           New sold
         </Button>
       </div>
-      <Card className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Items</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead className="w-[140px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => {
-              const totalQty = (row.items ?? []).reduce((sum, item) => {
-                return sum + Number(item.quantity ?? 0);
-              }, 0);
-              const itemSummary = (row.items ?? [])
-                .slice(0, 2)
-                .map((item) => {
-                  const sku = item.quotation?.productVariantSku ?? "-";
-                  const qty = Number(item.quantity ?? 0);
-                  return `${sku} x${qty}`;
-                })
-                .join(", ");
-              const hasMoreItems = (row.items?.length ?? 0) > 2;
-              const currency = row.items?.[0]?.currency ?? "USD";
-
-              return (
-                <TableRow key={row.id}>
-                  <TableCell>{String(row.soldDate).slice(0, 10)}</TableCell>
-                  <TableCell>
-                    {(row.items?.length ?? 0) > 0
-                      ? `${itemSummary}${hasMoreItems ? ", ..." : ""}`
-                      : "-"}
-                  </TableCell>
-                  <TableCell>{totalQty}</TableCell>
-                  <TableCell>{formatCurrency(row.total, currency)}</TableCell>
-                  <TableCell>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      render={(buttonProps) => (
-                        <Link
-                          to={`/consignment/solds/${row.id}`}
-                          {...buttonProps}
-                        >
-                          Edit
-                        </Link>
-                      )}
-                    />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="text-center text-sm text-muted-foreground"
-                >
-                  No sold records found.
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
-      </Card>
+      <ClientDataTable
+        columns={columns}
+        data={rows}
+        initialSorting={[{ id: "soldDate", desc: true }]}
+      />
     </div>
   );
 }

@@ -78,7 +78,7 @@ export interface ClientDataTableProps<TData> {
  * }
  * ```
  */
-export function ClientDataTable<TData extends { id?: string | number }>({
+export function ClientDataTable<TData extends object>({
   columns,
   data,
   isLoading = false,
