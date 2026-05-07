@@ -128,7 +128,9 @@ export function PaymentListPage(props: { storeId: string }) {
                 <TableCell>
                   {formatCurrency(row.discount, defaultCurrency)}
                 </TableCell>
-                <TableCell>{formatCurrency(row.total, defaultCurrency)}</TableCell>
+                <TableCell>
+                  {formatCurrency(row.total, defaultCurrency)}
+                </TableCell>
                 <TableCell>
                   <Button
                     size="sm"

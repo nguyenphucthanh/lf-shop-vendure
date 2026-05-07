@@ -35,12 +35,14 @@ npm run lint:fix      # Auto-fix issues
 ### ESLint Rules for This Project
 
 **Enforced rules:**
+
 - `@typescript-eslint/no-explicit-any` — **Error**: Catches unsafe type bypasses; refactor to proper types
 - `react-hooks/rules-of-hooks` — **Error**: Ensures hooks are used correctly (not in loops, conditionals)
 - `@typescript-eslint/no-unused-vars` — **Error**: Flags unused variables; use `_` prefix to ignore
 - `react-hooks/exhaustive-deps` — **Warning**: Validates useEffect/useCallback/useMemo dependencies
 
 **Other configured rules:**
+
 - `react/react-in-jsx-scope` — **Off**: Not needed with modern React
 - `react/prop-types` — **Off**: Using TypeScript instead
 
@@ -54,6 +56,7 @@ When optimizing or reviewing code:
 4. **Then apply manual review** from §8 (Review Checklist) for design, performance, and correctness
 
 Example workflow:
+
 ```bash
 npm run lint:fix      # Auto-fix formatting and simple issues
 git diff              # Review what was changed
@@ -321,11 +324,11 @@ Dashboard components depend on `useLocalFormat`, `useChannel`, `useNavigate`, an
 
 ```tsx
 // test/setup/vendure-mocks.ts
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
 // Mock the entire dashboard module
-vi.mock('@vendure/dashboard', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@vendure/dashboard')>();
+vi.mock("@vendure/dashboard", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@vendure/dashboard")>();
   return {
     ...actual,
     useLocalFormat: () => ({
@@ -334,7 +337,7 @@ vi.mock('@vendure/dashboard', async (importOriginal) => {
       formatDate: (date: string) => date,
     }),
     useChannel: () => ({
-      activeChannel: { id: '1', defaultCurrencyCode: 'USD' },
+      activeChannel: { id: "1", defaultCurrencyCode: "USD" },
     }),
     useNavigate: () => vi.fn(),
     api: {
@@ -348,19 +351,24 @@ vi.mock('@vendure/dashboard', async (importOriginal) => {
 In each test, configure `api.query` per scenario:
 
 ```tsx
-import { api } from '@vendure/dashboard';
+import { api } from "@vendure/dashboard";
 
 beforeEach(() => {
   vi.mocked(api.query).mockResolvedValue({
     consignmentQuotations: [
-      { id: '1', productVariantName: 'Widget', consignmentPrice: 2500, currency: 'USD' },
+      {
+        id: "1",
+        productVariantName: "Widget",
+        consignmentPrice: 2500,
+        currency: "USD",
+      },
     ],
   });
 });
 
-it('renders quotation rows', async () => {
+it("renders quotation rows", async () => {
   render(<QuotationListPage storeId="store-1" />);
-  expect(await screen.findByText('Widget')).toBeInTheDocument();
+  expect(await screen.findByText("Widget")).toBeInTheDocument();
 });
 ```
 
@@ -380,9 +388,11 @@ it('renders quotation rows', async () => {
 When reviewing a React component, check in this order:
 
 ### Pre-Flight (ESLint)
+
 0. **Run ESLint** — `npm run lint` to catch type, hook, and async safety issues automatically. Fix all errors and address warnings before proceeding to manual review.
 
 ### General
+
 1. **Correctness** — Does it handle loading, error, and empty states?
 2. **Type safety** — Are all props, events, and async results explicitly typed?
 3. **Hook rules** — No conditional hooks; complete deps arrays; cleanups present
@@ -392,6 +402,7 @@ When reviewing a React component, check in this order:
 7. **Tests** — Is behavior covered?
 
 ### Vendure Dashboard-Specific
+
 8. **Currency precision** — Never do `price / 100` inline; use `formatCurrency` from `useLocalFormat()`. Never display raw minor-unit integers as-is.
 9. **Channel scope** — Components that display channel-sensitive data (prices, currency codes, tax) should read `currencyCode` from the active order or channel (`useChannel()`), not hardcode `'USD'`.
 10. **`api.query` cleanup** — Any `useEffect` that calls `api.query()` should guard against stale results with an `active` flag (see pattern in §8 below). Forgetting this causes state updates on unmounted components.
@@ -410,25 +421,29 @@ When reviewing a React component, check in this order:
 This project's standard pattern for loading data inside a component:
 
 ```tsx
-import { api, ResultOf } from '@vendure/dashboard';
-import { useEffect, useState } from 'react';
-import { graphql } from '@/gql';
+import { api, ResultOf } from "@vendure/dashboard";
+import { useEffect, useState } from "react";
+import { graphql } from "@/gql";
 
 const LIST_ITEMS = graphql(`
   query MyList($storeId: ID!) {
-    myItems(storeId: $storeId) { id name }
+    myItems(storeId: $storeId) {
+      id
+      name
+    }
   }
 `);
 
 function MyListPage({ storeId }: { storeId: string }) {
-  const [rows, setRows] = useState<
-    ResultOf<typeof LIST_ITEMS>['myItems']
-  >([]);
+  const [rows, setRows] = useState<ResultOf<typeof LIST_ITEMS>["myItems"]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!storeId) { setRows([]); return; }
-    let active = true;           // ← prevents stale update on unmount
+    if (!storeId) {
+      setRows([]);
+      return;
+    }
+    let active = true; // ← prevents stale update on unmount
     setLoading(true);
     void api
       .query(LIST_ITEMS, { storeId })
@@ -439,7 +454,9 @@ function MyListPage({ storeId }: { storeId: string }) {
       .finally(() => {
         if (active) setLoading(false);
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [storeId]);
 
   // ...
@@ -447,6 +464,7 @@ function MyListPage({ storeId }: { storeId: string }) {
 ```
 
 **Key rules:**
+
 - Always guard with `let active = true` / `return () => { active = false; }` to avoid state updates on unmounted components.
 - Return early when the required ID is missing (guard at the top of the effect).
 - Use `ResultOf<typeof QUERY>` for the state type — never redeclare the shape.

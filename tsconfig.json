@@ -19,16 +19,18 @@
   "exclude": [
     "node_modules",
     "migration.ts",
-    "src/plugins/**/ui/*",
+    "src/plugins/**/dashboard/**",
+    "src/plugins/**/ui/**",
     "admin-ui",
-    "src/plugins/**/dashboard/*",
     "src/gql/*",
     "vite.*.*ts"
   ],
   "ts-node": {
     "files": true
   },
-  "references": [{
-    "path": "./tsconfig.dashboard.json"
-  }]
+  "references": [
+    {
+      "path": "./tsconfig.dashboard.json"
+    }
+  ]
 }

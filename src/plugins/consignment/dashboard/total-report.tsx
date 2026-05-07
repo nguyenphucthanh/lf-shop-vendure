@@ -1,6 +1,5 @@
 import {
   api,
-  Button,
   Card,
   CardContent,
   CardHeader,
@@ -65,14 +64,6 @@ const GET_TOTAL_REPORT = graphql(`
 type TotalReportRow = NonNullable<
   ResultOf<typeof GET_TOTAL_REPORT>["consignmentTotalReport"]["rows"][number]
 >;
-
-type LocalTotalSortKey =
-  | "name"
-  | "sku"
-  | "intake"
-  | "sold"
-  | "returned"
-  | "available";
 
 function SellThroughBar({ sold, intake }: { sold: number; intake: number }) {
   if (intake === 0)

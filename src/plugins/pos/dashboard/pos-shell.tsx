@@ -27,7 +27,6 @@ export function PosShell({ requestedOrderId }: PosShellProps) {
     setCustomer,
     completeOrder,
     resetOrder,
-    hasExplicitPreferredOrder,
   } = usePosOrder({ preferredOrderId: requestedOrderId });
   const navigate = useNavigate();
 

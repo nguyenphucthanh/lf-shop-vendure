@@ -101,7 +101,9 @@ export function QuotationListPage(props: { storeId: string }) {
                 </TableCell>
                 <TableCell>{row.productVariantSku}</TableCell>
                 <TableCell>{row.productVariantName}</TableCell>
-                <TableCell>{formatCurrency(row.consignmentPrice, row.currency || "USD")}</TableCell>
+                <TableCell>
+                  {formatCurrency(row.consignmentPrice, row.currency || "USD")}
+                </TableCell>
                 <TableCell>{row.note ?? "—"}</TableCell>
                 <TableCell>
                   <Button

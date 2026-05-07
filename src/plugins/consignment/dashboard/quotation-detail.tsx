@@ -12,7 +12,7 @@ import {
   useLocalFormat,
 } from "@vendure/dashboard";
 import { toast } from "sonner";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { graphql } from "@/gql";
 import { ProductVariantSearchSelect } from "./shared-ui";

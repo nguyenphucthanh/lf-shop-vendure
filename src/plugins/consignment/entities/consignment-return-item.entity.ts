@@ -1,41 +1,43 @@
-import { DeepPartial, ID } from '@vendure/common/lib/shared-types';
-import { EntityId, Money, VendureEntity } from '@vendure/core';
-import { Column, Entity, ManyToOne } from 'typeorm';
+import { DeepPartial, ID } from "@vendure/common/lib/shared-types";
+import { EntityId, Money, VendureEntity } from "@vendure/core";
+import { Column, Entity, ManyToOne } from "typeorm";
 
-import { ConsignmentReturn } from './consignment-return.entity';
-import { ConsignmentQuotation } from './consignment-quotation.entity';
+import { ConsignmentReturn } from "./consignment-return.entity";
+import { ConsignmentQuotation } from "./consignment-quotation.entity";
 
 @Entity()
 export class ConsignmentReturnItem extends VendureEntity {
-    constructor(input?: DeepPartial<ConsignmentReturnItem>) {
-        super(input);
-    }
+  constructor(input?: DeepPartial<ConsignmentReturnItem>) {
+    super(input);
+  }
 
-    @EntityId()
-    consignmentReturnId: ID;
+  @EntityId()
+  consignmentReturnId: ID;
 
-    @ManyToOne(() => ConsignmentReturn, ret => ret.items, { onDelete: 'CASCADE' })
-    consignmentReturn: ConsignmentReturn;
+  @ManyToOne(() => ConsignmentReturn, (ret) => ret.items, {
+    onDelete: "CASCADE",
+  })
+  consignmentReturn: ConsignmentReturn;
 
-    @EntityId()
-    quotationId: ID;
+  @EntityId()
+  quotationId: ID;
 
-    @ManyToOne(() => ConsignmentQuotation, { onDelete: 'RESTRICT' })
-    quotation: ConsignmentQuotation;
+  @ManyToOne(() => ConsignmentQuotation, { onDelete: "RESTRICT" })
+  quotation: ConsignmentQuotation;
 
-    @Column({ type: 'varchar', default: '' })
-    currency: string;
+  @Column({ type: "varchar", default: "" })
+  currency: string;
 
-    @Money()
-    productPriceSnapshot: number;
+  @Money()
+  productPriceSnapshot: number;
 
-    @Money()
-    consignmentPriceSnapshot: number;
+  @Money()
+  consignmentPriceSnapshot: number;
 
-    @Column({ type: 'int' })
-    quantity: number;
+  @Column({ type: "int" })
+  quantity: number;
 
-    /** consignmentPriceSnapshot × quantity */
-    @Money()
-    subtotal: number;
+  /** consignmentPriceSnapshot × quantity */
+  @Money()
+  subtotal: number;
 }

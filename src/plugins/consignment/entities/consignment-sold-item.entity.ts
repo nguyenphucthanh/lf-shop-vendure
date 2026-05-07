@@ -1,40 +1,42 @@
-import { DeepPartial, ID } from '@vendure/common/lib/shared-types';
-import { EntityId, Money, VendureEntity } from '@vendure/core';
-import { Column, Entity, ManyToOne } from 'typeorm';
+import { DeepPartial, ID } from "@vendure/common/lib/shared-types";
+import { EntityId, Money, VendureEntity } from "@vendure/core";
+import { Column, Entity, ManyToOne } from "typeorm";
 
-import { ConsignmentQuotation } from './consignment-quotation.entity';
-import { ConsignmentSold } from './consignment-sold.entity';
+import { ConsignmentQuotation } from "./consignment-quotation.entity";
+import { ConsignmentSold } from "./consignment-sold.entity";
 
 @Entity()
 export class ConsignmentSoldItem extends VendureEntity {
-    constructor(input?: DeepPartial<ConsignmentSoldItem>) {
-        super(input);
-    }
+  constructor(input?: DeepPartial<ConsignmentSoldItem>) {
+    super(input);
+  }
 
-    @EntityId()
-    soldId: ID;
+  @EntityId()
+  soldId: ID;
 
-    @ManyToOne(() => ConsignmentSold, sold => sold.items, { onDelete: 'CASCADE' })
-    sold: ConsignmentSold;
+  @ManyToOne(() => ConsignmentSold, (sold) => sold.items, {
+    onDelete: "CASCADE",
+  })
+  sold: ConsignmentSold;
 
-    @EntityId()
-    quotationId: ID;
+  @EntityId()
+  quotationId: ID;
 
-    @ManyToOne(() => ConsignmentQuotation, { onDelete: 'RESTRICT' })
-    quotation: ConsignmentQuotation;
+  @ManyToOne(() => ConsignmentQuotation, { onDelete: "RESTRICT" })
+  quotation: ConsignmentQuotation;
 
-    @Column({ type: 'varchar', default: '' })
-    currency: string;
+  @Column({ type: "varchar", default: "" })
+  currency: string;
 
-    @Money()
-    productPriceSnapshot: number;
+  @Money()
+  productPriceSnapshot: number;
 
-    @Money()
-    consignmentPriceSnapshot: number;
+  @Money()
+  consignmentPriceSnapshot: number;
 
-    @Column({ type: 'int' })
-    quantity: number;
+  @Column({ type: "int" })
+  quantity: number;
 
-    @Money()
-    subtotal: number;
+  @Money()
+  subtotal: number;
 }

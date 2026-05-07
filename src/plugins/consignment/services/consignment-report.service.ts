@@ -88,7 +88,10 @@ export class ConsignmentReportService {
       ctx,
       ConsignmentIntakeItem,
     );
-    const soldItemRepo = this.connection.getRepository(ctx, ConsignmentSoldItem);
+    const soldItemRepo = this.connection.getRepository(
+      ctx,
+      ConsignmentSoldItem,
+    );
     const returnItemRepo = this.connection.getRepository(
       ctx,
       ConsignmentReturnItem,
@@ -229,11 +232,25 @@ export class ConsignmentReportService {
     return rows;
   }
 
-  async getTotalReport(ctx: RequestContext): Promise<ConsignmentTotalReportResult> {
-    const quotationRepo = this.connection.getRepository(ctx, ConsignmentQuotation);
-    const intakeItemRepo = this.connection.getRepository(ctx, ConsignmentIntakeItem);
-    const soldItemRepo = this.connection.getRepository(ctx, ConsignmentSoldItem);
-    const returnItemRepo = this.connection.getRepository(ctx, ConsignmentReturnItem);
+  async getTotalReport(
+    ctx: RequestContext,
+  ): Promise<ConsignmentTotalReportResult> {
+    const quotationRepo = this.connection.getRepository(
+      ctx,
+      ConsignmentQuotation,
+    );
+    const intakeItemRepo = this.connection.getRepository(
+      ctx,
+      ConsignmentIntakeItem,
+    );
+    const soldItemRepo = this.connection.getRepository(
+      ctx,
+      ConsignmentSoldItem,
+    );
+    const returnItemRepo = this.connection.getRepository(
+      ctx,
+      ConsignmentReturnItem,
+    );
     const paymentRepo = this.connection.getRepository(ctx, ConsignmentPayment);
 
     // Run all independent aggregate queries + quotation fetch in parallel
@@ -293,21 +310,33 @@ export class ConsignmentReportService {
 
       const productNameTranslations: TranslationEntry[] = [];
       if (product?.name) {
-        productNameTranslations.push({ languageCode: "", name: String(product.name) });
+        productNameTranslations.push({
+          languageCode: "",
+          name: String(product.name),
+        });
       }
       if (Array.isArray(product?.translations)) {
         for (const t of product.translations) {
-          productNameTranslations.push({ languageCode: t.languageCode, name: String(t.name) });
+          productNameTranslations.push({
+            languageCode: t.languageCode,
+            name: String(t.name),
+          });
         }
       }
 
       const variantNameTranslations: TranslationEntry[] = [];
       if (variant?.name) {
-        variantNameTranslations.push({ languageCode: "", name: String(variant.name) });
+        variantNameTranslations.push({
+          languageCode: "",
+          name: String(variant.name),
+        });
       }
       if (Array.isArray(variant?.translations)) {
         for (const t of variant.translations) {
-          variantNameTranslations.push({ languageCode: t.languageCode, name: String(t.name) });
+          variantNameTranslations.push({
+            languageCode: t.languageCode,
+            name: String(t.name),
+          });
         }
       }
 
@@ -318,7 +347,14 @@ export class ConsignmentReportService {
         variantNameTranslations,
         sku: variant?.sku ?? "",
         featuredAsset: featuredAsset
-          ? { id: featuredAsset.id, preview: featuredAsset.preview, source: featuredAsset.source, width: featuredAsset.width, height: featuredAsset.height, name: featuredAsset.name }
+          ? {
+              id: featuredAsset.id,
+              preview: featuredAsset.preview,
+              source: featuredAsset.source,
+              width: featuredAsset.width,
+              height: featuredAsset.height,
+              name: featuredAsset.name,
+            }
           : null,
         totalIntakeQty: intakeMap.get(variantId) ?? 0,
         totalSoldQty: soldMap.get(variantId) ?? 0,

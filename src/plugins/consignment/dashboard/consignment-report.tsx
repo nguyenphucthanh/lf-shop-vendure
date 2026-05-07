@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 
 import { graphql } from "@/gql";
-import { getTranslatedName, SortButton, SortDir, SortKey } from "./shared"
+import { getTranslatedName, SortButton, SortDir } from "./shared";
 
 const GET_REPORT = graphql(`
   query ConsignmentReport($storeId: ID!) {
@@ -93,7 +93,14 @@ const GET_RETURNED_SUMMARY = graphql(`
 `);
 
 type ReportRow = ResultOf<typeof GET_REPORT>["consignmentReport"][number];
-type LocalSortKey = "name" | "sku" | "price" | "intake" | "sold" | "returned" | "debt";
+type LocalSortKey =
+  | "name"
+  | "sku"
+  | "price"
+  | "intake"
+  | "sold"
+  | "returned"
+  | "debt";
 
 export function ConsignmentReportPage(props: { storeId: string }) {
   const { formatCurrency } = useLocalFormat();
@@ -128,8 +135,12 @@ export function ConsignmentReportPage(props: { storeId: string }) {
       let bv: string | number;
       switch (sortKey) {
         case "name": {
-          const aName = getTranslatedName(a.productNameTranslations ?? []).toLowerCase();
-          const bName = getTranslatedName(b.productNameTranslations ?? []).toLowerCase();
+          const aName = getTranslatedName(
+            a.productNameTranslations ?? [],
+          ).toLowerCase();
+          const bName = getTranslatedName(
+            b.productNameTranslations ?? [],
+          ).toLowerCase();
           av = aName;
           bv = bName;
           break;
@@ -184,36 +195,38 @@ export function ConsignmentReportPage(props: { storeId: string }) {
       api.query(GET_INTAKE_SUMMARY, { storeId }),
       api.query(GET_PAYMENT_SUMMARY, { storeId }),
       api.query(GET_RETURNED_SUMMARY, { storeId }),
-    ]).then(([reportResult, intakeResult, paymentResult, returnResult]) => {
-      setRows(reportResult?.consignmentReport ?? []);
+    ])
+      .then(([reportResult, intakeResult, paymentResult, returnResult]) => {
+        setRows(reportResult?.consignmentReport ?? []);
 
-      const payments = paymentResult?.consignmentPayments ?? [];
-      const nextPendingPaymentCount = payments.filter(
-        (payment) => (payment.paymentStatus ?? "") !== "Completed",
-      ).length;
-      setPendingPaymentCount(nextPendingPaymentCount);
-      const nextPaymentSummary = payments.reduce(
-        (acc, payment) => ({
-          subtotal: acc.subtotal + (payment.subtotal ?? 0),
-          discount: acc.discount + (payment.discount ?? 0),
-          total: acc.total + (payment.total ?? 0),
-        }),
-        { subtotal: 0, discount: 0, total: 0 },
-      );
-      setPaymentSummary(nextPaymentSummary);
-      const nextIntakeSummary = intakeResult?.consignmentIntakes.reduce(
-        (acc, intake) => acc + (intake.total ?? 0),
-        0,
-      );
-      setIntakeSummary(nextIntakeSummary ?? 0);
-      const nextReturnSummary = returnResult?.consignmentReturns.reduce(
-        (acc, ret) => acc + (ret.total ?? 0),
-        0,
-      );
-      setReturnSummary(nextReturnSummary ?? 0);
-    }).finally(() => {
-      setLoading(false);
-    });
+        const payments = paymentResult?.consignmentPayments ?? [];
+        const nextPendingPaymentCount = payments.filter(
+          (payment) => (payment.paymentStatus ?? "") !== "Completed",
+        ).length;
+        setPendingPaymentCount(nextPendingPaymentCount);
+        const nextPaymentSummary = payments.reduce(
+          (acc, payment) => ({
+            subtotal: acc.subtotal + (payment.subtotal ?? 0),
+            discount: acc.discount + (payment.discount ?? 0),
+            total: acc.total + (payment.total ?? 0),
+          }),
+          { subtotal: 0, discount: 0, total: 0 },
+        );
+        setPaymentSummary(nextPaymentSummary);
+        const nextIntakeSummary = intakeResult?.consignmentIntakes.reduce(
+          (acc, intake) => acc + (intake.total ?? 0),
+          0,
+        );
+        setIntakeSummary(nextIntakeSummary ?? 0);
+        const nextReturnSummary = returnResult?.consignmentReturns.reduce(
+          (acc, ret) => acc + (ret.total ?? 0),
+          0,
+        );
+        setReturnSummary(nextReturnSummary ?? 0);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [storeId]);
 
   const debtSummary =
@@ -225,7 +238,9 @@ export function ConsignmentReportPage(props: { storeId: string }) {
         <div>
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">∑ Intake</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                ∑ Intake
+              </CardTitle>
               <BadgeDollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -241,7 +256,9 @@ export function ConsignmentReportPage(props: { storeId: string }) {
         <div>
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">∑ Paid</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                ∑ Paid
+              </CardTitle>
               <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -260,7 +277,9 @@ export function ConsignmentReportPage(props: { storeId: string }) {
         <div>
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">∑ Returned</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                ∑ Returned
+              </CardTitle>
               <PackageX className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -276,7 +295,9 @@ export function ConsignmentReportPage(props: { storeId: string }) {
         <div>
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">∑ Debt</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                ∑ Debt
+              </CardTitle>
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -304,8 +325,12 @@ export function ConsignmentReportPage(props: { storeId: string }) {
       <Card className="overflow-hidden p-0">
         <CardHeader className="px-2 py-2">
           <div className="flex items-center justify-between">
-            <CardTitle>Report by items ({loading ? "…" : rows.length})</CardTitle>
-            <span className="text-xs text-muted-foreground">Click column headers to sort</span>
+            <CardTitle>
+              Report by items ({loading ? "…" : rows.length})
+            </CardTitle>
+            <span className="text-xs text-muted-foreground">
+              Click column headers to sort
+            </span>
           </div>
         </CardHeader>
         <div className="overflow-x-auto">
@@ -321,25 +346,67 @@ export function ConsignmentReportPage(props: { storeId: string }) {
               <TableRow>
                 <TableHead>Image</TableHead>
                 <TableHead>
-                  <SortButton label="SKU" sortKey="sku" current={sortKey} dir={sortDir} onSort={handleSort as any} />
+                  <SortButton
+                    label="SKU"
+                    sortKey="sku"
+                    current={sortKey}
+                    dir={sortDir}
+                    onSort={handleSort as any}
+                  />
                 </TableHead>
                 <TableHead>
-                  <SortButton label="Product" sortKey="name" current={sortKey} dir={sortDir} onSort={handleSort as any} />
+                  <SortButton
+                    label="Product"
+                    sortKey="name"
+                    current={sortKey}
+                    dir={sortDir}
+                    onSort={handleSort as any}
+                  />
                 </TableHead>
                 <TableHead>
-                  <SortButton label="Quoted" sortKey="price" current={sortKey} dir={sortDir} onSort={handleSort as any} />
+                  <SortButton
+                    label="Quoted"
+                    sortKey="price"
+                    current={sortKey}
+                    dir={sortDir}
+                    onSort={handleSort as any}
+                  />
                 </TableHead>
                 <TableHead>
-                  <SortButton label="Intake Qty" sortKey="intake" current={sortKey} dir={sortDir} onSort={handleSort as any} />
+                  <SortButton
+                    label="Intake Qty"
+                    sortKey="intake"
+                    current={sortKey}
+                    dir={sortDir}
+                    onSort={handleSort as any}
+                  />
                 </TableHead>
                 <TableHead>
-                  <SortButton label="Sold Qty" sortKey="sold" current={sortKey} dir={sortDir} onSort={handleSort as any} />
+                  <SortButton
+                    label="Sold Qty"
+                    sortKey="sold"
+                    current={sortKey}
+                    dir={sortDir}
+                    onSort={handleSort as any}
+                  />
                 </TableHead>
                 <TableHead>
-                  <SortButton label="Returned Qty" sortKey="returned" current={sortKey} dir={sortDir} onSort={handleSort as any} />
+                  <SortButton
+                    label="Returned Qty"
+                    sortKey="returned"
+                    current={sortKey}
+                    dir={sortDir}
+                    onSort={handleSort as any}
+                  />
                 </TableHead>
                 <TableHead>
-                  <SortButton label="Debt Qty" sortKey="debt" current={sortKey} dir={sortDir} onSort={handleSort as any} />
+                  <SortButton
+                    label="Debt Qty"
+                    sortKey="debt"
+                    current={sortKey}
+                    dir={sortDir}
+                    onSort={handleSort as any}
+                  />
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -353,35 +420,39 @@ export function ConsignmentReportPage(props: { storeId: string }) {
                     Loading…
                   </TableCell>
                 </TableRow>
-              ) : sorted.map((row) => (
-                <TableRow
-                  key={row.quotationId}
-                  className={cn(row.debtQty < 0 ? "bg-red-50 dark:bg-red-950/20" : "")}
-                >
-                  <TableCell>
-                    {row.featuredAsset ? (
-                      <VendureImage
-                        className="h-12 w-12 rounded object-cover"
-                        asset={row.featuredAsset}
-                        preset="thumb"
-                      />
-                    ) : (
-                      "—"
+              ) : (
+                sorted.map((row) => (
+                  <TableRow
+                    key={row.quotationId}
+                    className={cn(
+                      row.debtQty < 0 ? "bg-red-50 dark:bg-red-950/20" : "",
                     )}
-                  </TableCell>
-                  <TableCell>{row.sku}</TableCell>
-                  <TableCell>
-                    {getTranslatedName(row.productNameTranslations)}
-                  </TableCell>
-                  <TableCell>
-                    {formatCurrency(row.consignmentPrice, defaultCurrency)}
-                  </TableCell>
-                  <TableCell>{row.intakeQty}</TableCell>
-                  <TableCell>{row.soldQty}</TableCell>
-                  <TableCell>{row.returnedQty}</TableCell>
-                  <TableCell>{row.debtQty}</TableCell>
-                </TableRow>
-              ))}
+                  >
+                    <TableCell>
+                      {row.featuredAsset ? (
+                        <VendureImage
+                          className="h-12 w-12 rounded object-cover"
+                          asset={row.featuredAsset}
+                          preset="thumb"
+                        />
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell>{row.sku}</TableCell>
+                    <TableCell>
+                      {getTranslatedName(row.productNameTranslations)}
+                    </TableCell>
+                    <TableCell>
+                      {formatCurrency(row.consignmentPrice, defaultCurrency)}
+                    </TableCell>
+                    <TableCell>{row.intakeQty}</TableCell>
+                    <TableCell>{row.soldQty}</TableCell>
+                    <TableCell>{row.returnedQty}</TableCell>
+                    <TableCell>{row.debtQty}</TableCell>
+                  </TableRow>
+                ))
+              )}
               {!loading && rows.length === 0 ? (
                 <TableRow>
                   <TableCell

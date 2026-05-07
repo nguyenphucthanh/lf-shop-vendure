@@ -1,30 +1,33 @@
-import { DeepPartial, ID } from '@vendure/common/lib/shared-types';
-import { Customer, EntityId, Money, VendureEntity } from '@vendure/core';
-import { Column, Entity, ManyToOne, OneToMany } from 'typeorm';
+import { DeepPartial, ID } from "@vendure/common/lib/shared-types";
+import { Customer, EntityId, Money, VendureEntity } from "@vendure/core";
+import { Column, Entity, ManyToOne, OneToMany } from "typeorm";
 
-import { ConsignmentReturnItem } from './consignment-return-item.entity';
+import { ConsignmentReturnItem } from "./consignment-return-item.entity";
 
 @Entity()
 export class ConsignmentReturn extends VendureEntity {
-    constructor(input?: DeepPartial<ConsignmentReturn>) {
-        super(input);
-    }
+  constructor(input?: DeepPartial<ConsignmentReturn>) {
+    super(input);
+  }
 
-    @EntityId()
-    storeId: ID;
+  @EntityId()
+  storeId: ID;
 
-    @ManyToOne(() => Customer, { onDelete: 'CASCADE' })
-    store: Customer;
+  @ManyToOne(() => Customer, { onDelete: "CASCADE" })
+  store: Customer;
 
-    @Column({ type: 'date' })
-    returnedDate: Date;
+  @Column({ type: "date" })
+  returnedDate: Date;
 
-    @Column({ nullable: true, type: 'varchar' })
-    reason: string | null;
+  @Column({ nullable: true, type: "varchar" })
+  reason: string | null;
 
-    @Money()
-    total: number;
+  @Money()
+  total: number;
 
-    @OneToMany(() => ConsignmentReturnItem, item => item.consignmentReturn, { cascade: true, eager: false })
-    items: ConsignmentReturnItem[];
+  @OneToMany(() => ConsignmentReturnItem, (item) => item.consignmentReturn, {
+    cascade: true,
+    eager: false,
+  })
+  items: ConsignmentReturnItem[];
 }

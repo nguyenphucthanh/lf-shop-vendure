@@ -77,7 +77,7 @@ export function VariantCostBlock({ context }: { context: PageContextValue }) {
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const [costs, setCosts] = useState<VariantCost[]>([]);
-  
+
   useEffect(() => {
     if (!variantId) return;
     let active = true;
@@ -114,7 +114,9 @@ export function VariantCostBlock({ context }: { context: PageContextValue }) {
           cost: costInMinorUnits,
         },
       });
-      const updated = result?.upsertProductVariantCost as VariantCost | undefined;
+      const updated = result?.upsertProductVariantCost as
+        | VariantCost
+        | undefined;
       if (updated) {
         setCosts((prev) => {
           const existing = prev.findIndex((c) => c.id === updated.id);

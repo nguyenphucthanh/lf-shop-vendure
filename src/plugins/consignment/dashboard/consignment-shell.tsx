@@ -11,7 +11,7 @@ import {
   TabsTrigger,
 } from "@vendure/dashboard";
 
-import { EmptyState, SimplePage, StoreFilterCard } from "./shared";
+import { EmptyState, StoreFilterCard } from "./shared";
 
 type ConsignmentTabKey =
   | "quotations"

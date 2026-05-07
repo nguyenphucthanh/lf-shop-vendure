@@ -1,33 +1,43 @@
-import { DeepPartial, ID } from '@vendure/common/lib/shared-types';
-import { Customer, EntityId, Money, ProductVariant, VendureEntity } from '@vendure/core';
-import { Column, Entity, Index, ManyToOne } from 'typeorm';
+import { DeepPartial, ID } from "@vendure/common/lib/shared-types";
+import {
+  Customer,
+  EntityId,
+  Money,
+  ProductVariant,
+  VendureEntity,
+} from "@vendure/core";
+import { Column, Entity, Index, ManyToOne } from "typeorm";
 
 @Entity()
-@Index('idx_consignment_quotation_store_variant', ['storeId', 'productVariantId'], { unique: true })
+@Index(
+  "idx_consignment_quotation_store_variant",
+  ["storeId", "productVariantId"],
+  { unique: true },
+)
 export class ConsignmentQuotation extends VendureEntity {
-    constructor(input?: DeepPartial<ConsignmentQuotation>) {
-        super(input);
-    }
+  constructor(input?: DeepPartial<ConsignmentQuotation>) {
+    super(input);
+  }
 
-    @EntityId()
-    storeId: ID;
+  @EntityId()
+  storeId: ID;
 
-    @ManyToOne(() => Customer, { onDelete: 'CASCADE' })
-    store: Customer;
+  @ManyToOne(() => Customer, { onDelete: "CASCADE" })
+  store: Customer;
 
-    @EntityId()
-    productVariantId: ID;
+  @EntityId()
+  productVariantId: ID;
 
-    @ManyToOne(() => ProductVariant, { onDelete: 'CASCADE' })
-    productVariant: ProductVariant;
+  @ManyToOne(() => ProductVariant, { onDelete: "CASCADE" })
+  productVariant: ProductVariant;
 
-    @Money()
-    consignmentPrice: number;
+  @Money()
+  consignmentPrice: number;
 
-    @Column({ type: 'varchar', default: '' })
-    currency: string;
+  @Column({ type: "varchar", default: "" })
+  currency: string;
 
-    /** Optional human-readable note */
-    @Column({ nullable: true, type: 'varchar' })
-    note: string | null;
+  /** Optional human-readable note */
+  @Column({ nullable: true, type: "varchar" })
+  note: string | null;
 }

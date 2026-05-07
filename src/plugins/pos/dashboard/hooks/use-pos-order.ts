@@ -879,7 +879,7 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
           }
           if (result?.order && result.order.state !== "Draft") {
             setError(
-              `POS only supports draft orders. Loaded order is in state \"${result.order.state}\".`,
+              `POS only supports draft orders. Loaded order is in state "${result.order.state}".`,
             );
             return;
           }
@@ -1133,9 +1133,12 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
         }
 
         const handlersResult = await api.query(GET_FULFILLMENT_HANDLERS, {});
-        const shippingMethodResult = await api.query(GET_SHIPPING_METHOD_HANDLER, {
-          id: shippingMethodId,
-        });
+        const shippingMethodResult = await api.query(
+          GET_SHIPPING_METHOD_HANDLER,
+          {
+            id: shippingMethodId,
+          },
+        );
         const handlerCode =
           shippingMethodResult?.shippingMethod?.fulfillmentHandlerCode;
         if (!handlerCode) {
@@ -1148,9 +1151,7 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
         );
 
         if (!handlerDefinition) {
-          setError(
-            `Fulfillment handler \"${handlerCode}\" is not available`,
-          );
+          setError(`Fulfillment handler "${handlerCode}" is not available`);
           return;
         }
 

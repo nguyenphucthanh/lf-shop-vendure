@@ -6,11 +6,9 @@ import {
   RequestContext,
 } from "@vendure/core";
 
-interface OrderCustomFields {
-  doNotUpdateStock?: boolean | null;
-}
-
-function hasDoNotUpdateStockFlag(obj: unknown): obj is { doNotUpdateStock: boolean } {
+function hasDoNotUpdateStockFlag(
+  obj: unknown,
+): obj is { doNotUpdateStock: boolean } {
   return (
     obj != null &&
     typeof obj === "object" &&

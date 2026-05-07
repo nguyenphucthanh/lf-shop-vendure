@@ -31,11 +31,12 @@ export function CartPanel({
   const [couponInput, setCouponInput] = useState("");
   const currencyCode = order?.currencyCode ?? "USD";
   const formatMoney = (amount: number) => formatCurrency(amount, currencyCode);
+  const lines = order?.lines ?? [];
 
-  const isEmpty = useMemo(() => !order || order.lines.length === 0, [order]);
+  const isEmpty = useMemo(() => lines.length === 0, [lines]);
   const totalItems = useMemo(
-    () => order?.lines.reduce((sum, l) => sum + l.quantity, 0) ?? 0,
-    [order],
+    () => lines.reduce((sum, l) => sum + l.quantity, 0),
+    [lines],
   );
   const discount = useMemo(
     () => order?.discounts.reduce((sum, d) => sum + d.amountWithTax, 0) ?? 0,
@@ -86,7 +87,7 @@ export function CartPanel({
           </div>
         ) : (
           <ul className="divide-border divide-y">
-            {order.lines.map((line) => (
+            {lines.map((line) => (
               <CartLineItem
                 key={line.id}
                 line={line}

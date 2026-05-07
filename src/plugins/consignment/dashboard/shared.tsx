@@ -27,7 +27,6 @@ import {
   PageLayout,
   PageTitle,
   useLocalFormat,
-  Link,
 } from "@vendure/dashboard";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Trash2 } from "lucide-react";
@@ -323,7 +322,9 @@ export function getTranslatedName(
 ): string {
   if (!translations || translations.length === 0) return "";
   if (preferredLanguageCode) {
-    const match = translations.find((t) => t.languageCode === preferredLanguageCode);
+    const match = translations.find(
+      (t) => t.languageCode === preferredLanguageCode,
+    );
     if (match) return match.name;
   }
   const contextDefault = translations.find((t) => t.languageCode === "");

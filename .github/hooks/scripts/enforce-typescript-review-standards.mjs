@@ -1,19 +1,23 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import fs from "node:fs";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
 import {
   getTypeScriptCandidateFiles,
   getWorkspaceRoot,
   isEditToolPayload,
   readHookInput,
-} from './hook-utils.mjs';
+} from "./hook-utils.mjs";
 
 const DISALLOWED_PATTERNS = [
-  { label: 'type annotation', regex: /:\s*any\b/g },
-  { label: 'cast', regex: /\bas\s+any\b/g },
-  { label: 'angle-bracket cast', regex: /<any>/g },
-  { label: 'array type', regex: /\bany\[]/g },
-  { label: 'generic any', regex: /\b(?:Array|ReadonlyArray|Promise|Record|Map|Set)<[^>]*\bany\b[^>]*>/g },
+  { label: "type annotation", regex: /:\s*any\b/g },
+  { label: "cast", regex: /\bas\s+any\b/g },
+  { label: "angle-bracket cast", regex: /<any>/g },
+  { label: "array type", regex: /\bany\[]/g },
+  {
+    label: "generic any",
+    regex:
+      /\b(?:Array|ReadonlyArray|Promise|Record|Map|Set)<[^>]*\bany\b[^>]*>/g,
+  },
 ];
 
 const payload = await readHookInput();
@@ -27,7 +31,7 @@ const files = getTypeScriptCandidateFiles(payload);
 const violations = [];
 
 for (const filePath of files) {
-  const source = fs.readFileSync(filePath, 'utf8');
+  const source = fs.readFileSync(filePath, "utf8");
   const addedLines = getAddedLines(filePath, workspaceRoot);
 
   for (const pattern of DISALLOWED_PATTERNS) {
@@ -35,7 +39,14 @@ for (const filePath of files) {
       const lineMatches = [...addedLine.text.matchAll(pattern.regex)];
 
       for (const match of lineMatches) {
-        const location = getLineAndColumn(source, getAbsoluteIndex(source, addedLine.lineNumber, (match.index ?? 0) + 1));
+        const location = getLineAndColumn(
+          source,
+          getAbsoluteIndex(
+            source,
+            addedLine.lineNumber,
+            (match.index ?? 0) + 1,
+          ),
+        );
         violations.push({
           filePath: path.relative(workspaceRoot, filePath),
           line: location.line,
@@ -54,13 +65,18 @@ if (violations.length === 0) {
 
 const details = violations
   .slice(0, 10)
-  .map((violation) => `- ${violation.filePath}:${violation.line}:${violation.column} ${violation.label} -> ${violation.snippet}`)
-  .join('\n');
+  .map(
+    (violation) =>
+      `- ${violation.filePath}:${violation.line}:${violation.column} ${violation.label} -> ${violation.snippet}`,
+  )
+  .join("\n");
 
-process.stdout.write(JSON.stringify({
-  stopReason: 'TypeScript review hook blocked disallowed any usage.',
-  systemMessage: `Avoid introducing \`any\` in edited TypeScript files. Prefer precise types, \`unknown\`, or explicit narrowing.\n${details}`,
-}));
+process.stdout.write(
+  JSON.stringify({
+    stopReason: "TypeScript review hook blocked disallowed any usage.",
+    systemMessage: `Avoid introducing \`any\` in edited TypeScript files. Prefer precise types, \`unknown\`, or explicit narrowing.\n${details}`,
+  }),
+);
 process.exit(2);
 
 function getLineAndColumn(source, index) {
@@ -68,7 +84,7 @@ function getLineAndColumn(source, index) {
   let column = 1;
 
   for (let currentIndex = 0; currentIndex < index; currentIndex += 1) {
-    if (source[currentIndex] === '\n') {
+    if (source[currentIndex] === "\n") {
       line += 1;
       column = 1;
     } else {
@@ -82,9 +98,9 @@ function getLineAndColumn(source, index) {
 function getAddedLines(filePath, workspaceRoot) {
   const relativePath = path.relative(workspaceRoot, filePath);
   const diffResult = spawnSync(
-    'git',
-    ['diff', '--no-ext-diff', '--unified=0', '--', relativePath],
-    { cwd: workspaceRoot, encoding: 'utf8', stdio: 'pipe' },
+    "git",
+    ["diff", "--no-ext-diff", "--unified=0", "--", relativePath],
+    { cwd: workspaceRoot, encoding: "utf8", stdio: "pipe" },
   );
 
   if (diffResult.status !== 0) {
@@ -94,24 +110,24 @@ function getAddedLines(filePath, workspaceRoot) {
   const addedLines = [];
   let currentLineNumber = 0;
 
-  for (const line of diffResult.stdout.split('\n')) {
+  for (const line of diffResult.stdout.split("\n")) {
     const hunkMatch = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(line);
     if (hunkMatch) {
       currentLineNumber = Number(hunkMatch[1]);
       continue;
     }
 
-    if (line.startsWith('+++') || line.startsWith('---')) {
+    if (line.startsWith("+++") || line.startsWith("---")) {
       continue;
     }
 
-    if (line.startsWith('+')) {
+    if (line.startsWith("+")) {
       addedLines.push({ lineNumber: currentLineNumber, text: line.slice(1) });
       currentLineNumber += 1;
       continue;
     }
 
-    if (!line.startsWith('-')) {
+    if (!line.startsWith("-")) {
       currentLineNumber += 1;
     }
   }
@@ -124,11 +140,14 @@ function getAbsoluteIndex(source, targetLineNumber, targetColumnNumber) {
   let columnNumber = 1;
 
   for (let index = 0; index < source.length; index += 1) {
-    if (lineNumber === targetLineNumber && columnNumber === targetColumnNumber) {
+    if (
+      lineNumber === targetLineNumber &&
+      columnNumber === targetColumnNumber
+    ) {
       return index;
     }
 
-    if (source[index] === '\n') {
+    if (source[index] === "\n") {
       lineNumber += 1;
       columnNumber = 1;
     } else {
