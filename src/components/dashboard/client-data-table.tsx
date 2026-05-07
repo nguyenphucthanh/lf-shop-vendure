@@ -3,11 +3,12 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  HeaderContext,
   SortingState,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 
-import { DataTable } from "@vendure/dashboard";
+import { DataTable, DataTableColumnHeader } from "@vendure/dashboard";
 
 /**
  * Props for ClientDataTable component
@@ -85,18 +86,22 @@ export function ClientDataTable<TData extends { id?: string | number }>({
 }: Readonly<ClientDataTableProps<TData>>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
 
-  // Memoize columns to prevent re-renders
-  const memoizedColumns = useMemo(() => {
-    // Wrap column headers to use DataTableColumnHeader if needed
-    // This allows consistent sort icon display
+  // Wrap string headers with DataTableColumnHeader to enable sort icons
+  const memoizedColumns = useMemo<ColumnDef<TData, unknown>[]>(() => {
     return columns.map((col) => {
       if (col.header && typeof col.header === "string") {
+        const colDef = col;
         return {
           ...col,
-          header: col.header, // Keep as-is, DataTable will handle it
-        };
+          header: (headerContext: HeaderContext<TData, unknown>) => (
+            <DataTableColumnHeader
+              headerContext={headerContext}
+              customConfig={colDef}
+            />
+          ),
+        } as ColumnDef<TData, unknown>;
       }
-      return col;
+      return col as ColumnDef<TData, unknown>;
     });
   }, [columns]);
 

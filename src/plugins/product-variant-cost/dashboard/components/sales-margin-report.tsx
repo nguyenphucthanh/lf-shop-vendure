@@ -11,6 +11,9 @@ import {
   FieldLabel,
   Input,
   Link,
+  Page,
+  PageLayout,
+  PageTitle,
   Select,
   SelectContent,
   SelectItem,
@@ -29,11 +32,13 @@ import {
   TableHeader,
   TableRow,
   useLocalFormat,
+  FullWidthPageBlock,
 } from "@vendure/dashboard";
 import { ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ColumnDef } from "@tanstack/react-table";
 
-import { SortButton, SummaryStatCard } from "~/components/dashboard";
+import { ClientDataTable, SummaryStatCard } from "~/components/dashboard";
 import { graphql } from "@/gql";
 import { toast } from "sonner";
 
@@ -148,17 +153,21 @@ type DailySalesPoint = {
   currencyCode: string;
 };
 
-type OrderSortKey =
-  | "order"
-  | "date"
-  | "product"
-  | "sku"
-  | "quantity"
-  | "unitPrice"
-  | "lineTotal"
-  | "unitCost"
-  | "lineCost"
-  | "margin";
+type SalesRowData = {
+  id: string;
+  orderId: string;
+  orderCode: string;
+  orderDate: string;
+  productName: string;
+  sku: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  unitCost: number;
+  lineCost: number;
+  margin: number;
+  currencyCode: string;
+};
 
 type OrderDetail = {
   id: string;
@@ -248,8 +257,6 @@ const PRESETS = [
   { value: "last-month", label: "Last month" },
 ];
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
-
 export function SalesMarginReport() {
   const { formatCurrency } = useLocalFormat();
   const [preset, setPreset] = useState<string | null>("last-30");
@@ -261,10 +268,6 @@ export function SalesMarginReport() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [orderDetail, setOrderDetail] = useState<OrderDetail | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
-  const [orderSortKey, setOrderSortKey] = useState<OrderSortKey>("date");
-  const [orderSortDir, setOrderSortDir] = useState<"asc" | "desc">("desc");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(25);
 
   const dailySales = useMemo<DailySalesPoint[]>(() => {
     if (!report) {
@@ -324,74 +327,133 @@ export function SalesMarginReport() {
     }, 0);
   }, [dailySales]);
 
-  const sortedRows = useMemo(() => {
+  // Transform report rows to include id for ClientDataTable
+  const tableData = useMemo<SalesRowData[]>(() => {
     if (!report) {
       return [];
     }
+    return report.rows.map((row, index) => ({
+      id: `${row.orderId}-${row.sku}-${index}`,
+      orderId: row.orderId,
+      orderCode: row.orderCode,
+      orderDate: row.orderDate,
+      productName: row.productName,
+      sku: row.sku,
+      quantity: row.quantity,
+      unitPrice: row.unitPrice,
+      lineTotal: row.lineTotal,
+      unitCost: row.unitCost,
+      lineCost: row.lineCost,
+      margin: row.margin,
+      currencyCode: row.currencyCode,
+    }));
+  }, [report]);
 
-    const rows = [...report.rows];
-    rows.sort((a, b) => {
-      let result = 0;
-      switch (orderSortKey) {
-        case "order":
-          result = a.orderCode.localeCompare(b.orderCode);
-          break;
-        case "date":
-          result =
-            new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime();
-          break;
-        case "product":
-          result = a.productName.localeCompare(b.productName);
-          break;
-        case "sku":
-          result = a.sku.localeCompare(b.sku);
-          break;
-        case "quantity":
-          result = a.quantity - b.quantity;
-          break;
-        case "unitPrice":
-          result = a.unitPrice - b.unitPrice;
-          break;
-        case "lineTotal":
-          result = a.lineTotal - b.lineTotal;
-          break;
-        case "unitCost":
-          result = a.unitCost - b.unitCost;
-          break;
-        case "lineCost":
-          result = a.lineCost - b.lineCost;
-          break;
-        case "margin":
-          result = a.margin - b.margin;
-          break;
-        default:
-          result = 0;
-      }
-
-      return orderSortDir === "asc" ? result : -result;
-    });
-
-    return rows;
-  }, [report, orderSortDir, orderSortKey]);
-
-  const totalPages = useMemo(() => {
-    return Math.max(1, Math.ceil(sortedRows.length / pageSize));
-  }, [sortedRows.length, pageSize]);
-
-  const paginatedRows = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return sortedRows.slice(start, start + pageSize);
-  }, [page, pageSize, sortedRows]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [from, to, pageSize, orderSortKey, orderSortDir]);
-
-  useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
-    }
-  }, [page, totalPages]);
+  // Define table columns
+  const columns = useMemo<ColumnDef<SalesRowData>[]>(
+    () => [
+      {
+        accessorKey: "orderCode",
+        header: "Order",
+        cell: (info) => (
+          <button
+            onClick={() => openOrder(info.row.original.orderId)}
+            className="font-mono text-xs text-primary underline hover:opacity-75 transition-opacity"
+          >
+            {info.getValue() as string}
+          </button>
+        ),
+        sortingFn: "alphanumeric",
+      },
+      {
+        accessorKey: "orderDate",
+        header: "Date",
+        cell: (info) =>
+          new Date(info.getValue() as string).toLocaleDateString(),
+        sortingFn: (rowA, rowB) => {
+          const dateA = new Date(
+            rowA.getValue("orderDate") as string,
+          ).getTime();
+          const dateB = new Date(
+            rowB.getValue("orderDate") as string,
+          ).getTime();
+          return dateA - dateB;
+        },
+      },
+      {
+        accessorKey: "productName",
+        header: "Product",
+        sortingFn: "alphanumeric",
+      },
+      {
+        accessorKey: "sku",
+        header: "SKU",
+        cell: (info) => (
+          <span className="font-mono text-xs">{info.getValue() as string}</span>
+        ),
+        sortingFn: "alphanumeric",
+      },
+      {
+        accessorKey: "quantity",
+        header: "Qty",
+        cell: (info) => (
+          <div className="text-right">{info.getValue() as number}</div>
+        ),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "unitPrice",
+        header: "Unit Price",
+        cell: (info) => (
+          <div className="text-right">
+            {fmt(info.getValue() as number, "USD")}
+          </div>
+        ),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "lineTotal",
+        header: "Line Total",
+        cell: (info) => (
+          <div className="text-right">
+            {fmt(info.getValue() as number, "USD")}
+          </div>
+        ),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "unitCost",
+        header: "Unit Cost",
+        cell: (info) => (
+          <div className="text-right">
+            {fmt(info.getValue() as number, "USD")}
+          </div>
+        ),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "lineCost",
+        header: "Line Cost",
+        cell: (info) => (
+          <div className="text-right">
+            {fmt(info.getValue() as number, "USD")}
+          </div>
+        ),
+        sortingFn: "basic",
+      },
+      {
+        accessorKey: "margin",
+        header: "Margin",
+        cell: (info) => (
+          <div className="text-right font-semibold">
+            {fmt(info.getValue() as number, "USD")}
+          </div>
+        ),
+        sortingFn: "basic",
+      },
+    ],
+    [],
+  );
 
   const runReport = useCallback(
     async (f?: string, t?: string) => {
@@ -456,15 +518,6 @@ export function SalesMarginReport() {
     void runReport(range.from, range.to);
   }
 
-  function handleOrderSort(key: OrderSortKey) {
-    if (orderSortKey === key) {
-      setOrderSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setOrderSortKey(key);
-      setOrderSortDir("desc");
-    }
-  }
-
   // Run on first load
   useEffect(() => {
     void runReport();
@@ -494,506 +547,336 @@ export function SalesMarginReport() {
   const fmt = (value: number, code: string) => formatCurrency(value, code);
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Sales Margin Report</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Analyze revenue, costs and margin across placed orders.
-        </p>
-      </div>
+    <Page pageId="sales-margin" title="Sales Margin Report">
+      <PageTitle>Sales Margin Report</PageTitle>
+      <PageLayout>
+        <FullWidthPageBlock blockId="main">
+          <div className="space-y-6 p-6">
+            {/* Date filters */}
+            <Card className="p-4">
+              <div className="flex lg:grid grid-cols-4 gap-4 items-end flex-wrap">
+                <Field>
+                  <FieldLabel>From</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      type="date"
+                      value={from}
+                      onChange={(e) => {
+                        setFrom(e.target.value);
+                        setPreset(null);
+                      }}
+                    />
+                  </FieldContent>
+                </Field>
+                <Field>
+                  <FieldLabel>To</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      type="date"
+                      value={to}
+                      onChange={(e) => {
+                        setTo(e.target.value);
+                        setPreset(null);
+                      }}
+                    />
+                  </FieldContent>
+                </Field>
+                <Field>
+                  <FieldLabel>Preset</FieldLabel>
+                  <FieldContent>
+                    <Select value={preset} onValueChange={handlePresetChange}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Custom">
+                          {PRESETS.find((p) => p.value === preset)?.label ??
+                            "Custom"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PRESETS.map((p) => (
+                          <SelectItem key={p.value} value={p.value}>
+                            {p.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FieldContent>
+                </Field>
+                <Button onClick={() => runReport()} disabled={loading}>
+                  {loading ? "Loading…" : "Run report"}
+                </Button>
+              </div>
+            </Card>
 
-      <Card className="p-4">
-        <div className="flex lg:grid grid-cols-4 gap-4 items-end flex-wrap">
-          <Field>
-            <FieldLabel>From</FieldLabel>
-            <FieldContent>
-              <Input
-                type="date"
-                value={from}
-                onChange={(e) => {
-                  setFrom(e.target.value);
-                  setPreset(null);
-                }}
-              />
-            </FieldContent>
-          </Field>
-          <Field>
-            <FieldLabel>To</FieldLabel>
-            <FieldContent>
-              <Input
-                type="date"
-                value={to}
-                onChange={(e) => {
-                  setTo(e.target.value);
-                  setPreset(null);
-                }}
-              />
-            </FieldContent>
-          </Field>
-          <Field>
-            <FieldLabel>Preset</FieldLabel>
-            <FieldContent>
-              <Select value={preset} onValueChange={handlePresetChange}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Custom">
-                    {PRESETS.find((p) => p.value === preset)?.label ?? "Custom"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {PRESETS.map((p) => (
-                    <SelectItem key={p.value} value={p.value}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FieldContent>
-          </Field>
-          <Button onClick={() => runReport()} disabled={loading}>
-            {loading ? "Loading…" : "Run report"}
-          </Button>
-        </div>
-      </Card>
+            {report && (
+              <>
+                {/* Summary cards */}
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+                  <SummaryStatCard
+                    title="Orders"
+                    value={report.summary.orderCount.toLocaleString()}
+                  />
+                  <SummaryStatCard
+                    title="Revenue"
+                    value={fmt(
+                      report.summary.totalRevenue,
+                      report.summary.currencyCode,
+                    )}
+                  />
+                  <SummaryStatCard
+                    title="Cost"
+                    value={fmt(
+                      report.summary.totalCost,
+                      report.summary.currencyCode,
+                    )}
+                  />
+                  <SummaryStatCard
+                    title="Margin"
+                    value={fmt(
+                      report.summary.totalMargin,
+                      report.summary.currencyCode,
+                    )}
+                  />
+                  <SummaryStatCard
+                    title="Margin %"
+                    value={`${report.summary.marginPercent}%`}
+                  />
+                </div>
 
-      {report && (
-        <>
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-            <SummaryStatCard
-              title="Orders"
-              value={report.summary.orderCount.toLocaleString()}
-            />
-            <SummaryStatCard
-              title="Revenue"
-              value={fmt(
-                report.summary.totalRevenue,
-                report.summary.currencyCode,
-              )}
-            />
-            <SummaryStatCard
-              title="Cost"
-              value={fmt(report.summary.totalCost, report.summary.currencyCode)}
-            />
-            <SummaryStatCard
-              title="Margin"
-              value={fmt(
-                report.summary.totalMargin,
-                report.summary.currencyCode,
-              )}
-            />
-            <SummaryStatCard
-              title="Margin %"
-              value={`${report.summary.marginPercent}%`}
-            />
-          </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Sales by Date</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {dailySales.length > 0 ? (
+                      <div className="overflow-x-auto pb-1">
+                        <div className="flex min-w-max items-end gap-2">
+                          {dailySales.map((point) => {
+                            const height =
+                              maxDailyRevenue > 0
+                                ? Math.max(
+                                    (point.revenue / maxDailyRevenue) * 100,
+                                    2,
+                                  )
+                                : 2;
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Sales by Date</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {dailySales.length > 0 ? (
-                <div className="overflow-x-auto pb-1">
-                  <div className="flex min-w-max items-end gap-2">
-                    {dailySales.map((point) => {
-                      const height =
-                        maxDailyRevenue > 0
-                          ? Math.max((point.revenue / maxDailyRevenue) * 100, 2)
-                          : 2;
-
-                      return (
-                        <div
-                          key={point.dateKey}
-                          className="flex w-12 shrink-0 flex-col items-center gap-2"
-                          title={`${point.fullLabel}: ${fmt(point.revenue, point.currencyCode)}`}
-                        >
-                          <div className="flex h-40 w-full items-end rounded-md bg-muted/40 p-1">
-                            <div
-                              className="w-full rounded-sm bg-primary"
-                              style={{ height: `${height}%` }}
-                            />
-                          </div>
-                          <span className="text-[11px] text-muted-foreground text-center leading-tight">
-                            {point.shortLabel}
-                          </span>
+                            return (
+                              <div
+                                key={point.dateKey}
+                                className="flex w-12 shrink-0 flex-col items-center gap-2"
+                                title={`${point.fullLabel}: ${fmt(point.revenue, point.currencyCode)}`}
+                              >
+                                <div className="flex h-40 w-full items-end rounded-md bg-muted/40 p-1">
+                                  <div
+                                    className="w-full rounded-sm bg-primary"
+                                    style={{ height: `${height}%` }}
+                                  />
+                                </div>
+                                <span className="text-[11px] text-muted-foreground text-center leading-tight">
+                                  {point.shortLabel}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
+                      </div>
+                    ) : (
+                      <div className="py-6 text-sm text-muted-foreground">
+                        No sales data available for charting in this period.
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Detail table */}
+                <ClientDataTable
+                  columns={columns}
+                  data={tableData}
+                  isLoading={loading}
+                  initialSorting={[{ id: "orderDate", desc: true }]}
+                />
+              </>
+            )}
+            {/* Order detail drawer */}
+            <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+              <SheetContent
+                side="right"
+                className="overflow-y-auto sm:max-w-xl"
+              >
+                <SheetHeader>
+                  <SheetTitle>Order {orderDetail?.code ?? ""}</SheetTitle>
+                  <SheetDescription>
+                    {orderDetail?.orderPlacedAt
+                      ? `Placed on ${new Date(orderDetail.orderPlacedAt).toLocaleDateString()}`
+                      : ""}
+                  </SheetDescription>
+                </SheetHeader>
+
+                {orderLoading && (
+                  <div className="flex items-center justify-center py-12 text-muted-foreground">
+                    Loading…
                   </div>
-                </div>
-              ) : (
-                <div className="py-6 text-sm text-muted-foreground">
-                  No sales data available for charting in this period.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Detail table */}
-          <Card>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <SortButton
-                      label="Order"
-                      sortKey="order"
-                      current={orderSortKey}
-                      dir={orderSortDir}
-                      onSort={handleOrderSort}
-                    />
-                  </TableHead>
-                  <TableHead>
-                    <SortButton
-                      label="Date"
-                      sortKey="date"
-                      current={orderSortKey}
-                      dir={orderSortDir}
-                      onSort={handleOrderSort}
-                    />
-                  </TableHead>
-                  <TableHead>
-                    <SortButton
-                      label="Product"
-                      sortKey="product"
-                      current={orderSortKey}
-                      dir={orderSortDir}
-                      onSort={handleOrderSort}
-                    />
-                  </TableHead>
-                  <TableHead>
-                    <SortButton
-                      label="SKU"
-                      sortKey="sku"
-                      current={orderSortKey}
-                      dir={orderSortDir}
-                      onSort={handleOrderSort}
-                    />
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex justify-end">
-                      <SortButton
-                        label="Qty"
-                        sortKey="quantity"
-                        current={orderSortKey}
-                        dir={orderSortDir}
-                        onSort={handleOrderSort}
-                      />
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex justify-end">
-                      <SortButton
-                        label="Unit Price"
-                        sortKey="unitPrice"
-                        current={orderSortKey}
-                        dir={orderSortDir}
-                        onSort={handleOrderSort}
-                      />
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex justify-end">
-                      <SortButton
-                        label="Line Total"
-                        sortKey="lineTotal"
-                        current={orderSortKey}
-                        dir={orderSortDir}
-                        onSort={handleOrderSort}
-                      />
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex justify-end">
-                      <SortButton
-                        label="Unit Cost"
-                        sortKey="unitCost"
-                        current={orderSortKey}
-                        dir={orderSortDir}
-                        onSort={handleOrderSort}
-                      />
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex justify-end">
-                      <SortButton
-                        label="Line Cost"
-                        sortKey="lineCost"
-                        current={orderSortKey}
-                        dir={orderSortDir}
-                        onSort={handleOrderSort}
-                      />
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex justify-end">
-                      <SortButton
-                        label="Margin"
-                        sortKey="margin"
-                        current={orderSortKey}
-                        dir={orderSortDir}
-                        onSort={handleOrderSort}
-                      />
-                    </div>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedRows.map((row, index) => (
-                  <TableRow
-                    key={`${row.orderId}-${row.sku}-${row.productName}-${index}`}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => openOrder(row.orderId)}
-                  >
-                    <TableCell className="font-mono text-xs text-primary underline">
-                      {row.orderCode}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {new Date(row.orderDate).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>{row.productName}</TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {row.sku}
-                    </TableCell>
-                    <TableCell className="text-right">{row.quantity}</TableCell>
-                    <TableCell className="text-right">
-                      {fmt(row.unitPrice, row.currencyCode)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {fmt(row.lineTotal, row.currencyCode)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {fmt(row.unitCost, row.currencyCode)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {fmt(row.lineCost, row.currencyCode)}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold">
-                      {fmt(row.margin, row.currencyCode)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {sortedRows.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={10}
-                      className="py-8 text-center text-muted-foreground"
-                    >
-                      No orders with cost data found in this period.
-                    </TableCell>
-                  </TableRow>
                 )}
-              </TableBody>
-            </Table>
-            {sortedRows.length > 0 ? (
-              <div className="flex flex-col gap-3 border-t p-4 md:flex-row md:items-center md:justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Showing {(page - 1) * pageSize + 1}-
-                  {Math.min(page * pageSize, sortedRows.length)} of{" "}
-                  {sortedRows.length}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Rows:</span>
-                  <Select
-                    value={String(pageSize)}
-                    onValueChange={(value) => setPageSize(Number(value))}
-                  >
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAGE_SIZE_OPTIONS.map((size) => (
-                        <SelectItem key={size} value={String(size)}>
-                          {size}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  >
-                    Previous
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    Page {page} / {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-          </Card>
-        </>
-      )}
-      {/* Order detail drawer */}
-      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <SheetContent side="right" className="overflow-y-auto sm:max-w-xl">
-          <SheetHeader>
-            <SheetTitle>Order {orderDetail?.code ?? ""}</SheetTitle>
-            <SheetDescription>
-              {orderDetail?.orderPlacedAt
-                ? `Placed on ${new Date(orderDetail.orderPlacedAt).toLocaleDateString()}`
-                : ""}
-            </SheetDescription>
-          </SheetHeader>
 
-          {orderLoading && (
-            <div className="flex items-center justify-center py-12 text-muted-foreground">
-              Loading…
-            </div>
-          )}
+                {orderDetail && !orderLoading && (
+                  <div className="space-y-5 py-4 px-4">
+                    {/* Status */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">Status</span>
+                      <Badge variant="outline">{orderDetail.state}</Badge>
+                    </div>
 
-          {orderDetail && !orderLoading && (
-            <div className="space-y-5 py-4 px-4">
-              {/* Status */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Status</span>
-                <Badge variant="outline">{orderDetail.state}</Badge>
-              </div>
+                    <Separator />
 
-              <Separator />
+                    {/* Customer */}
+                    {orderDetail.customer && (
+                      <div>
+                        <h4 className="text-sm font-semibold mb-1">Customer</h4>
+                        <p className="text-sm">
+                          {orderDetail.customer.firstName}{" "}
+                          {orderDetail.customer.lastName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {orderDetail.customer.emailAddress}
+                        </p>
+                      </div>
+                    )}
 
-              {/* Customer */}
-              {orderDetail.customer && (
-                <div>
-                  <h4 className="text-sm font-semibold mb-1">Customer</h4>
-                  <p className="text-sm">
-                    {orderDetail.customer.firstName}{" "}
-                    {orderDetail.customer.lastName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {orderDetail.customer.emailAddress}
-                  </p>
-                </div>
-              )}
+                    {/* Shipping address */}
+                    {orderDetail.shippingAddress && (
+                      <div>
+                        <h4 className="text-sm font-semibold mb-1">
+                          Shipping Address
+                        </h4>
+                        <p className="text-sm">
+                          {orderDetail.shippingAddress.fullName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {[
+                            orderDetail.shippingAddress.streetLine1,
+                            orderDetail.shippingAddress.streetLine2,
+                            orderDetail.shippingAddress.city,
+                            orderDetail.shippingAddress.province,
+                            orderDetail.shippingAddress.postalCode,
+                            orderDetail.shippingAddress.country,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </p>
+                      </div>
+                    )}
 
-              {/* Shipping address */}
-              {orderDetail.shippingAddress && (
-                <div>
-                  <h4 className="text-sm font-semibold mb-1">
-                    Shipping Address
-                  </h4>
-                  <p className="text-sm">
-                    {orderDetail.shippingAddress.fullName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {[
-                      orderDetail.shippingAddress.streetLine1,
-                      orderDetail.shippingAddress.streetLine2,
-                      orderDetail.shippingAddress.city,
-                      orderDetail.shippingAddress.province,
-                      orderDetail.shippingAddress.postalCode,
-                      orderDetail.shippingAddress.country,
-                    ]
-                      .filter(Boolean)
-                      .join(", ")}
-                  </p>
-                </div>
-              )}
+                    {/* Shipping method */}
+                    {orderDetail.shippingLines.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold mb-1">Shipping</h4>
+                        {orderDetail.shippingLines.map((sl, i) => (
+                          <p key={i} className="text-sm">
+                            {sl.shippingMethod.name} —{" "}
+                            {fmt(sl.priceWithTax, orderDetail.currencyCode)}
+                          </p>
+                        ))}
+                      </div>
+                    )}
 
-              {/* Shipping method */}
-              {orderDetail.shippingLines.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold mb-1">Shipping</h4>
-                  {orderDetail.shippingLines.map((sl, i) => (
-                    <p key={i} className="text-sm">
-                      {sl.shippingMethod.name} —{" "}
-                      {fmt(sl.priceWithTax, orderDetail.currencyCode)}
-                    </p>
-                  ))}
-                </div>
-              )}
+                    <Separator />
 
-              <Separator />
+                    {/* Line items */}
+                    <div>
+                      <h4 className="text-sm font-semibold mb-2">Items</h4>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Product</TableHead>
+                            <TableHead className="text-right">Qty</TableHead>
+                            <TableHead className="text-right">Unit</TableHead>
+                            <TableHead className="text-right">Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {orderDetail.lines.map((line) => (
+                            <TableRow key={line.id}>
+                              <TableCell>
+                                <div className="text-sm">
+                                  {line.productVariant.name}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {line.productVariant.sku}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {line.quantity}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {fmt(
+                                  line.unitPriceWithTax,
+                                  orderDetail.currencyCode,
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {fmt(
+                                  line.linePriceWithTax,
+                                  orderDetail.currencyCode,
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
 
-              {/* Line items */}
-              <div>
-                <h4 className="text-sm font-semibold mb-2">Items</h4>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
-                      <TableHead className="text-right">Unit</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {orderDetail.lines.map((line) => (
-                      <TableRow key={line.id}>
-                        <TableCell>
-                          <div className="text-sm">
-                            {line.productVariant.name}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {line.productVariant.sku}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {line.quantity}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {fmt(line.unitPriceWithTax, orderDetail.currencyCode)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {fmt(line.linePriceWithTax, orderDetail.currencyCode)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    <Separator />
 
-              <Separator />
+                    {/* Totals */}
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>
+                          {fmt(
+                            orderDetail.subTotalWithTax,
+                            orderDetail.currencyCode,
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Shipping</span>
+                        <span>
+                          {fmt(
+                            orderDetail.shippingWithTax,
+                            orderDetail.currencyCode,
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between font-bold text-base pt-1">
+                        <span>Total</span>
+                        <span>
+                          {fmt(
+                            orderDetail.totalWithTax,
+                            orderDetail.currencyCode,
+                          )}
+                        </span>
+                      </div>
+                    </div>
 
-              {/* Totals */}
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span>
-                    {fmt(orderDetail.subTotalWithTax, orderDetail.currencyCode)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Shipping</span>
-                  <span>
-                    {fmt(orderDetail.shippingWithTax, orderDetail.currencyCode)}
-                  </span>
-                </div>
-                <div className="flex justify-between font-bold text-base pt-1">
-                  <span>Total</span>
-                  <span>
-                    {fmt(orderDetail.totalWithTax, orderDetail.currencyCode)}
-                  </span>
-                </div>
-              </div>
+                    <Separator />
 
-              <Separator />
-
-              {/* Link to order detail page */}
-              <Button
-                variant="outline"
-                className="w-full"
-                render={(props) => (
-                  <Link to={`/orders/${orderDetail.id}`} {...props}>
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Open order details
-                  </Link>
+                    {/* Link to order detail page */}
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      render={(props) => (
+                        <Link to={`/orders/${orderDetail.id}`} {...props}>
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Open order details
+                        </Link>
+                      )}
+                    />
+                  </div>
                 )}
-              />
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
-    </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+        </FullWidthPageBlock>
+      </PageLayout>
+    </Page>
   );
 }
