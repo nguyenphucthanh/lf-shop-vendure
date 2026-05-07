@@ -100,14 +100,20 @@ export function ProductGrid({ cartQuantities, onAddItem }: Props) {
 
   // Load facets once
   useEffect(() => {
+    let active = true;
     void api.query(LIST_FACETS, {}).then((result) => {
+      if (!active) return;
       setFacets(result?.facets?.items ?? []);
     });
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Load variants with debounce on search/filter change
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    let active = true;
     debounceRef.current = setTimeout(() => {
       setLoadingVariants(true);
       void api
@@ -119,12 +125,16 @@ export function ProductGrid({ cartQuantities, onAddItem }: Props) {
           take: 80,
         })
         .then((result) => {
+          if (!active) return;
           setVariants(result?.productVariants?.items ?? []);
         })
-        .finally(() => setLoadingVariants(false));
+        .finally(() => {
+          if (active) setLoadingVariants(false);
+        });
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      active = false;
     };
   }, [search, activeFacetValueIds]);
 

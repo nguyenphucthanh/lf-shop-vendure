@@ -119,7 +119,7 @@ export function CheckoutSheet({
       setAutoFulfillAndDeliver(true);
       onClearError();
     }
-  }, [open]);
+  }, [open, onClearError]);
 
   // Auto-select first payment method
   useEffect(() => {
@@ -133,13 +133,20 @@ export function CheckoutSheet({
       setShippingMethods([]);
       return;
     }
+    let active = true;
     setLoadingShippingMethods(true);
     void api
       .query(ELIGIBLE_SHIPPING_METHODS, { orderId: order.id })
       .then((result) => {
+        if (!active) return;
         setShippingMethods(result?.eligibleShippingMethodsForDraftOrder ?? []);
       })
-      .finally(() => setLoadingShippingMethods(false));
+      .finally(() => {
+        if (active) setLoadingShippingMethods(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [open, order?.id]);
 
   useEffect(() => {

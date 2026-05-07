@@ -1,6 +1,6 @@
 import { Button, Input, useLocalFormat } from "@vendure/dashboard";
 import { MinusIcon, PlusIcon, TagIcon, Trash2Icon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { PosOrder, PosOrderLine } from "./hooks/use-pos-order";
 
@@ -32,10 +32,15 @@ export function CartPanel({
   const currencyCode = order?.currencyCode ?? "USD";
   const formatMoney = (amount: number) => formatCurrency(amount, currencyCode);
 
-  const isEmpty = !order || order.lines.length === 0;
-  const totalItems = order?.lines.reduce((sum, l) => sum + l.quantity, 0) ?? 0;
-  const discount =
-    order?.discounts.reduce((sum, d) => sum + d.amountWithTax, 0) ?? 0;
+  const isEmpty = useMemo(() => !order || order.lines.length === 0, [order]);
+  const totalItems = useMemo(
+    () => order?.lines.reduce((sum, l) => sum + l.quantity, 0) ?? 0,
+    [order],
+  );
+  const discount = useMemo(
+    () => order?.discounts.reduce((sum, d) => sum + d.amountWithTax, 0) ?? 0,
+    [order],
+  );
 
   function handleApplyCoupon() {
     const code = couponInput.trim();

@@ -1,6 +1,6 @@
 import { Button, useLocalFormat, useNavigate } from "@vendure/dashboard";
 import { ExternalLinkIcon, ShoppingCartIcon } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { CartPanel } from "./cart-panel";
 import { CheckoutSheet } from "./checkout-sheet";
@@ -39,10 +39,13 @@ export function PosShell({ requestedOrderId }: PosShellProps) {
     useState<CompletedOrderInfo | null>(null);
 
   // Cart quantity map for product grid badges
-  const cartQuantities: Record<string, number> = {};
-  for (const line of order?.lines ?? []) {
-    cartQuantities[line.productVariant.id] = line.quantity;
-  }
+  const cartQuantities = useMemo(() => {
+    const quantities: Record<string, number> = {};
+    for (const line of order?.lines ?? []) {
+      quantities[line.productVariant.id] = line.quantity;
+    }
+    return quantities;
+  }, [order?.lines]);
 
   async function handleComplete(
     paymentMethod: string,
