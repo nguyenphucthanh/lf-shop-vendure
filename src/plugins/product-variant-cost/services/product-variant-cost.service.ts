@@ -550,4 +550,121 @@ export class ProductVariantCostService {
       currencyCode,
     };
   }
+
+  async getAppliedPromotionsAndSurchargesReport(
+    ctx: RequestContext,
+    from: Date,
+    to: Date,
+  ) {
+    if (!ctx.channel?.defaultCurrencyCode) {
+      throw new BadRequestException("Channel currency not configured");
+    }
+
+    const orders = await this.connection.getRepository(ctx, Order).find({
+      where: {
+        orderPlacedAt: Between(from, to),
+      },
+      relations: ["lines", "promotions", "surcharges"],
+      order: { orderPlacedAt: "DESC" },
+    });
+
+    const currencyCode = ctx.channel.defaultCurrencyCode;
+
+    const byPromotion = new Map<
+      string,
+      {
+        promotionName: string;
+        code: string;
+        totalApplied: number;
+        subtotal: number;
+        currencyCode: string;
+      }
+    >();
+
+    let totalUsedPromotions = 0;
+    let totalPromotionValue = 0;
+    let totalSurcharges = 0;
+    let totalSurchargeValue = 0;
+
+    for (const order of orders) {
+      totalSurcharges += order.surcharges?.length ?? 0;
+      for (const surcharge of order.surcharges ?? []) {
+        totalSurchargeValue += surcharge.price;
+      }
+
+      const promotionNameById = new Map<string, string>();
+      for (const promotion of order.promotions ?? []) {
+        promotionNameById.set(String(promotion.id), promotion.name);
+      }
+
+      const fallbackCode = (order.couponCodes ?? [])[0] ?? "";
+      const orderLevelDiscounts = order.discounts ?? [];
+      const lineLevelDiscounts = order.lines.flatMap(
+        (line) => line.discounts ?? [],
+      );
+      const discountsToProcess =
+        orderLevelDiscounts.length > 0
+          ? orderLevelDiscounts
+          : lineLevelDiscounts;
+
+      for (const discount of discountsToProcess) {
+        const sourceRaw = discount.adjustmentSource ?? "";
+        const source = sourceRaw.toLowerCase();
+        const discountType =
+          typeof discount.type === "string" ? discount.type.toLowerCase() : "";
+
+        if (!source.includes("promotion") && discountType !== "promotion") {
+          continue;
+        }
+
+        const promotionPrefix = "promotion:";
+        const promotionPrefixIndex = source.indexOf(promotionPrefix);
+        const promotionId =
+          promotionPrefixIndex >= 0
+            ? sourceRaw
+                .slice(promotionPrefixIndex + promotionPrefix.length)
+                .split(":")[0]
+            : "";
+        const promotionName =
+          promotionNameById.get(promotionId) ??
+          getNonEmptyString(discount.description, "Promotion") ??
+          "Promotion";
+
+        const amount = Math.abs(discount.amount);
+        const key = `${promotionName}::${fallbackCode}`;
+        const existing = byPromotion.get(key);
+
+        if (existing) {
+          existing.totalApplied += 1;
+          existing.subtotal += amount;
+        } else {
+          byPromotion.set(key, {
+            promotionName,
+            code: fallbackCode,
+            totalApplied: 1,
+            subtotal: amount,
+            currencyCode,
+          });
+        }
+
+        totalUsedPromotions += 1;
+        totalPromotionValue += amount;
+      }
+    }
+
+    const rows = Array.from(byPromotion.values()).sort(
+      (a, b) => b.subtotal - a.subtotal,
+    );
+
+    return {
+      rows,
+      summary: {
+        totalUsedPromotions,
+        totalPromotionValue,
+        totalSurcharges,
+        totalSurchargeValue,
+        currencyCode,
+      },
+    };
+  }
 }

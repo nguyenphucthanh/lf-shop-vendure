@@ -98,4 +98,18 @@ export class ProductVariantCostAdminResolver {
   ) {
     return this.costService.getCustomerSalesDetail(ctx, customerId);
   }
+
+  @Query()
+  @Allow(Permission.ReadOrder)
+  async appliedPromotionsAndSurchargesReport(
+    @Ctx() ctx: RequestContext,
+    @Args("from") from: string,
+    @Args("to") to: string,
+  ) {
+    return this.costService.getAppliedPromotionsAndSurchargesReport(
+      ctx,
+      new Date(from),
+      new Date(to),
+    );
+  }
 }

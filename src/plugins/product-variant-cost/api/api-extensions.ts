@@ -156,6 +156,36 @@ export const adminApiExtensions = gql`
     currencyCode: CurrencyCode!
   }
 
+  """
+  A row in the applied promotions report showing aggregate usage and discount value.
+  """
+  type AppliedPromotionRow {
+    promotionName: String!
+    code: String!
+    totalApplied: Int!
+    subtotal: Money!
+    currencyCode: CurrencyCode!
+  }
+
+  """
+  Summary statistics for applied promotions and surcharges in a date range.
+  """
+  type AppliedPromotionsAndSurchargesSummary {
+    totalUsedPromotions: Int!
+    totalPromotionValue: Money!
+    totalSurcharges: Int!
+    totalSurchargeValue: Money!
+    currencyCode: CurrencyCode!
+  }
+
+  """
+  Complete applied promotions and surcharges report.
+  """
+  type AppliedPromotionsAndSurchargesReport {
+    rows: [AppliedPromotionRow!]!
+    summary: AppliedPromotionsAndSurchargesSummary!
+  }
+
   extend type Query {
     """
     Get all product variant costs for a variant.
@@ -196,6 +226,16 @@ export const adminApiExtensions = gql`
     Requires ReadOrder permission.
     """
     customerSalesDetail(customerId: ID!): CustomerSalesDetail!
+    """
+    Get applied promotions and surcharges report for a date range.
+    Aggregates promotion applications and surcharge usage from placed orders.
+    Requires ReadOrder permission.
+    Date range is limited to 365 days maximum for performance.
+    """
+    appliedPromotionsAndSurchargesReport(
+      from: DateTime!
+      to: DateTime!
+    ): AppliedPromotionsAndSurchargesReport!
   }
 
   extend type Mutation {

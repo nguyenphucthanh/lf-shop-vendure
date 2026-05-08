@@ -4,6 +4,7 @@ import { BarChartIcon } from "lucide-react";
 import { SalesMarginReport } from "./components/sales-margin-report";
 import { SalesByProductVariantReport } from "./components/sales-by-product-variant-report";
 import { SalesByCustomerReport } from "./components/sales-by-customer-report";
+import { AppliedPromotionsAndSurchargesReport } from "./components/applied-promotions-and-surcharges-report";
 import { VariantCostBlock } from "./components/variant-cost-block";
 
 defineDashboardExtension({
@@ -42,6 +43,15 @@ defineDashboardExtension({
         sectionId: "reports",
         id: "sales-by-customer",
         title: "Sales by Customer",
+      },
+    },
+    {
+      path: "/applied-promotions-and-surcharges",
+      component: () => <AppliedPromotionsAndSurchargesReport />,
+      navMenuItem: {
+        sectionId: "reports",
+        id: "applied-promotions-and-surcharges",
+        title: "Applied Promotions and Surcharges",
       },
     },
   ],
