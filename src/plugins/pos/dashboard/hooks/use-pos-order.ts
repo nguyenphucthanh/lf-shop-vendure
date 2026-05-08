@@ -1214,7 +1214,7 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
   );
 
   const setManualDiscount = useCallback(
-    async (amount: number, description?: string): Promise<boolean> => {
+    async (amount: number, description: string): Promise<boolean> => {
       if (!order?.id) return false;
       const result = await run(async () => {
         const mutationResult = await api.mutate(SET_MANUAL_DISCOUNT, {

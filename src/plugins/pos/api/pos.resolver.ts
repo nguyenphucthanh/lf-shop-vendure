@@ -73,7 +73,7 @@ export class PosResolver {
     await this.orderService.addSurchargeToOrder(ctx, refreshedOrder.id, {
       description:
         description && description.length > 0
-          ? description
+          ? `POS custom discount: ${description}`
           : POS_MANUAL_DISCOUNT_DESCRIPTION,
       sku: POS_MANUAL_DISCOUNT_SKU,
       listPrice: -normalizedAmount,

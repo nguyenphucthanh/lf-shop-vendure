@@ -28,7 +28,10 @@ interface Props {
   onRemoveLine: (lineId: string) => void;
   onApplyCoupon: (code: string) => Promise<void> | void;
   onRemoveCoupon: (code: string) => Promise<void> | void;
-  onSetManualDiscount: (amount: number) => Promise<boolean> | boolean;
+  onSetManualDiscount: (
+    amount: number,
+    description: string,
+  ) => Promise<boolean> | boolean;
   onCheckout: () => void;
   onClearError: () => void;
 }
@@ -54,6 +57,8 @@ export function CartPanel({
   const [linePromotionDrawerOpen, setLinePromotionDrawerOpen] = useState(false);
   const [linePromotionFilter, setLinePromotionFilter] = useState("");
   const [manualDiscountInput, setManualDiscountInput] = useState("");
+  const [manualDiscountDescription, setManualDiscountDescription] =
+    useState("");
   const [manualDiscountError, setManualDiscountError] = useState<string | null>(
     null,
   );
@@ -164,10 +169,19 @@ export function CartPanel({
       return;
     }
 
+    if (!manualDiscountDescription.trim()) {
+      setManualDiscountError("Please provide a description for the discount");
+      return;
+    }
+
     setManualDiscountError(null);
-    const applied = await onSetManualDiscount(parsedAmount);
+    const applied = await onSetManualDiscount(
+      parsedAmount,
+      manualDiscountDescription,
+    );
     if (applied) {
       setManualDiscountInput("");
+      setManualDiscountDescription("");
     } else if (error) {
       setManualDiscountError(error);
     }
@@ -179,7 +193,8 @@ export function CartPanel({
     }
     setManualDiscountError(null);
     setManualDiscountInput("");
-    await onSetManualDiscount(0);
+    setManualDiscountDescription("");
+    await onSetManualDiscount(0, "");
   }
 
   return (
@@ -285,6 +300,18 @@ export function CartPanel({
                 Clear
               </Button>
             </div>
+            <Input
+              type="text"
+              placeholder="Reason for discount"
+              value={manualDiscountDescription}
+              onChange={(event) => {
+                setManualDiscountDescription(event.target.value);
+                if (manualDiscountError) {
+                  setManualDiscountError(null);
+                }
+              }}
+              className="h-8 text-xs"
+            />
             {manualDiscountError ? (
               <p className="text-destructive text-xs">{manualDiscountError}</p>
             ) : null}
