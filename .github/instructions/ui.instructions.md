@@ -9,17 +9,24 @@ UI Components are imported from "@vendure/dashboard".
 ## Vendure Dashboard Stack
 
 - The `@vendure/dashboard` UI layer is a forked/curated stack built on shadcn-style components and Base UI primitives.
-- When implementing or reviewing TSX UI, use `.github/instructions/shadcn-ui.instructions.md` and `.github/instructions/base-ui.instructions.md` as reference guidance for component patterns and behavior.
+
+## When you want to implement a new UI component or pattern or a small piece of existing component's functionality
+
+**first check if it can be implemented by extending an existing `@vendure/dashboard` component**. 
+
+This helps maintain consistency across the dashboard and reduces the need for custom components. `@vendure/dashboard` provides a wide range of pre-built components that can be easily extended and customized with Tailwind CSS. Always prefer extending existing components over creating new ones from scratch when possible.
 
 ## When to Use Built-in vs. Custom Components
 
 **Built-in `@vendure/dashboard` components** — Use when:
+
 - The component exists in `@vendure/dashboard` and fits your use case
 - You need consistency with existing dashboard UI
 - The component is already styled and tested
 - Examples: Button, Card, Dialog, Combobox, Table, Input, Badge, etc.
 
 **Custom component with Base UI + Tailwind** — Use when:
+
 - `@vendure/dashboard` doesn't have a pre-built component
 - You need a specialized or domain-specific UI element
 - The built-in component can't be extended to meet your needs
@@ -185,7 +192,6 @@ UI Components are imported from "@vendure/dashboard".
 
 - [Registry Schema](https://ui.shadcn.com/schema/registry.json): JSON Schema for registry index files. Defines the structure for a collection of components, hooks, pages, etc. Requires name, homepage, and items array.
 - [Registry Item Schema](https://ui.shadcn.com/schema/registry-item.json): JSON Schema for individual registry items. Defines components, hooks, themes, and other distributable code with properties for dependencies, files, Tailwind config, CSS variables, and more.
-
 
 # Base UI
 
