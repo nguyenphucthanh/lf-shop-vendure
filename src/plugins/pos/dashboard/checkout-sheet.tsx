@@ -2,7 +2,13 @@ import {
   api,
   Button,
   Checkbox,
-  Input,
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
   useLocalFormat,
 } from "@vendure/dashboard";
 import { ChevronLeftIcon, UserIcon, XIcon } from "lucide-react";
@@ -329,28 +335,31 @@ function CustomerStep({
   onSelect,
   onClearSelection,
 }: CustomerStepProps) {
-  const [term, setTerm] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const [results, setResults] = useState<Customer[]>([]);
   const [searching, setSearching] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (term.length < 2) {
+
+    if (inputValue.length < 2) {
       setResults([]);
       return;
     }
+
+    setSearching(true);
     debounceRef.current = setTimeout(() => {
-      setSearching(true);
       void api
-        .query(SEARCH_CUSTOMERS, { term })
+        .query(SEARCH_CUSTOMERS, { term: inputValue })
         .then((r) => setResults(r?.customers?.items ?? []))
         .finally(() => setSearching(false));
     }, 300);
+
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [term]);
+  }, [inputValue]);
 
   return (
     <div className="space-y-4">
@@ -379,46 +388,49 @@ function CustomerStep({
           </Button>
         </div>
       ) : (
-        <>
-          <Input
-            type="search"
-            placeholder="Search by name or email…"
-            value={term}
-            onChange={(e) => setTerm(e.target.value)}
-            className="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
-          />
-
-          {searching && (
-            <p className="text-muted-foreground text-sm">Searching…</p>
-          )}
-
-          {results.length > 0 && (
-            <ul className="border-border divide-border divide-y overflow-hidden rounded-xl border">
-              {results.map((c) => (
-                <li key={c.id}>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => onSelect(c)}
-                    className="hover:bg-muted flex w-full items-center justify-start gap-3 px-3 py-2.5 text-left transition-colors"
-                  >
-                    <div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full">
-                      <UserIcon className="text-muted-foreground h-4 w-4" />
+        <Combobox<Customer>
+          items={results}
+          inputValue={inputValue}
+          onInputValueChange={(value) => setInputValue(value ?? "")}
+          onValueChange={(customer) => {
+            if (customer) {
+              onSelect(customer);
+              setInputValue("");
+            }
+          }}
+          itemToStringValue={(item: Customer) => item.id}
+          itemToStringLabel={(item: Customer) =>
+            `${item.firstName} ${item.lastName}`
+          }
+        >
+          <ComboboxInput placeholder="Search by name or email…" />
+          <ComboboxContent>
+            <ComboboxList>
+              <ComboboxCollection>
+                {(customer: Customer) => (
+                  <ComboboxItem value={customer} key={customer.id}>
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full shrink-0">
+                        <UserIcon className="text-muted-foreground h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-foreground text-sm font-medium truncate">
+                          {customer.firstName} {customer.lastName}
+                        </p>
+                        <p className="text-muted-foreground text-xs truncate">
+                          {customer.emailAddress}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-foreground text-sm font-medium">
-                        {c.firstName} {c.lastName}
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        {c.emailAddress}
-                      </p>
-                    </div>
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
+                  </ComboboxItem>
+                )}
+              </ComboboxCollection>
+            </ComboboxList>
+            <ComboboxEmpty>
+              {searching ? "Searching…" : "No customers found."}
+            </ComboboxEmpty>
+          </ComboboxContent>
+        </Combobox>
       )}
     </div>
   );
