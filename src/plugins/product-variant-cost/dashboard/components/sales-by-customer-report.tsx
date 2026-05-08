@@ -1,7 +1,6 @@
 import {
   api,
   Button,
-  Card,
   DateRangePicker,
   Page,
   PageLayout,
@@ -266,17 +265,15 @@ export function SalesByCustomerReport() {
         <FullWidthPageBlock blockId="main">
           <div className="space-y-6 p-6">
             {/* Date filters */}
-            <Card className="p-4">
-              <div className="flex gap-4 items-end flex-wrap">
-                <DateRangePicker
-                  dateRange={dateRange}
-                  onDateRangeChange={(range) => {
-                    setDateRange(range);
-                    void runReport(range);
-                  }}
-                />
-              </div>
-            </Card>
+            <div className="flex gap-4 justify-end flex-wrap">
+              <DateRangePicker
+                dateRange={dateRange}
+                onDateRangeChange={(range) => {
+                  setDateRange(range);
+                  void runReport(range);
+                }}
+              />
+            </div>
 
             {report && (
               <>

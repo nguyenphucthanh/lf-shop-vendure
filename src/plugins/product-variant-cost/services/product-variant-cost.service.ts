@@ -338,8 +338,11 @@ export class ProductVariantCostService {
         "lines",
         "lines.productVariant",
         "lines.productVariant.translations",
+        "lines.productVariant.facetValues",
+        "lines.productVariant.facetValues.translations",
         "lines.productVariant.product",
         "lines.productVariant.product.translations",
+        "lines.productVariant.product.featuredAsset",
       ],
       order: { orderPlacedAt: "DESC" },
     });
@@ -359,6 +362,7 @@ export class ProductVariantCostService {
         totalQuantity: number;
         subtotal: number;
         currencyCode: string;
+        facetNames: Set<string>;
       }
     >();
 
@@ -394,12 +398,25 @@ export class ProductVariantCostService {
         const sku = line.productVariant.sku;
         const lineTotal = line.linePriceWithTax;
 
+        // Extract facet value names from variant
+        const facetNames = new Set<string>();
+        for (const facetValue of line.productVariant.facetValues ?? []) {
+          const facetName = getEntityName(facetValue);
+          if (facetName) {
+            facetNames.add(facetName);
+          }
+        }
+
         const key = variantId;
         const existing = byVariant.get(key);
 
         if (existing) {
           existing.totalQuantity += line.quantity;
           existing.subtotal += lineTotal;
+          // Merge facet names
+          for (const facetName of facetNames) {
+            existing.facetNames.add(facetName);
+          }
         } else {
           byVariant.set(key, {
             productId,
@@ -411,6 +428,7 @@ export class ProductVariantCostService {
             totalQuantity: line.quantity,
             subtotal: lineTotal,
             currencyCode,
+            facetNames,
           });
         }
 
@@ -419,7 +437,10 @@ export class ProductVariantCostService {
       }
     }
 
-    const rows = Array.from(byVariant.values());
+    const rows = Array.from(byVariant.values()).map((row) => ({
+      ...row,
+      facetNames: Array.from(row.facetNames).sort(),
+    }));
 
     return {
       rows,

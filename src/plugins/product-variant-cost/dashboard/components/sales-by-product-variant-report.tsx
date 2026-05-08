@@ -1,23 +1,35 @@
 import {
   api,
+  Badge,
+  Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
   DateRangePicker,
+  FullWidthPageBlock,
+  Link,
   Page,
   PageLayout,
-  Link,
-  useLocalFormat,
-  FullWidthPageBlock,
   PageTitle,
+  useLocalFormat,
 } from "@vendure/dashboard";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
-
-import { ClientDataTable, SummaryStatCard } from "~/components/dashboard";
-import { graphql } from "@/gql";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+
+import { graphql } from "@/gql";
+import { ClientDataTable, SummaryStatCard } from "~/components/dashboard";
 
 const SALES_BY_PRODUCT_VARIANT_REPORT = graphql(`
   query SalesByProductVariantReport($from: DateTime!, $to: DateTime!) {
@@ -32,12 +44,28 @@ const SALES_BY_PRODUCT_VARIANT_REPORT = graphql(`
         totalQuantity
         subtotal
         currencyCode
+        facetNames
       }
       summary {
         totalVariants
         totalQuantity
         totalRevenue
         currencyCode
+      }
+    }
+  }
+`);
+
+const GET_ALL_FACETS = graphql(`
+  query GetAllFacets {
+    facets(options: { take: 100 }) {
+      items {
+        id
+        name
+        values {
+          id
+          name
+        }
       }
     }
   }
@@ -54,6 +82,7 @@ type ReportData = {
     totalQuantity: number;
     subtotal: number;
     currencyCode: string;
+    facetNames: string[];
   }>;
   summary: {
     totalVariants: number;
@@ -82,6 +111,7 @@ type TableRowData = {
   totalQuantity: number;
   subtotal: number;
   currencyCode: string;
+  facetNames: string[];
 };
 
 export function SalesByProductVariantReport() {
@@ -92,16 +122,43 @@ export function SalesByProductVariantReport() {
   });
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<ReportData | null>(null);
+  const [selectedFacets, setSelectedFacets] = useState<string[]>([]);
+  const [availableFacets, setAvailableFacets] = useState<
+    Array<{
+      label: string;
+      value: string;
+    }>
+  >([]);
+
+  useEffect(() => {
+    const loadFacets = async () => {
+      try {
+        const result = await api.query(GET_ALL_FACETS, {});
+        if (result?.facets?.items) {
+          const facetNames = result.facets.items
+            .flatMap((facet) =>
+              facet.values.map((value) => ({
+                label: `${facet.name}: ${value.name}`,
+                value: value.name,
+              })),
+            )
+            .sort((a, b) => a.label.localeCompare(b.label));
+          setAvailableFacets(facetNames);
+        }
+      } catch {
+        console.error("Failed to load facets");
+      }
+    };
+
+    void loadFacets();
+  }, []);
 
   const dailySales = useMemo<DailySalesPoint[]>(() => {
-    // For this report, we'll show a simple breakdown by aggregating from the rows
-    // This is a simplified visualization showing revenue distribution
     if (!report || report.rows.length === 0) {
       return [];
     }
 
-    // Group top 10 products by subtotal for chart
-    const topProducts = report.rows
+    return [...report.rows]
       .sort((a, b) => b.subtotal - a.subtotal)
       .slice(0, 10)
       .map((row) => ({
@@ -111,22 +168,26 @@ export function SalesByProductVariantReport() {
         revenue: row.subtotal,
         currencyCode: row.currencyCode,
       }));
-
-    return topProducts;
   }, [report]);
 
-  const maxDailyRevenue = useMemo(() => {
-    return dailySales.reduce((max, point) => {
-      return Math.max(max, point.revenue);
-    }, 0);
-  }, [dailySales]);
+  const maxDailyRevenue = useMemo(
+    () => dailySales.reduce((max, point) => Math.max(max, point.revenue), 0),
+    [dailySales],
+  );
 
-  // Transform report rows for ClientDataTable
   const tableData = useMemo<TableRowData[]>(() => {
     if (!report) {
       return [];
     }
-    return report.rows.map((row, index) => ({
+
+    const filteredRows = report.rows.filter((row) => {
+      if (selectedFacets.length === 0) {
+        return true;
+      }
+      return selectedFacets.some((facet) => row.facetNames.includes(facet));
+    });
+
+    return filteredRows.map((row, index) => ({
       id: `${row.variantId}-${index}`,
       productId: row.productId,
       productFeaturedAssetUrl: row.productFeaturedAssetUrl,
@@ -137,12 +198,13 @@ export function SalesByProductVariantReport() {
       totalQuantity: row.totalQuantity,
       subtotal: row.subtotal,
       currencyCode: row.currencyCode,
+      facetNames: row.facetNames,
     }));
-  }, [report]);
+  }, [report, selectedFacets]);
 
   const runReport = useCallback(
     async (dateRangeToUse?: { from: Date; to: Date }) => {
-      const range = dateRangeToUse || dateRange;
+      const range = dateRangeToUse ?? dateRange;
       const fromDate = range.from;
       const toDate = new Date(range.to);
       toDate.setHours(23, 59, 59, 999);
@@ -164,7 +226,6 @@ export function SalesByProductVariantReport() {
         return;
       }
 
-      // Prevent queries for more than 1 year to avoid performance issues
       const daysDiff =
         (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24);
       if (daysDiff > 365) {
@@ -178,8 +239,10 @@ export function SalesByProductVariantReport() {
           from: fromDate.toISOString(),
           to: toDate.toISOString(),
         });
+
         if (result?.salesByProductVariantReport) {
           setReport(result.salesByProductVariantReport as ReportData);
+          setSelectedFacets([]);
         }
       } catch {
         toast.error("Failed to load report. Please try again.");
@@ -190,7 +253,6 @@ export function SalesByProductVariantReport() {
     [dateRange],
   );
 
-  // Define table columns
   const fmt = useCallback(
     (value: number, code: string) => formatCurrency(value, code),
     [formatCurrency],
@@ -209,10 +271,10 @@ export function SalesByProductVariantReport() {
             <img
               src={url}
               alt="product"
-              className="h-12 w-12 object-cover rounded"
+              className="h-12 w-12 rounded object-cover"
             />
           ) : (
-            <div className="h-12 w-12 bg-muted rounded" />
+            <div className="h-12 w-12 rounded bg-muted" />
           );
         },
       },
@@ -260,15 +322,34 @@ export function SalesByProductVariantReport() {
         accessorKey: "sku",
         header: "SKU",
         cell: (info) => (
-          <span className="font-mono text-xs">{info.getValue() as string}</span>
+          <span className="font-mono text-xs">{String(info.getValue())}</span>
         ),
         sortingFn: "alphanumeric",
+      },
+      {
+        accessorKey: "facetNames",
+        header: "Facets",
+        enableSorting: false,
+        cell: (info) => {
+          const facets = info.getValue() as string[];
+          return facets.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {facets.map((facet) => (
+                <Badge key={facet} variant="secondary" className="text-xs">
+                  {facet}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <span className="text-xs text-muted-foreground">-</span>
+          );
+        },
       },
       {
         accessorKey: "totalQuantity",
         header: "Total Qty",
         cell: (info) => (
-          <div className="text-right">{info.getValue() as number}</div>
+          <div className="text-right">{Number(info.getValue())}</div>
         ),
         sortingFn: "basic",
       },
@@ -277,7 +358,7 @@ export function SalesByProductVariantReport() {
         header: "Subtotal",
         cell: (info) => (
           <div className="text-right">
-            {fmt(info.getValue() as number, info.row.original.currencyCode)}
+            {fmt(Number(info.getValue()), info.row.original.currencyCode)}
           </div>
         ),
         sortingFn: "basic",
@@ -286,7 +367,18 @@ export function SalesByProductVariantReport() {
     [fmt],
   );
 
-  // Run on first load
+  const getBarHeightClass = useCallback((heightPercent: number) => {
+    if (heightPercent >= 96) return "h-full";
+    if (heightPercent >= 84) return "h-5/6";
+    if (heightPercent >= 72) return "h-4/5";
+    if (heightPercent >= 60) return "h-3/5";
+    if (heightPercent >= 48) return "h-1/2";
+    if (heightPercent >= 36) return "h-2/5";
+    if (heightPercent >= 24) return "h-1/4";
+    if (heightPercent >= 12) return "h-1/6";
+    return "h-1/12";
+  }, []);
+
   useEffect(() => {
     void runReport();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -297,8 +389,65 @@ export function SalesByProductVariantReport() {
       <PageLayout>
         <FullWidthPageBlock blockId="main">
           <div className="space-y-6 p-6">
-            {/* Date filters */}
-            <div className="flex gap-4 justify-end flex-wrap">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div className="space-x-2">
+                {report && availableFacets.length > 0 && (
+                  <div className="flex items-end gap-2">
+                    <Combobox
+                      items={availableFacets}
+                      multiple
+                      value={selectedFacets}
+                      onValueChange={setSelectedFacets}
+                    >
+                      <ComboboxChips className="w-full min-w-72">
+                        <ComboboxValue placeholder="Filter by facets...">
+                          {(values) => (
+                            <>
+                              {values.map((value: string) => {
+                                const option = availableFacets.find(
+                                  (facet) => facet.value === value,
+                                );
+                                return (
+                                  <ComboboxChip key={value}>
+                                    {option?.label}
+                                  </ComboboxChip>
+                                );
+                              })}
+                              <ComboboxChipsInput placeholder="Filter by facets" />
+                            </>
+                          )}
+                        </ComboboxValue>
+                      </ComboboxChips>
+                      <ComboboxContent>
+                        <ComboboxList>
+                          <ComboboxCollection>
+                            {(facet: { label: string; value: string }) => (
+                              <ComboboxItem
+                                value={facet.value}
+                                key={facet.value}
+                              >
+                                {facet.label}
+                              </ComboboxItem>
+                            )}
+                          </ComboboxCollection>
+                        </ComboboxList>
+                        <ComboboxEmpty>No facets available</ComboboxEmpty>
+                      </ComboboxContent>
+                    </Combobox>
+
+                    {selectedFacets.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedFacets([])}
+                        className="h-9"
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
               <DateRangePicker
                 dateRange={dateRange}
                 onDateRangeChange={(range) => {
@@ -310,26 +459,26 @@ export function SalesByProductVariantReport() {
 
             {report && (
               <>
-                {/* Summary cards */}
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
                   <SummaryStatCard
                     title="Total Variants"
-                    value={report.summary.totalVariants.toString()}
+                    value={tableData.length.toString()}
                   />
                   <SummaryStatCard
                     title="Total Qty"
-                    value={report.summary.totalQuantity.toString()}
+                    value={tableData
+                      .reduce((sum, row) => sum + row.totalQuantity, 0)
+                      .toString()}
                   />
                   <SummaryStatCard
                     title="Total Revenue"
                     value={fmt(
-                      report.summary.totalRevenue,
+                      tableData.reduce((sum, row) => sum + row.subtotal, 0),
                       report.summary.currencyCode,
                     )}
                   />
                 </div>
 
-                {/* Sales by product chart */}
                 <Card>
                   <CardHeader>
                     <CardTitle>Sales by Product (Top 10)</CardTitle>
@@ -346,10 +495,7 @@ export function SalesByProductVariantReport() {
                                     2,
                                   )
                                 : 2;
-
-                            const barStyle: React.CSSProperties = {
-                              height: `${height}%`,
-                            };
+                            const barHeightClass = getBarHeightClass(height);
 
                             return (
                               <div
@@ -359,11 +505,10 @@ export function SalesByProductVariantReport() {
                               >
                                 <div className="flex h-40 w-full items-end rounded-md bg-muted/40 p-1">
                                   <div
-                                    className="w-full rounded-sm bg-primary"
-                                    style={barStyle}
+                                    className={`w-full rounded-sm bg-primary ${barHeightClass}`}
                                   />
                                 </div>
-                                <span className="text-[10px] text-muted-foreground text-center leading-tight truncate w-full px-0.5">
+                                <span className="w-full truncate px-0.5 text-center text-[10px] leading-tight text-muted-foreground">
                                   {point.shortLabel}
                                 </span>
                               </div>
@@ -379,7 +524,6 @@ export function SalesByProductVariantReport() {
                   </CardContent>
                 </Card>
 
-                {/* Detail table */}
                 <ClientDataTable
                   columns={columns}
                   data={tableData}

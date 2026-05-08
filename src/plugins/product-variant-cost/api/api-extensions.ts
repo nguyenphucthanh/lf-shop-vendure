@@ -100,6 +100,7 @@ export const adminApiExtensions = gql`
     totalQuantity: Int!
     subtotal: Money!
     currencyCode: CurrencyCode!
+    facetNames: [String!]!
   }
 
   """
