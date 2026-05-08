@@ -1,21 +1,12 @@
 import {
   api,
-  Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  Field,
-  FieldContent,
-  FieldLabel,
-  Input,
+  DateRangePicker,
   Page,
   PageLayout,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Link,
   useLocalFormat,
   FullWidthPageBlock,
@@ -93,60 +84,12 @@ type TableRowData = {
   currencyCode: string;
 };
 
-function computeRange(preset: string): { from: string; to: string } {
-  const today = new Date();
-  const toStr = (d: Date) => d.toISOString().slice(0, 10);
-  const daysAgo = (n: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() - n);
-    return d;
-  };
-
-  switch (preset) {
-    case "yesterday": {
-      const y = daysAgo(1);
-      return { from: toStr(y), to: toStr(y) };
-    }
-    case "last-7":
-      return { from: toStr(daysAgo(7)), to: toStr(today) };
-    case "last-30":
-      return { from: toStr(daysAgo(30)), to: toStr(today) };
-    case "last-90":
-      return { from: toStr(daysAgo(90)), to: toStr(today) };
-    case "last-week": {
-      const d = new Date();
-      const day = d.getDay();
-      const endOfLastWeek = new Date(d);
-      endOfLastWeek.setDate(d.getDate() - day);
-      const startOfLastWeek = new Date(endOfLastWeek);
-      startOfLastWeek.setDate(endOfLastWeek.getDate() - 6);
-      return { from: toStr(startOfLastWeek), to: toStr(endOfLastWeek) };
-    }
-    case "last-month": {
-      const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      const last = new Date(today.getFullYear(), today.getMonth(), 0);
-      return { from: toStr(first), to: toStr(last) };
-    }
-    default:
-      return { from: toStr(daysAgo(30)), to: toStr(today) };
-  }
-}
-
-const PRESETS = [
-  { value: "yesterday", label: "Yesterday" },
-  { value: "last-7", label: "Last 7 days" },
-  { value: "last-30", label: "Last 30 days" },
-  { value: "last-90", label: "Last 90 days" },
-  { value: "last-week", label: "Last week" },
-  { value: "last-month", label: "Last month" },
-];
-
 export function SalesByProductVariantReport() {
   const { formatCurrency } = useLocalFormat();
-  const [preset, setPreset] = useState<string | null>("last-30");
-  const initial = computeRange("last-30");
-  const [from, setFrom] = useState(initial.from);
-  const [to, setTo] = useState(initial.to);
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: new Date(new Date().setDate(new Date().getDate() - 30)),
+    to: new Date(),
+  });
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<ReportData | null>(null);
 
@@ -196,6 +139,56 @@ export function SalesByProductVariantReport() {
       currencyCode: row.currencyCode,
     }));
   }, [report]);
+
+  const runReport = useCallback(
+    async (dateRangeToUse?: { from: Date; to: Date }) => {
+      const range = dateRangeToUse || dateRange;
+      const fromDate = range.from;
+      const toDate = new Date(range.to);
+      toDate.setHours(23, 59, 59, 999);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+
+      if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+        toast("Invalid date format");
+        return;
+      }
+
+      if (fromDate > toDate) {
+        toast("From date must be before To date");
+        return;
+      }
+
+      if (toDate > today) {
+        toast("To date cannot be in the future");
+        return;
+      }
+
+      // Prevent queries for more than 1 year to avoid performance issues
+      const daysDiff =
+        (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysDiff > 365) {
+        toast("Date range cannot exceed 365 days");
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const result = await api.query(SALES_BY_PRODUCT_VARIANT_REPORT, {
+          from: fromDate.toISOString(),
+          to: toDate.toISOString(),
+        });
+        if (result?.salesByProductVariantReport) {
+          setReport(result.salesByProductVariantReport as ReportData);
+        }
+      } catch {
+        toast.error("Failed to load report. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [dateRange],
+  );
 
   // Define table columns
   const fmt = useCallback(
@@ -293,69 +286,6 @@ export function SalesByProductVariantReport() {
     [fmt],
   );
 
-  const runReport = useCallback(
-    async (f?: string, t?: string) => {
-      const fromVal = f ?? from;
-      const toVal = t ?? to;
-
-      // Validate date range
-      const fromDate = new Date(fromVal);
-      const toDate = new Date(toVal + "T23:59:59");
-      const today = new Date();
-      today.setHours(23, 59, 59, 999);
-
-      if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-        toast("Invalid date format");
-        return;
-      }
-
-      if (fromDate > toDate) {
-        toast("From date must be before To date");
-        return;
-      }
-
-      if (toDate > today) {
-        toast("To date cannot be in the future");
-        return;
-      }
-
-      // Prevent queries for more than 1 year to avoid performance issues
-      const daysDiff =
-        (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24);
-      if (daysDiff > 365) {
-        toast("Date range cannot exceed 365 days");
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const result = await api.query(SALES_BY_PRODUCT_VARIANT_REPORT, {
-          from: fromDate.toISOString(),
-          to: toDate.toISOString(),
-        });
-        if (result?.salesByProductVariantReport) {
-          setReport(result.salesByProductVariantReport as ReportData);
-        }
-      } catch {
-        toast.error("Failed to load report. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [from, to],
-  );
-
-  function handlePresetChange(value: string | null) {
-    setPreset(value);
-    if (value === null) {
-      return;
-    }
-    const range = computeRange(value);
-    setFrom(range.from);
-    setTo(range.to);
-    void runReport(range.from, range.to);
-  }
-
   // Run on first load
   useEffect(() => {
     void runReport();
@@ -368,59 +298,15 @@ export function SalesByProductVariantReport() {
         <FullWidthPageBlock blockId="main">
           <div className="space-y-6 p-6">
             {/* Date filters */}
-            <Card className="p-4">
-              <div className="flex lg:grid grid-cols-4 gap-4 items-end flex-wrap">
-                <Field>
-                  <FieldLabel>From</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      type="date"
-                      value={from}
-                      onChange={(e) => {
-                        setFrom(e.target.value);
-                        setPreset(null);
-                      }}
-                    />
-                  </FieldContent>
-                </Field>
-                <Field>
-                  <FieldLabel>To</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      type="date"
-                      value={to}
-                      onChange={(e) => {
-                        setTo(e.target.value);
-                        setPreset(null);
-                      }}
-                    />
-                  </FieldContent>
-                </Field>
-                <Field>
-                  <FieldLabel>Preset</FieldLabel>
-                  <FieldContent>
-                    <Select value={preset} onValueChange={handlePresetChange}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Custom">
-                          {PRESETS.find((p) => p.value === preset)?.label ??
-                            "Custom"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PRESETS.map((p) => (
-                          <SelectItem key={p.value} value={p.value}>
-                            {p.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FieldContent>
-                </Field>
-                <Button onClick={() => runReport()} disabled={loading}>
-                  {loading ? "Loading…" : "Run report"}
-                </Button>
-              </div>
-            </Card>
+            <div className="flex gap-4 justify-end flex-wrap">
+              <DateRangePicker
+                dateRange={dateRange}
+                onDateRangeChange={(range) => {
+                  setDateRange(range);
+                  void runReport(range);
+                }}
+              />
+            </div>
 
             {report && (
               <>
