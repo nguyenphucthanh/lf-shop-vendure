@@ -187,6 +187,12 @@ const CREATE_DRAFT_ORDER = graphql(`
         amount
         amountWithTax
       }
+      surcharges {
+        id
+        sku
+        description
+        price
+      }
       couponCodes
       promotions {
         id
@@ -245,6 +251,12 @@ const ADD_ITEM = graphql(`
           description
           amount
           amountWithTax
+        }
+        surcharges {
+          id
+          sku
+          description
+          price
         }
         couponCodes
         promotions {
@@ -310,6 +322,12 @@ const ADJUST_LINE = graphql(`
           amount
           amountWithTax
         }
+        surcharges {
+          id
+          sku
+          description
+          price
+        }
         couponCodes
         promotions {
           id
@@ -370,6 +388,12 @@ const REMOVE_LINE = graphql(`
           description
           amount
           amountWithTax
+        }
+        surcharges {
+          id
+          sku
+          description
+          price
         }
         couponCodes
         promotions {
@@ -432,6 +456,12 @@ const APPLY_COUPON = graphql(`
           amount
           amountWithTax
         }
+        surcharges {
+          id
+          sku
+          description
+          price
+        }
         couponCodes
         promotions {
           id
@@ -493,6 +523,12 @@ const REMOVE_COUPON = graphql(`
           amount
           amountWithTax
         }
+        surcharges {
+          id
+          sku
+          description
+          price
+        }
         couponCodes
         promotions {
           id
@@ -549,6 +585,12 @@ const SET_CUSTOMER = graphql(`
           description
           amount
           amountWithTax
+        }
+        surcharges {
+          id
+          sku
+          description
+          price
         }
         couponCodes
         promotions {
@@ -682,6 +724,12 @@ const SET_SHIPPING_METHOD = graphql(`
           description
           amount
           amountWithTax
+        }
+        surcharges {
+          id
+          sku
+          description
+          price
         }
         couponCodes
         promotions {
