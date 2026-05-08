@@ -21,6 +21,12 @@ const GET_DRAFT_ORDER = graphql(`
         amount
         amountWithTax
       }
+      surcharges {
+        id
+        sku
+        description
+        price
+      }
       couponCodes
       promotions {
         id
@@ -82,6 +88,12 @@ const GET_LATEST_DRAFT_ORDER = graphql(`
           description
           amount
           amountWithTax
+        }
+        surcharges {
+          id
+          sku
+          description
+          price
         }
         couponCodes
         promotions {
@@ -582,6 +594,75 @@ const SET_CUSTOMER = graphql(`
   }
 `);
 
+const SET_MANUAL_DISCOUNT = graphql(`
+  mutation PosSetManualDiscount(
+    $orderId: ID!
+    $amount: Money!
+    $description: String
+  ) {
+    setPosManualDiscount(
+      orderId: $orderId
+      amount: $amount
+      description: $description
+    ) {
+      id
+      code
+      state
+      currencyCode
+      totalWithTax
+      subTotalWithTax
+      discounts {
+        adjustmentSource
+        type
+        description
+        amount
+        amountWithTax
+      }
+      surcharges {
+        id
+        sku
+        description
+        price
+      }
+      couponCodes
+      promotions {
+        id
+        name
+      }
+      lines {
+        id
+        quantity
+        unitPriceWithTax
+        linePriceWithTax
+        discountedLinePriceWithTax
+        discounts {
+          adjustmentSource
+          type
+          description
+          amount
+          amountWithTax
+        }
+        productVariant {
+          id
+          name
+          sku
+          priceWithTax
+          product {
+            id
+            name
+            featuredAsset {
+              preview
+            }
+          }
+          featuredAsset {
+            preview
+          }
+        }
+      }
+    }
+  }
+`);
+
 const SET_SHIPPING_METHOD = graphql(`
   mutation PosSetShippingMethod($orderId: ID!, $shippingMethodId: ID!) {
     setDraftOrderShippingMethod(
@@ -780,6 +861,12 @@ export interface PosOrder {
   totalWithTax: number;
   subTotalWithTax: number;
   discounts: PosDiscount[];
+  surcharges?: Array<{
+    id: string;
+    sku: string | null;
+    description: string;
+    price: unknown;
+  }>;
   couponCodes: string[];
   promotions: Array<{ id: string; name: string }>;
   lines: PosOrderLine[];
@@ -858,8 +945,11 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
   }, [setCurrentOrder]);
 
   const applyOrderResult = useCallback(
-    (result: Record<string, unknown> | null | undefined, key: string) => {
-      const data = result?.[key];
+    (result: unknown, key: string) => {
+      if (!result || typeof result !== "object") {
+        return;
+      }
+      const data = (result as Record<string, unknown>)[key];
       if (!data) return;
       if (
         typeof data === "object" &&
@@ -877,11 +967,11 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
   );
 
   const extractMutationError = useCallback(
-    (
-      result: Record<string, unknown> | null | undefined,
-      key: string,
-    ): string | null => {
-      const data = result?.[key];
+    (result: unknown, key: string): string | null => {
+      if (!result || typeof result !== "object") {
+        return null;
+      }
+      const data = (result as Record<string, unknown>)[key];
       if (!data || typeof data !== "object") {
         return null;
       }
@@ -1121,6 +1211,31 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
       });
     },
     [applyOrderResult, order, run],
+  );
+
+  const setManualDiscount = useCallback(
+    async (amount: number, description?: string): Promise<boolean> => {
+      if (!order?.id) return false;
+      const result = await run(async () => {
+        const mutationResult = await api.mutate(SET_MANUAL_DISCOUNT, {
+          orderId: order.id,
+          amount,
+          description,
+        });
+        const error = extractMutationError(
+          mutationResult,
+          "setPosManualDiscount",
+        );
+        if (error) {
+          setError(error);
+          return false;
+        }
+        applyOrderResult(mutationResult, "setPosManualDiscount");
+        return true;
+      });
+      return result === true;
+    },
+    [applyOrderResult, extractMutationError, order, run, setError],
   );
 
   const setCustomer = useCallback(
@@ -1376,6 +1491,7 @@ export function usePosOrder(options: UsePosOrderOptions = {}) {
     removeLine,
     applyCoupon,
     removeCoupon,
+    setManualDiscount,
     setCustomer,
     completeOrder,
     resetOrder,

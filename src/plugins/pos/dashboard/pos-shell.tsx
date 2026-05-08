@@ -26,6 +26,7 @@ export function PosShell({ requestedOrderId }: PosShellProps) {
     removeLine,
     applyCoupon,
     removeCoupon,
+    setManualDiscount,
     setCustomer,
     completeOrder,
     resetOrder,
@@ -125,6 +126,7 @@ export function PosShell({ requestedOrderId }: PosShellProps) {
             onRemoveLine={removeLine}
             onApplyCoupon={applyCoupon}
             onRemoveCoupon={removeCoupon}
+            onSetManualDiscount={setManualDiscount}
             onCheckout={() => setCheckoutOpen(true)}
             onClearError={clearError}
           />
@@ -178,6 +180,7 @@ export function PosShell({ requestedOrderId }: PosShellProps) {
                 onRemoveLine={removeLine}
                 onApplyCoupon={applyCoupon}
                 onRemoveCoupon={removeCoupon}
+                onSetManualDiscount={setManualDiscount}
                 onCheckout={() => {
                   setMobileCartOpen(false);
                   setCheckoutOpen(true);

@@ -28,6 +28,7 @@ interface Props {
   onRemoveLine: (lineId: string) => void;
   onApplyCoupon: (code: string) => Promise<void> | void;
   onRemoveCoupon: (code: string) => Promise<void> | void;
+  onSetManualDiscount: (amount: number) => Promise<boolean> | boolean;
   onCheckout: () => void;
   onClearError: () => void;
 }
@@ -42,6 +43,7 @@ export function CartPanel({
   onRemoveLine,
   onApplyCoupon,
   onRemoveCoupon,
+  onSetManualDiscount,
   onCheckout,
   onClearError,
 }: Props) {
@@ -51,6 +53,10 @@ export function CartPanel({
   const [promotionFilter, setPromotionFilter] = useState("");
   const [linePromotionDrawerOpen, setLinePromotionDrawerOpen] = useState(false);
   const [linePromotionFilter, setLinePromotionFilter] = useState("");
+  const [manualDiscountInput, setManualDiscountInput] = useState("");
+  const [manualDiscountError, setManualDiscountError] = useState<string | null>(
+    null,
+  );
   const [activeDiscountLine, setActiveDiscountLine] =
     useState<PosOrderLine | null>(null);
   const currencyCode = order?.currencyCode ?? "USD";
@@ -59,6 +65,11 @@ export function CartPanel({
   const appliedCouponSet = useMemo(
     () => new Set(order?.couponCodes ?? []),
     [order?.couponCodes],
+  );
+
+  const manualDiscountSurcharge = useMemo(
+    () => order?.surcharges?.find((s) => s.sku === "pos-manual-discount"),
+    [order?.surcharges],
   );
 
   const isEmpty = useMemo(() => lines.length === 0, [lines]);
@@ -142,6 +153,35 @@ export function CartPanel({
     }
   }
 
+  async function handleApplyManualDiscount() {
+    if (loading) {
+      return;
+    }
+
+    const parsedAmount = parseMoneyInputToMinorUnits(manualDiscountInput);
+    if (parsedAmount == null) {
+      setManualDiscountError("Enter a valid amount (for example 10 or 10.50)");
+      return;
+    }
+
+    setManualDiscountError(null);
+    const applied = await onSetManualDiscount(parsedAmount);
+    if (applied) {
+      setManualDiscountInput("");
+    } else if (error) {
+      setManualDiscountError(error);
+    }
+  }
+
+  async function handleClearManualDiscount() {
+    if (loading) {
+      return;
+    }
+    setManualDiscountError(null);
+    setManualDiscountInput("");
+    await onSetManualDiscount(0);
+  }
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -207,6 +247,49 @@ export function CartPanel({
             Add promo
           </Button>
 
+          <div className="space-y-2">
+            <label className="text-muted-foreground block text-xs font-medium">
+              Custom amount discount
+            </label>
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                inputMode="decimal"
+                placeholder="e.g. 10.50"
+                value={manualDiscountInput}
+                onChange={(event) => {
+                  setManualDiscountInput(event.target.value);
+                  if (manualDiscountError) {
+                    setManualDiscountError(null);
+                  }
+                }}
+                className="h-8"
+              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void handleApplyManualDiscount()}
+                disabled={loading}
+                className="h-8"
+              >
+                Apply
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => void handleClearManualDiscount()}
+                disabled={loading}
+                className="h-8"
+              >
+                Clear
+              </Button>
+            </div>
+            {manualDiscountError ? (
+              <p className="text-destructive text-xs">{manualDiscountError}</p>
+            ) : null}
+          </div>
+
           {/* Applied coupons */}
           {order.couponCodes.map((code) => (
             <div
@@ -219,7 +302,7 @@ export function CartPanel({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => onRemoveCoupon(code)}
+                onClick={() => void onRemoveCoupon(code)}
                 aria-label={`Remove coupon ${code}`}
                 className="h-6 w-6 p-0 opacity-70 hover:opacity-100"
               >
@@ -228,8 +311,21 @@ export function CartPanel({
             </div>
           ))}
 
+          {/* Applied manual discount */}
+          {manualDiscountSurcharge && (
+            <div className="bg-amber-50 text-amber-900 flex items-center gap-2 rounded-md px-3 py-1.5 text-sm border border-amber-200">
+              <TagIcon className="h-3.5 w-3.5 shrink-0" />
+              <span className="flex-1 font-medium">
+                {manualDiscountSurcharge.description}
+              </span>
+              <span className="font-semibold">
+                {formatMoney(Math.abs(+(manualDiscountSurcharge.price ?? 0)))}
+              </span>
+            </div>
+          )}
+
           {/* Applied promotions */}
-          {order.promotions.map((p) => (
+          {/* {order.promotions.map((p) => (
             <div
               key={p.id}
               className="text-muted-foreground flex items-center gap-2 text-xs"
@@ -237,7 +333,7 @@ export function CartPanel({
               <TagIcon className="h-3 w-3 shrink-0" />
               {p.name}
             </div>
-          ))}
+          ))} */}
 
           {/* Totals */}
           <div className="space-y-1 text-sm">
@@ -446,6 +542,20 @@ function matchesIdToken(rawValue: string, id: string): boolean {
     .filter(Boolean);
 
   return tokens.includes(id);
+}
+
+function parseMoneyInputToMinorUnits(value: string): number | null {
+  const normalized = value.trim().replace(/,/g, "");
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return null;
+  }
+
+  return Math.round(parsed * 100);
 }
 
 // ─── Cart Line Item ───────────────────────────────────────────────────────────
