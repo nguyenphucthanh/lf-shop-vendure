@@ -13,7 +13,7 @@ export interface SummaryStatCardProps {
   value: ReactNode;
   description?: ReactNode;
   footer?: ReactNode;
-  size?: "sm" | "md" | "lg";
+  size?: "default" | "sm";
 }
 
 export function SummaryStatCard({
@@ -33,7 +33,7 @@ export function SummaryStatCard({
         {icon}
       </CardHeader>
       <CardContent>
-        <p className="text-2xl font-semibold">{value}</p>
+        <p className="text-2xl font-semibold text-right">{value}</p>
         {description ? (
           <p className="text-xs text-muted-foreground mt-1">{description}</p>
         ) : null}

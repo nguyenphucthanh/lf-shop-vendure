@@ -610,11 +610,7 @@ export function SalesMarginReport() {
             {report && (
               <>
                 {/* Summary cards */}
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-                  <SummaryStatCard
-                    title="Orders"
-                    value={report.summary.orderCount.toLocaleString()}
-                  />
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                   <SummaryStatCard
                     title="Revenue"
                     value={fmt(
