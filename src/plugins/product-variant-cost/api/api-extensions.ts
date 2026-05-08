@@ -120,6 +120,42 @@ export const adminApiExtensions = gql`
     summary: SalesByProductVariantSummary!
   }
 
+  """
+  A row in the sales by customer report showing aggregated sales data per customer within a date range.
+  """
+  type SalesByCustomerRow {
+    customerId: ID!
+    customerName: String!
+    customerEmail: String!
+    totalOrders: Int!
+    totalValue: Money!
+    currencyCode: CurrencyCode!
+  }
+
+  """
+  Summary of a customer's orders, including all-time statistics and latest orders.
+  """
+  type OrderSummary {
+    id: ID!
+    code: String!
+    orderDate: DateTime!
+    total: Money!
+    currencyCode: CurrencyCode!
+  }
+
+  """
+  Detailed customer sales information including overall statistics and recent orders.
+  """
+  type CustomerSalesDetail {
+    customerId: ID!
+    customerName: String!
+    customerEmail: String!
+    totalOrdersOverall: Int!
+    totalValueOverall: Money!
+    latestOrders: [OrderSummary!]!
+    currencyCode: CurrencyCode!
+  }
+
   extend type Query {
     """
     Get all product variant costs for a variant.
@@ -143,6 +179,23 @@ export const adminApiExtensions = gql`
       from: DateTime!
       to: DateTime!
     ): SalesByProductVariantReport!
+    """
+    Get sales by customer report for a date range.
+    Aggregates order count and total value by customer within the date range.
+    Requires ReadOrder permission.
+    Date range is limited to 365 days maximum for performance.
+    """
+    salesByCustomerReport(
+      from: DateTime!
+      to: DateTime!
+    ): [SalesByCustomerRow!]!
+    """
+    Get detailed sales information for a specific customer.
+    Returns all-time statistics and the 3 most recent orders.
+    Does not filter by date range.
+    Requires ReadOrder permission.
+    """
+    customerSalesDetail(customerId: ID!): CustomerSalesDetail!
   }
 
   extend type Mutation {

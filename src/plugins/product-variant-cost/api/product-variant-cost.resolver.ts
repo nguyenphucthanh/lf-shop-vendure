@@ -75,4 +75,27 @@ export class ProductVariantCostAdminResolver {
       new Date(to),
     );
   }
+
+  @Query()
+  @Allow(Permission.ReadOrder)
+  async salesByCustomerReport(
+    @Ctx() ctx: RequestContext,
+    @Args("from") from: string,
+    @Args("to") to: string,
+  ) {
+    return this.costService.getSalesByCustomerReport(
+      ctx,
+      new Date(from),
+      new Date(to),
+    );
+  }
+
+  @Query()
+  @Allow(Permission.ReadOrder)
+  async customerSalesDetail(
+    @Ctx() ctx: RequestContext,
+    @Args("customerId") customerId: string,
+  ) {
+    return this.costService.getCustomerSalesDetail(ctx, customerId);
+  }
 }

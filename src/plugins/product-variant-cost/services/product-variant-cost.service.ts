@@ -431,4 +431,123 @@ export class ProductVariantCostService {
       },
     };
   }
+
+  async getSalesByCustomerReport(ctx: RequestContext, from: Date, to: Date) {
+    if (!ctx.channel?.defaultCurrencyCode) {
+      throw new BadRequestException("Channel currency not configured");
+    }
+
+    const orders = await this.connection.getRepository(ctx, Order).find({
+      where: {
+        orderPlacedAt: Between(from, to),
+      },
+      relations: ["customer", "lines"],
+      order: { orderPlacedAt: "DESC" },
+    });
+
+    const currencyCode = ctx.channel.defaultCurrencyCode;
+
+    // Aggregate by customer
+    const byCustomer = new Map<
+      string,
+      {
+        customerId: string;
+        customerName: string;
+        customerEmail: string;
+        totalOrders: number;
+        totalValue: number;
+        currencyCode: string;
+      }
+    >();
+
+    for (const order of orders) {
+      if (!order.customer) {
+        continue;
+      }
+
+      const customerId = String(order.customer.id);
+      const customerName =
+        `${order.customer.firstName} ${order.customer.lastName}`.trim() ||
+        "Unknown customer";
+      const customerEmail = order.customer.emailAddress || "";
+      const orderTotal = order.totalWithTax;
+
+      const key = customerId;
+      const existing = byCustomer.get(key);
+
+      if (existing) {
+        existing.totalOrders += 1;
+        existing.totalValue += orderTotal;
+      } else {
+        byCustomer.set(key, {
+          customerId,
+          customerName,
+          customerEmail,
+          totalOrders: 1,
+          totalValue: orderTotal,
+          currencyCode,
+        });
+      }
+    }
+
+    const rows = Array.from(byCustomer.values()).sort(
+      (a, b) => b.totalValue - a.totalValue,
+    );
+
+    return rows;
+  }
+
+  async getCustomerSalesDetail(ctx: RequestContext, customerId: ID) {
+    if (!ctx.channel?.defaultCurrencyCode) {
+      throw new BadRequestException("Channel currency not configured");
+    }
+
+    const orders = await this.connection.getRepository(ctx, Order).find({
+      where: {
+        customerId,
+      },
+      relations: ["customer"],
+      order: { orderPlacedAt: "DESC" },
+    });
+
+    if (orders.length === 0) {
+      throw new BadRequestException(`Customer ${customerId} not found`);
+    }
+
+    const customer = orders[0]?.customer;
+    if (!customer) {
+      throw new BadRequestException(`Customer ${customerId} not found`);
+    }
+
+    const currencyCode = ctx.channel.defaultCurrencyCode;
+    let totalOrdersOverall = 0;
+    let totalValueOverall = 0;
+
+    for (const order of orders) {
+      totalOrdersOverall += 1;
+      totalValueOverall += order.totalWithTax;
+    }
+
+    // Get latest 3 orders
+    const latestOrders = orders.slice(0, 3).map((order) => ({
+      id: String(order.id),
+      code: order.code,
+      orderDate: order.orderPlacedAt ?? order.createdAt,
+      total: order.totalWithTax,
+      currencyCode,
+    }));
+
+    const customerName =
+      `${customer.firstName} ${customer.lastName}`.trim() || "Unknown customer";
+
+    return {
+      customerId: String(customer.id),
+      customerName,
+      customerEmail: customer.emailAddress || "",
+      totalOrdersOverall,
+      totalValueOverall,
+      latestOrders,
+      currencyCode,
+    };
+  }
 }

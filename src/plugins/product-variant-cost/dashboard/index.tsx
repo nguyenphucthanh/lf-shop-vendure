@@ -3,6 +3,7 @@ import { BarChartIcon } from "lucide-react";
 
 import { SalesMarginReport } from "./components/sales-margin-report";
 import { SalesByProductVariantReport } from "./components/sales-by-product-variant-report";
+import { SalesByCustomerReport } from "./components/sales-by-customer-report";
 import { VariantCostBlock } from "./components/variant-cost-block";
 
 defineDashboardExtension({
@@ -32,6 +33,15 @@ defineDashboardExtension({
         sectionId: "reports",
         id: "sales-by-product-variant",
         title: "Sales by Product Variant",
+      },
+    },
+    {
+      path: "/sales-by-customer",
+      component: () => <SalesByCustomerReport />,
+      navMenuItem: {
+        sectionId: "reports",
+        id: "sales-by-customer",
+        title: "Sales by Customer",
       },
     },
   ],
