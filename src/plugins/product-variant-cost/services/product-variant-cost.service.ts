@@ -54,6 +54,39 @@ function getNonEmptyString(
   return undefined;
 }
 
+function getEntityName(entity: unknown): string | undefined {
+  if (entity == null || typeof entity !== "object") {
+    return undefined;
+  }
+
+  const maybeName = (entity as { name?: unknown }).name;
+  if (typeof maybeName === "string") {
+    const trimmed = maybeName.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+
+  const maybeTranslations = (entity as { translations?: unknown }).translations;
+  if (!Array.isArray(maybeTranslations)) {
+    return undefined;
+  }
+
+  for (const translation of maybeTranslations) {
+    if (translation != null && typeof translation === "object") {
+      const translatedName = (translation as { name?: unknown }).name;
+      if (typeof translatedName === "string") {
+        const trimmed = translatedName.trim();
+        if (trimmed.length > 0) {
+          return trimmed;
+        }
+      }
+    }
+  }
+
+  return undefined;
+}
+
 @Injectable()
 export class ProductVariantCostService {
   constructor(private connection: TransactionalConnection) {}
@@ -189,7 +222,9 @@ export class ProductVariantCostService {
       relations: [
         "lines",
         "lines.productVariant",
+        "lines.productVariant.translations",
         "lines.productVariant.product",
+        "lines.productVariant.product.translations",
       ],
       order: { orderPlacedAt: "DESC" },
     });
@@ -236,15 +271,15 @@ export class ProductVariantCostService {
         const unitCost = costSnapshot;
         const lineCost = unitCost * line.quantity;
         const margin = lineTotal - lineCost;
+        const resolvedVariantName = getEntityName(line.productVariant);
+        const resolvedProductName = getEntityName(line.productVariant.product);
         const variantName =
-          getNonEmptyString(
-            line.productVariant.name,
-            line.productVariant.sku,
-          ) ?? "Unknown variant";
+          getNonEmptyString(resolvedVariantName, line.productVariant.sku) ??
+          "Unknown variant";
         const productName =
           getNonEmptyString(
-            line.productVariant.product?.name,
-            variantName,
+            resolvedProductName,
+            resolvedVariantName,
             line.productVariant.sku,
           ) ?? "Unknown product";
 
@@ -281,6 +316,108 @@ export class ProductVariantCostService {
         totalMargin,
         marginPercent: Math.round(marginPercent * 100) / 100,
         orderCount: orderCodes.size,
+        currencyCode,
+      },
+    };
+  }
+
+  async getSalesByProductVariantReport(
+    ctx: RequestContext,
+    from: Date,
+    to: Date,
+  ) {
+    if (!ctx.channel?.defaultCurrencyCode) {
+      throw new BadRequestException("Channel currency not configured");
+    }
+
+    const orders = await this.connection.getRepository(ctx, Order).find({
+      where: {
+        orderPlacedAt: Between(from, to),
+      },
+      relations: [
+        "lines",
+        "lines.productVariant",
+        "lines.productVariant.translations",
+        "lines.productVariant.product",
+        "lines.productVariant.product.translations",
+      ],
+      order: { orderPlacedAt: "DESC" },
+    });
+
+    const currencyCode = ctx.channel.defaultCurrencyCode;
+
+    // Aggregate by variant
+    const byVariant = new Map<
+      string,
+      {
+        variantId: string;
+        productName: string;
+        variantName: string;
+        sku: string;
+        totalQuantity: number;
+        subtotal: number;
+        currencyCode: string;
+      }
+    >();
+
+    let totalQuantity = 0;
+    let totalRevenue = 0;
+
+    for (const order of orders) {
+      for (const line of order.lines) {
+        // Validate required relations are loaded
+        if (!line.productVariant) {
+          throw new Error(
+            `OrderLine ${line.id} missing productVariant relation`,
+          );
+        }
+
+        const variantId = String(line.productVariant.id);
+        const resolvedVariantName = getEntityName(line.productVariant);
+        const resolvedProductName = getEntityName(line.productVariant.product);
+        const variantName =
+          getNonEmptyString(resolvedVariantName, line.productVariant.sku) ??
+          "Unknown variant";
+        const productName =
+          getNonEmptyString(
+            resolvedProductName,
+            resolvedVariantName,
+            line.productVariant.sku,
+          ) ?? "Unknown product";
+        const sku = line.productVariant.sku;
+        const lineTotal = line.linePriceWithTax;
+
+        const key = variantId;
+        const existing = byVariant.get(key);
+
+        if (existing) {
+          existing.totalQuantity += line.quantity;
+          existing.subtotal += lineTotal;
+        } else {
+          byVariant.set(key, {
+            variantId,
+            productName,
+            variantName,
+            sku,
+            totalQuantity: line.quantity,
+            subtotal: lineTotal,
+            currencyCode,
+          });
+        }
+
+        totalQuantity += line.quantity;
+        totalRevenue += lineTotal;
+      }
+    }
+
+    const rows = Array.from(byVariant.values());
+
+    return {
+      rows,
+      summary: {
+        totalVariants: rows.length,
+        totalQuantity,
+        totalRevenue,
         currencyCode,
       },
     };

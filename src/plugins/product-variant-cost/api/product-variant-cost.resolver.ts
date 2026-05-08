@@ -61,4 +61,18 @@ export class ProductVariantCostAdminResolver {
       new Date(to),
     );
   }
+
+  @Query()
+  @Allow(Permission.ReadOrder)
+  async salesByProductVariantReport(
+    @Ctx() ctx: RequestContext,
+    @Args("from") from: string,
+    @Args("to") to: string,
+  ) {
+    return this.costService.getSalesByProductVariantReport(
+      ctx,
+      new Date(from),
+      new Date(to),
+    );
+  }
 }

@@ -87,6 +87,37 @@ export const adminApiExtensions = gql`
     summary: SalesMarginSummary!
   }
 
+  """
+  A row in the sales by product variant report showing aggregated sales data per variant.
+  """
+  type SalesByProductVariantRow {
+    variantId: ID!
+    productName: String!
+    variantName: String!
+    sku: String!
+    totalQuantity: Int!
+    subtotal: Money!
+    currencyCode: CurrencyCode!
+  }
+
+  """
+  Summary statistics for a sales by product variant report.
+  """
+  type SalesByProductVariantSummary {
+    totalVariants: Int!
+    totalQuantity: Int!
+    totalRevenue: Money!
+    currencyCode: CurrencyCode!
+  }
+
+  """
+  Complete sales by product variant report with detail rows and summary statistics.
+  """
+  type SalesByProductVariantReport {
+    rows: [SalesByProductVariantRow!]!
+    summary: SalesByProductVariantSummary!
+  }
+
   extend type Query {
     """
     Get all product variant costs for a variant.
@@ -100,6 +131,16 @@ export const adminApiExtensions = gql`
     Date range is limited to 365 days maximum for performance.
     """
     salesMarginReport(from: DateTime!, to: DateTime!): SalesMarginReport!
+    """
+    Get sales by product variant report for a date range.
+    Aggregates sales quantity and revenue by product variant.
+    Requires ReadOrder permission.
+    Date range is limited to 365 days maximum for performance.
+    """
+    salesByProductVariantReport(
+      from: DateTime!
+      to: DateTime!
+    ): SalesByProductVariantReport!
   }
 
   extend type Mutation {

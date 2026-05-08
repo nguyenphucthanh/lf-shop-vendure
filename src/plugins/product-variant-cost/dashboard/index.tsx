@@ -2,6 +2,7 @@ import { defineDashboardExtension } from "@vendure/dashboard";
 import { BarChartIcon } from "lucide-react";
 
 import { SalesMarginReport } from "./components/sales-margin-report";
+import { SalesByProductVariantReport } from "./components/sales-by-product-variant-report";
 import { VariantCostBlock } from "./components/variant-cost-block";
 
 defineDashboardExtension({
@@ -22,6 +23,15 @@ defineDashboardExtension({
         sectionId: "reports",
         id: "sales-margin",
         title: "Sales Margin",
+      },
+    },
+    {
+      path: "/sales-by-product-variant",
+      component: () => <SalesByProductVariantReport />,
+      navMenuItem: {
+        sectionId: "reports",
+        id: "sales-by-product-variant",
+        title: "Sales by Product Variant",
       },
     },
   ],
