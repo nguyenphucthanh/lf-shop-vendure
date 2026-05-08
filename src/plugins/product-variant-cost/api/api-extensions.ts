@@ -91,6 +91,8 @@ export const adminApiExtensions = gql`
   A row in the sales by product variant report showing aggregated sales data per variant.
   """
   type SalesByProductVariantRow {
+    productId: ID
+    productFeaturedAssetUrl: String
     variantId: ID!
     productName: String!
     variantName: String!

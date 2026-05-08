@@ -350,6 +350,8 @@ export class ProductVariantCostService {
     const byVariant = new Map<
       string,
       {
+        productId: string | null;
+        productFeaturedAssetUrl: string | null;
         variantId: string;
         productName: string;
         variantName: string;
@@ -373,6 +375,11 @@ export class ProductVariantCostService {
         }
 
         const variantId = String(line.productVariant.id);
+        const productId = line.productVariant.product
+          ? String(line.productVariant.product.id)
+          : null;
+        const productFeaturedAssetUrl =
+          line.productVariant.product?.featuredAsset?.preview ?? null;
         const resolvedVariantName = getEntityName(line.productVariant);
         const resolvedProductName = getEntityName(line.productVariant.product);
         const variantName =
@@ -395,6 +402,8 @@ export class ProductVariantCostService {
           existing.subtotal += lineTotal;
         } else {
           byVariant.set(key, {
+            productId,
+            productFeaturedAssetUrl,
             variantId,
             productName,
             variantName,

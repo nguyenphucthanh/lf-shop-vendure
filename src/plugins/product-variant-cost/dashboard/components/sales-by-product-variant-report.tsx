@@ -16,6 +16,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Link,
   useLocalFormat,
   FullWidthPageBlock,
   PageTitle,
@@ -31,6 +32,8 @@ const SALES_BY_PRODUCT_VARIANT_REPORT = graphql(`
   query SalesByProductVariantReport($from: DateTime!, $to: DateTime!) {
     salesByProductVariantReport(from: $from, to: $to) {
       rows {
+        productId
+        productFeaturedAssetUrl
         variantId
         productName
         variantName
@@ -51,6 +54,8 @@ const SALES_BY_PRODUCT_VARIANT_REPORT = graphql(`
 
 type ReportData = {
   rows: Array<{
+    productId?: string | null;
+    productFeaturedAssetUrl?: string | null;
     variantId: string;
     productName: string;
     variantName: string;
@@ -77,6 +82,8 @@ type DailySalesPoint = {
 
 type TableRowData = {
   id: string;
+  productId?: string | null;
+  productFeaturedAssetUrl?: string | null;
   variantId: string;
   productName: string;
   variantName: string;
@@ -178,6 +185,8 @@ export function SalesByProductVariantReport() {
     }
     return report.rows.map((row, index) => ({
       id: `${row.variantId}-${index}`,
+      productId: row.productId,
+      productFeaturedAssetUrl: row.productFeaturedAssetUrl,
       variantId: row.variantId,
       productName: row.productName,
       variantName: row.variantName,
@@ -197,13 +206,61 @@ export function SalesByProductVariantReport() {
   const columns = useMemo<ColumnDef<TableRowData>[]>(
     () => [
       {
+        id: "productImage",
+        header: "",
+        enableSorting: false,
+        size: 60,
+        cell: (info) => {
+          const url = info.row.original.productFeaturedAssetUrl;
+          return url ? (
+            <img
+              src={url}
+              alt="product"
+              className="h-12 w-12 object-cover rounded"
+            />
+          ) : (
+            <div className="h-12 w-12 bg-muted rounded" />
+          );
+        },
+      },
+      {
         accessorKey: "productName",
         header: "Product",
+        cell: (info) => {
+          const { productId, productName } = info.row.original;
+          if (!productId) {
+            return productName;
+          }
+
+          return (
+            <Link
+              to={`/products/${productId}`}
+              className="text-primary hover:underline"
+            >
+              {productName}
+            </Link>
+          );
+        },
         sortingFn: "alphanumeric",
       },
       {
         accessorKey: "variantName",
         header: "Variant",
+        cell: (info) => {
+          const { productId, variantId, variantName } = info.row.original;
+          if (!productId) {
+            return variantName;
+          }
+
+          return (
+            <Link
+              to={`/product-variants/${variantId}`}
+              className="text-primary hover:underline"
+            >
+              {variantName}
+            </Link>
+          );
+        },
         sortingFn: "alphanumeric",
       },
       {
