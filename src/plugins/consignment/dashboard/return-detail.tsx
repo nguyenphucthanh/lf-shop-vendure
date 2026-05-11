@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { graphql } from "@/gql";
 
 import {
+  ConsignmentHistoryPanel,
   getApiErrorMessage,
   LineItemsEditor,
   SimplePage,
@@ -241,6 +242,9 @@ export function ReturnDetailPage({ route }: { route: AnyRoute }) {
         calculateMaxQty="in-return"
         initialDocumentQtyByQuotation={initialReturnQtyByQuotation}
       />
+      {!isNew ? (
+        <ConsignmentHistoryPanel objectType="RETURN" objectId={params.id} />
+      ) : null}
     </SimplePage>
   );
 }

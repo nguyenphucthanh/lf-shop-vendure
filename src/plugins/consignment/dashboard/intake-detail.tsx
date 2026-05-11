@@ -15,6 +15,7 @@ import { Printer } from "lucide-react";
 
 import { graphql } from "@/gql";
 import {
+  ConsignmentHistoryPanel,
   getApiErrorMessage,
   LineItemsEditor,
   SimplePage,
@@ -333,6 +334,9 @@ export function IntakeDetailPage({ route }: { route: AnyRoute }) {
         </div>
       </Card>
       <LineItemsEditor storeId={storeId} value={items} onChange={setItems} />
+      {!isNew ? (
+        <ConsignmentHistoryPanel objectType="INTAKE" objectId={params.id} />
+      ) : null}
     </SimplePage>
   );
 }

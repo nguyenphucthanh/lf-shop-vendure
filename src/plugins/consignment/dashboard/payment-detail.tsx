@@ -24,6 +24,7 @@ import { useEffect, useState } from "react";
 import { graphql } from "@/gql";
 
 import {
+  ConsignmentHistoryPanel,
   formatMinorCurrency,
   getApiErrorMessage,
   openPrintWindow,
@@ -500,6 +501,10 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
           ) : null}
         </div>
       </Card>
+
+      {!isNew ? (
+        <ConsignmentHistoryPanel objectType="PAYMENT" objectId={params.id} />
+      ) : null}
     </SimplePage>
   );
 }

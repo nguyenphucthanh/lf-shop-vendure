@@ -18,6 +18,7 @@ import { graphql } from "@/gql";
 import { ProductVariantSearchSelect } from "./shared-ui";
 
 import {
+  ConsignmentHistoryPanel,
   EmptyState,
   getApiErrorMessage,
   SimplePage,
@@ -249,6 +250,9 @@ export function QuotationDetailPage({ route }: { route: AnyRoute }) {
           </Field>
         </div>
       </Card>
+      {!isNew ? (
+        <ConsignmentHistoryPanel objectType="QUOTATION" objectId={params.id} />
+      ) : null}
       {!storeId ? <EmptyState title="Select a store first" /> : null}
     </SimplePage>
   );

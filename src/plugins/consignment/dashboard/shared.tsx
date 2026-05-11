@@ -26,6 +26,7 @@ import {
   PageActionBar,
   PageLayout,
   PageTitle,
+  Textarea,
   useLocalFormat,
 } from "@vendure/dashboard";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -211,6 +212,49 @@ export type LineItemDraft = {
   consignmentPriceSnapshot: number;
   currency: string;
 };
+
+export type ConsignmentHistoryObjectType =
+  | "QUOTATION"
+  | "INTAKE"
+  | "RETURN"
+  | "SOLD"
+  | "PAYMENT";
+
+export const GET_CONSIGNMENT_HISTORY = graphql(`
+  query ConsignmentHistoryPanel(
+    $objectType: ConsignmentHistoryObjectType!
+    $objectId: ID!
+  ) {
+    consignmentHistory(objectType: $objectType, objectId: $objectId) {
+      id
+      createdAt
+      type
+      actorIdentifier
+      note
+      changes {
+        field
+        before
+        after
+      }
+    }
+  }
+`);
+
+export const ADD_CONSIGNMENT_HISTORY_NOTE = graphql(`
+  mutation AddConsignmentHistoryNote(
+    $objectType: ConsignmentHistoryObjectType!
+    $objectId: ID!
+    $note: String!
+  ) {
+    addConsignmentHistoryNote(
+      objectType: $objectType
+      objectId: $objectId
+      note: $note
+    ) {
+      id
+    }
+  }
+`);
 
 export function isoDate(value?: string | Date | null) {
   if (!value) return "";
@@ -410,6 +454,209 @@ export function EmptyState(props: {
         {props.action ? <EmptyContent>{props.action}</EmptyContent> : null}
       </EmptyHeader>
     </Empty>
+  );
+}
+
+function formatHistoryValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    value instanceof Date
+  ) {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function formatHistoryType(type: string): string {
+  return type
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+export function ConsignmentHistoryPanel(props: {
+  objectType: ConsignmentHistoryObjectType;
+  objectId: string;
+}) {
+  const [entries, setEntries] = useState<
+    Array<{
+      id: string;
+      createdAt: string;
+      type: string;
+      actorIdentifier?: string | null;
+      note?: string | null;
+      changes: Array<{
+        field: string;
+        before?: unknown;
+        after?: unknown;
+      }>;
+    }>
+  >([]);
+  const [loading, setLoading] = useState(false);
+  const [note, setNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+
+  const loadHistory = useCallback(() => {
+    if (!props.objectId) {
+      setEntries([]);
+      return;
+    }
+    setLoading(true);
+    void api
+      .query(GET_CONSIGNMENT_HISTORY, {
+        objectType: props.objectType,
+        objectId: props.objectId,
+      })
+      .then((result) => {
+        setEntries(result.consignmentHistory ?? []);
+      })
+      .catch(() => {
+        setEntries([]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [props.objectId, props.objectType]);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  async function submitNote() {
+    const trimmedNote = note.trim();
+    if (!trimmedNote) {
+      return;
+    }
+    setSavingNote(true);
+    try {
+      await api.mutate(ADD_CONSIGNMENT_HISTORY_NOTE, {
+        objectType: props.objectType,
+        objectId: props.objectId,
+        note: trimmedNote,
+      });
+      setNote("");
+      loadHistory();
+      toast.success("Note added successfully");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
+  return (
+    <Card className="space-y-4 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-medium">History</h2>
+          <p className="text-sm text-muted-foreground">
+            Track automatic changes and add manual notes.
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={loadHistory}
+          disabled={loading}
+        >
+          {loading ? "Refreshing..." : "Refresh"}
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        <Field>
+          <FieldLabel>Add note</FieldLabel>
+          <FieldContent>
+            <Textarea
+              className="min-h-[96px] w-full rounded-md border px-3 py-2 text-sm"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="Add a manual note for this consignment record"
+            />
+          </FieldContent>
+        </Field>
+        <div className="flex justify-end">
+          <Button
+            onClick={submitNote}
+            disabled={savingNote || note.trim().length === 0}
+          >
+            {savingNote ? "Saving note..." : "Add note"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {entries.length === 0 && !loading ? (
+          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+            No history entries yet.
+          </div>
+        ) : null}
+        {entries.map((entry) => (
+          <div key={entry.id} className="rounded-md border p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {formatHistoryType(entry.type)}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {new Date(entry.createdAt).toLocaleString()}
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {entry.actorIdentifier ?? "System"}
+              </span>
+            </div>
+
+            {entry.note ? (
+              <div className="mt-3 rounded-md bg-muted/40 p-3 text-sm">
+                {entry.note}
+              </div>
+            ) : null}
+
+            {entry.changes.length > 0 ? (
+              <div className="mt-3 space-y-2 text-sm">
+                {entry.changes.map((change, index) => (
+                  <div
+                    key={`${entry.id}-${change.field}-${index}`}
+                    className="grid gap-2 rounded-md bg-muted/30 p-3 md:grid-cols-[140px_1fr_1fr]"
+                  >
+                    <div className="font-medium">{change.field}</div>
+                    <div>
+                      <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
+                        Before
+                      </div>
+                      <div className="break-all text-muted-foreground">
+                        {formatHistoryValue(change.before)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
+                        After
+                      </div>
+                      <div className="break-all">
+                        {formatHistoryValue(change.after)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 

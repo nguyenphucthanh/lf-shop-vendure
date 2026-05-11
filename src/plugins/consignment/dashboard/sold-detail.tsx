@@ -17,6 +17,7 @@ import { Printer } from "lucide-react";
 import { graphql } from "@/gql";
 
 import {
+  ConsignmentHistoryPanel,
   LineItemDraft,
   LineItemsEditor,
   getApiErrorMessage,
@@ -497,6 +498,10 @@ export function SoldDetailPage({ route }: { route: AnyRoute }) {
             </Card>
           </div>
         </div>
+      ) : null}
+
+      {!isNew ? (
+        <ConsignmentHistoryPanel objectType="SOLD" objectId={params.id} />
       ) : null}
     </SimplePage>
   );
