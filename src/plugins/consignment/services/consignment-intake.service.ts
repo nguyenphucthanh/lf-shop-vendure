@@ -4,12 +4,17 @@ import {
   RequestContext,
   TransactionalConnection,
   UserInputError,
+  StockLevelService,
+  StockLocationService,
+  Logger,
 } from "@vendure/core";
 import { Not, IsNull } from "typeorm";
 
 import { ConsignmentIntake } from "../entities/consignment-intake.entity";
 import { ConsignmentIntakeItem } from "../entities/consignment-intake-item.entity";
 import { ConsignmentQuotation } from "../entities/consignment-quotation.entity";
+
+const loggerCtx = "ConsignmentIntakeService";
 
 export interface IntakeItemInput {
   quotationId: ID;
@@ -35,7 +40,11 @@ export interface UpdateIntakeInput extends Partial<
 
 @Injectable()
 export class ConsignmentIntakeService {
-  constructor(private connection: TransactionalConnection) {}
+  constructor(
+    private connection: TransactionalConnection,
+    private stockLevelService: StockLevelService,
+    private stockLocationService: StockLocationService,
+  ) {}
 
   async findAll(
     ctx: RequestContext,
@@ -85,8 +94,14 @@ export class ConsignmentIntakeService {
     });
     const saved = await repo.save(intake);
 
+    // Get primary stock location
+    const primaryLocation =
+      await this.stockLocationService.defaultStockLocation(ctx);
+    if (!primaryLocation) {
+      throw new Error("No default stock location found");
+    }
+
     let itemsSubtotal = 0;
-    const items: ConsignmentIntakeItem[] = [];
     for (const itemInput of input.items) {
       const quotation = await quotationRepo.findOne({
         where: { id: itemInput.quotationId },
@@ -99,17 +114,39 @@ export class ConsignmentIntakeService {
       const consignmentPriceSnapshot =
         itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
       const subtotal = consignmentPriceSnapshot * itemInput.quantity;
-      const item = itemRepo.create({
-        intakeId: saved.id,
-        quotationId: quotation.id,
-        currency: quotation.currency,
-        productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
-        consignmentPriceSnapshot,
-        quantity: itemInput.quantity,
-        subtotal,
-      });
-      items.push(await itemRepo.save(item));
+      await itemRepo.save(
+        itemRepo.create({
+          intakeId: saved.id,
+          quotationId: quotation.id,
+          currency: quotation.currency,
+          productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
+          consignmentPriceSnapshot,
+          quantity: itemInput.quantity,
+          subtotal,
+        }),
+      );
       itemsSubtotal += subtotal;
+
+      // Decrease stock: consignor takes items
+      try {
+        await this.stockLevelService.updateStockOnHandForLocation(
+          ctx,
+          quotation.productVariant.id,
+          primaryLocation.id,
+          -itemInput.quantity, // negative = decrease
+        );
+        Logger.info(
+          `Intake ${saved.id}: decreased stock for variant ${quotation.productVariant.id} by ${itemInput.quantity}`,
+          loggerCtx,
+        );
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        Logger.error(
+          `Failed to adjust stock for variant ${quotation.productVariant.id}: ${message}`,
+          loggerCtx,
+        );
+        throw err;
+      }
     }
 
     saved.total = itemsSubtotal;
@@ -134,9 +171,17 @@ export class ConsignmentIntakeService {
         id: input.id,
         storeId: Not(IsNull()),
       },
+      relations: ["items"],
     });
     if (!intake) {
       throw new UserInputError(`Intake ${input.id} not found`);
+    }
+
+    // Get primary stock location
+    const primaryLocation =
+      await this.stockLocationService.defaultStockLocation(ctx);
+    if (!primaryLocation) {
+      throw new Error("No default stock location found");
     }
 
     if (input.intakeDate !== undefined) intake.intakeDate = input.intakeDate;
@@ -150,6 +195,12 @@ export class ConsignmentIntakeService {
       intake.deliveryCost = input.deliveryCost;
 
     if (input.items !== undefined) {
+      // Map old quantities by quotationId
+      const oldQuantityMap = new Map<ID, number>();
+      for (const item of intake.items) {
+        oldQuantityMap.set(item.quotationId, item.quantity);
+      }
+
       await itemRepo.delete({ intakeId: intake.id });
       let itemsSubtotal = 0;
       for (const itemInput of input.items) {
@@ -169,17 +220,43 @@ export class ConsignmentIntakeService {
         const consignmentPriceSnapshot =
           itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
         const subtotal = consignmentPriceSnapshot * itemInput.quantity;
-        const item = itemRepo.create({
-          intakeId: intake.id,
-          quotationId: quotation.id,
-          currency: quotation.currency,
-          productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
-          consignmentPriceSnapshot,
-          quantity: itemInput.quantity,
-          subtotal,
-        });
-        await itemRepo.save(item);
+        await itemRepo.save(
+          itemRepo.create({
+            intakeId: intake.id,
+            quotationId: quotation.id,
+            currency: quotation.currency,
+            productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
+            consignmentPriceSnapshot,
+            quantity: itemInput.quantity,
+            subtotal,
+          }),
+        );
         itemsSubtotal += subtotal;
+
+        // Calculate quantity delta and adjust stock
+        const oldQuantity = oldQuantityMap.get(quotation.id) ?? 0;
+        const delta = itemInput.quantity - oldQuantity;
+        if (delta !== 0) {
+          try {
+            await this.stockLevelService.updateStockOnHandForLocation(
+              ctx,
+              quotation.productVariant.id,
+              primaryLocation.id,
+              -delta, // negative because intake = stock decrease
+            );
+            Logger.info(
+              `Intake ${intake.id}: adjusted stock for variant ${quotation.productVariant.id} by ${-delta}`,
+              loggerCtx,
+            );
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            Logger.error(
+              `Failed to adjust stock for variant ${quotation.productVariant.id}: ${message}`,
+              loggerCtx,
+            );
+            throw err;
+          }
+        }
       }
       intake.total = itemsSubtotal;
     }
@@ -190,13 +267,56 @@ export class ConsignmentIntakeService {
 
   async delete(ctx: RequestContext, id: ID): Promise<boolean> {
     const repo = this.connection.getRepository(ctx, ConsignmentIntake);
+    const quotationRepo = this.connection.getRepository(
+      ctx,
+      ConsignmentQuotation,
+    );
+
     const intake = await repo.findOne({
       where: {
         id,
         storeId: Not(IsNull()),
       },
+      relations: ["items"],
     });
     if (!intake) return false;
+
+    // Get primary stock location
+    const primaryLocation =
+      await this.stockLocationService.defaultStockLocation(ctx);
+    if (!primaryLocation) {
+      throw new Error("No default stock location found");
+    }
+
+    // Restore stock for all items
+    for (const item of intake.items) {
+      const quotation = await quotationRepo.findOne({
+        where: { id: item.quotationId },
+        relations: ["productVariant"],
+      });
+      if (quotation) {
+        try {
+          await this.stockLevelService.updateStockOnHandForLocation(
+            ctx,
+            quotation.productVariant.id,
+            primaryLocation.id,
+            item.quantity, // positive = increase (restore)
+          );
+          Logger.info(
+            `Intake ${id}: restored stock for variant ${quotation.productVariant.id} by ${item.quantity}`,
+            loggerCtx,
+          );
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          Logger.error(
+            `Failed to adjust stock for variant ${quotation.productVariant.id}: ${message}`,
+            loggerCtx,
+          );
+          throw err;
+        }
+      }
+    }
+
     await repo.remove(intake);
     return true;
   }

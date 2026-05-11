@@ -4,6 +4,9 @@ import {
   RequestContext,
   TransactionalConnection,
   UserInputError,
+  StockLevelService,
+  StockLocationService,
+  Logger,
 } from "@vendure/core";
 import { IsNull, Not } from "typeorm";
 
@@ -12,6 +15,8 @@ import { ConsignmentReturnItem } from "../entities/consignment-return-item.entit
 import { ConsignmentQuotation } from "../entities/consignment-quotation.entity";
 import { ConsignmentIntakeItem } from "../entities/consignment-intake-item.entity";
 import { ConsignmentSoldItem } from "../entities/consignment-sold-item.entity";
+
+const loggerCtx = "ConsignmentReturnService";
 
 export interface ReturnItemInput {
   quotationId: ID;
@@ -34,7 +39,11 @@ export interface UpdateReturnInput extends Partial<
 
 @Injectable()
 export class ConsignmentReturnService {
-  constructor(private connection: TransactionalConnection) {}
+  constructor(
+    private connection: TransactionalConnection,
+    private stockLevelService: StockLevelService,
+    private stockLocationService: StockLocationService,
+  ) {}
 
   async findAll(
     ctx: RequestContext,
@@ -148,6 +157,13 @@ export class ConsignmentReturnService {
       ConsignmentQuotation,
     );
 
+    // Get primary stock location
+    const primaryLocation =
+      await this.stockLocationService.defaultStockLocation(ctx);
+    if (!primaryLocation) {
+      throw new Error("No default stock location found");
+    }
+
     const ret = repo.create({
       storeId: input.storeId,
       returnedDate: input.returnedDate,
@@ -186,6 +202,27 @@ export class ConsignmentReturnService {
         }),
       );
       total += itemSubtotal;
+
+      // Increase stock: consignor returns items
+      try {
+        await this.stockLevelService.updateStockOnHandForLocation(
+          ctx,
+          quotation.productVariant.id,
+          primaryLocation.id,
+          itemInput.quantity, // positive = increase
+        );
+        Logger.info(
+          `Return ${saved.id}: increased stock for variant ${quotation.productVariant.id} by ${itemInput.quantity}`,
+          loggerCtx,
+        );
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        Logger.error(
+          `Failed to adjust stock for variant ${quotation.productVariant.id}: ${message}`,
+          loggerCtx,
+        );
+        throw err;
+      }
     }
 
     saved.total = total;
@@ -209,9 +246,17 @@ export class ConsignmentReturnService {
         id: input.id,
         storeId: Not(IsNull()),
       },
+      relations: ["items"],
     });
     if (!ret) {
       throw new UserInputError(`Return ${input.id} not found`);
+    }
+
+    // Get primary stock location
+    const primaryLocation =
+      await this.stockLocationService.defaultStockLocation(ctx);
+    if (!primaryLocation) {
+      throw new Error("No default stock location found");
     }
 
     if (input.items !== undefined) {
@@ -221,6 +266,13 @@ export class ConsignmentReturnService {
         input.items,
         ret.id,
       );
+
+      // Map old quantities by quotationId
+      const oldQuantityMap = new Map<ID, number>();
+      for (const item of ret.items) {
+        oldQuantityMap.set(item.quotationId, item.quantity);
+      }
+
       await itemRepo.delete({ consignmentReturnId: ret.id });
       let total = 0;
       for (const itemInput of input.items) {
@@ -252,6 +304,31 @@ export class ConsignmentReturnService {
           }),
         );
         total += itemSubtotal;
+
+        // Calculate quantity delta and adjust stock
+        const oldQuantity = oldQuantityMap.get(quotation.id) ?? 0;
+        const delta = itemInput.quantity - oldQuantity;
+        if (delta !== 0) {
+          try {
+            await this.stockLevelService.updateStockOnHandForLocation(
+              ctx,
+              quotation.productVariant.id,
+              primaryLocation.id,
+              delta, // positive delta = more returned = more stock increase
+            );
+            Logger.info(
+              `Return ${ret.id}: adjusted stock for variant ${quotation.productVariant.id} by ${delta}`,
+              loggerCtx,
+            );
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            Logger.error(
+              `Failed to adjust stock for variant ${quotation.productVariant.id}: ${message}`,
+              loggerCtx,
+            );
+            throw err;
+          }
+        }
       }
       ret.total = total;
     }
@@ -265,13 +342,56 @@ export class ConsignmentReturnService {
 
   async delete(ctx: RequestContext, id: ID): Promise<boolean> {
     const repo = this.connection.getRepository(ctx, ConsignmentReturn);
+    const quotationRepo = this.connection.getRepository(
+      ctx,
+      ConsignmentQuotation,
+    );
+
     const ret = await repo.findOne({
       where: {
         id,
         storeId: Not(IsNull()),
       },
+      relations: ["items"],
     });
     if (!ret) return false;
+
+    // Get primary stock location
+    const primaryLocation =
+      await this.stockLocationService.defaultStockLocation(ctx);
+    if (!primaryLocation) {
+      throw new Error("No default stock location found");
+    }
+
+    // Reverse stock adjustments for all items
+    for (const item of ret.items) {
+      const quotation = await quotationRepo.findOne({
+        where: { id: item.quotationId },
+        relations: ["productVariant"],
+      });
+      if (quotation) {
+        try {
+          await this.stockLevelService.updateStockOnHandForLocation(
+            ctx,
+            quotation.productVariant.id,
+            primaryLocation.id,
+            -item.quantity, // negative = decrease (items go back to consignor)
+          );
+          Logger.info(
+            `Return ${id}: reversed stock for variant ${quotation.productVariant.id} by ${item.quantity}`,
+            loggerCtx,
+          );
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          Logger.error(
+            `Failed to reverse stock for variant ${quotation.productVariant.id}: ${message}`,
+            loggerCtx,
+          );
+          throw err;
+        }
+      }
+    }
+
     await repo.remove(ret);
     return true;
   }
