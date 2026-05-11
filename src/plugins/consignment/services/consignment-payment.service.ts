@@ -7,12 +7,14 @@ import {
 } from "@vendure/core";
 import { IsNull, Not } from "typeorm";
 
+import { ConsignmentHistoryData } from "../entities/consignment-history-entry.entity";
 import {
   ConsignmentPayment,
   PaymentMethod,
   PaymentStatus,
 } from "../entities/consignment-payment.entity";
 import { ConsignmentSold } from "../entities/consignment-sold.entity";
+import { ConsignmentHistoryService } from "./consignment-history.service";
 
 export interface CreatePaymentInput {
   storeId: ID;
@@ -33,7 +35,10 @@ export interface UpdatePaymentInput extends Partial<
 
 @Injectable()
 export class ConsignmentPaymentService {
-  constructor(private connection: TransactionalConnection) {}
+  constructor(
+    private connection: TransactionalConnection,
+    private historyService: ConsignmentHistoryService,
+  ) {}
 
   async findAll(
     ctx: RequestContext,
@@ -106,8 +111,19 @@ export class ConsignmentPaymentService {
       soldId,
     });
     const saved = await repo.save(payment);
+    const created = await this.findOne(ctx, saved.id);
+    if (!created) {
+      throw new UserInputError(`Payment ${saved.id} not found`);
+    }
+    await this.historyService.record(ctx, {
+      storeId: created.storeId,
+      objectType: "PAYMENT",
+      objectId: created.id,
+      type: "CREATED",
+      data: this.snapshot(created),
+    });
 
-    return (await this.findOne(ctx, saved.id))!;
+    return created;
   }
 
   async update(
@@ -116,6 +132,7 @@ export class ConsignmentPaymentService {
   ): Promise<ConsignmentPayment> {
     const repo = this.connection.getRepository(ctx, ConsignmentPayment);
     const soldRepo = this.connection.getRepository(ctx, ConsignmentSold);
+    const beforePayment = await this.findOne(ctx, input.id);
 
     const payment = await repo.findOne({
       where: {
@@ -160,11 +177,32 @@ export class ConsignmentPaymentService {
     payment.total = payment.subtotal - payment.discount;
 
     await repo.save(payment);
-    return (await this.findOne(ctx, payment.id))!;
+    const updated = await this.findOne(ctx, payment.id);
+    if (!updated) {
+      throw new UserInputError(`Payment ${payment.id} not found`);
+    }
+    if (beforePayment) {
+      const changes = this.historyService.buildChanges(
+        this.snapshot(beforePayment),
+        this.snapshot(updated),
+      );
+      if (changes.length > 0) {
+        await this.historyService.record(ctx, {
+          storeId: updated.storeId,
+          objectType: "PAYMENT",
+          objectId: updated.id,
+          type: "UPDATED",
+          changes,
+          data: this.snapshot(updated),
+        });
+      }
+    }
+    return updated;
   }
 
   async delete(ctx: RequestContext, id: ID): Promise<boolean> {
     const repo = this.connection.getRepository(ctx, ConsignmentPayment);
+    const beforePayment = await this.findOne(ctx, id);
     const payment = await repo.findOne({
       where: {
         id,
@@ -173,6 +211,29 @@ export class ConsignmentPaymentService {
     });
     if (!payment) return false;
     await repo.remove(payment);
+    if (beforePayment) {
+      await this.historyService.record(ctx, {
+        storeId: beforePayment.storeId,
+        objectType: "PAYMENT",
+        objectId: beforePayment.id,
+        type: "DELETED",
+        data: this.snapshot(beforePayment),
+      });
+    }
     return true;
+  }
+
+  private snapshot(payment: ConsignmentPayment): ConsignmentHistoryData {
+    return {
+      storeId: this.historyService.toHistoryValue(payment.storeId),
+      paymentDate: this.historyService.toHistoryValue(payment.paymentDate),
+      paymentPolicy: this.historyService.toHistoryValue(payment.paymentPolicy),
+      paymentMethod: this.historyService.toHistoryValue(payment.paymentMethod),
+      paymentStatus: this.historyService.toHistoryValue(payment.paymentStatus),
+      subtotal: this.historyService.toHistoryValue(payment.subtotal),
+      discount: this.historyService.toHistoryValue(payment.discount),
+      total: this.historyService.toHistoryValue(payment.total),
+      soldId: this.historyService.toHistoryValue(payment.soldId),
+    };
   }
 }

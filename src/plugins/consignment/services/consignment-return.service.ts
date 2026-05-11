@@ -10,11 +10,13 @@ import {
 } from "@vendure/core";
 import { IsNull, Not } from "typeorm";
 
+import { ConsignmentHistoryData } from "../entities/consignment-history-entry.entity";
 import { ConsignmentReturn } from "../entities/consignment-return.entity";
 import { ConsignmentReturnItem } from "../entities/consignment-return-item.entity";
 import { ConsignmentQuotation } from "../entities/consignment-quotation.entity";
 import { ConsignmentIntakeItem } from "../entities/consignment-intake-item.entity";
 import { ConsignmentSoldItem } from "../entities/consignment-sold-item.entity";
+import { ConsignmentHistoryService } from "./consignment-history.service";
 
 const loggerCtx = "ConsignmentReturnService";
 
@@ -43,6 +45,7 @@ export class ConsignmentReturnService {
     private connection: TransactionalConnection,
     private stockLevelService: StockLevelService,
     private stockLocationService: StockLocationService,
+    private historyService: ConsignmentHistoryService,
   ) {}
 
   async findAll(
@@ -227,7 +230,18 @@ export class ConsignmentReturnService {
 
     saved.total = total;
     await repo.save(saved);
-    return (await this.findOne(ctx, saved.id))!;
+    const created = await this.findOne(ctx, saved.id);
+    if (!created) {
+      throw new UserInputError(`Return ${saved.id} not found`);
+    }
+    await this.historyService.record(ctx, {
+      storeId: created.storeId,
+      objectType: "RETURN",
+      objectId: created.id,
+      type: "CREATED",
+      data: this.snapshot(created),
+    });
+    return created;
   }
 
   async update(
@@ -240,6 +254,7 @@ export class ConsignmentReturnService {
       ctx,
       ConsignmentQuotation,
     );
+    const beforeReturn = await this.findOne(ctx, input.id);
 
     const ret = await repo.findOne({
       where: {
@@ -337,7 +352,27 @@ export class ConsignmentReturnService {
     if (input.reason !== undefined) ret.reason = input.reason ?? null;
 
     await repo.save(ret);
-    return (await this.findOne(ctx, ret.id))!;
+    const updated = await this.findOne(ctx, ret.id);
+    if (!updated) {
+      throw new UserInputError(`Return ${ret.id} not found`);
+    }
+    if (beforeReturn) {
+      const changes = this.historyService.buildChanges(
+        this.snapshot(beforeReturn),
+        this.snapshot(updated),
+      );
+      if (changes.length > 0) {
+        await this.historyService.record(ctx, {
+          storeId: updated.storeId,
+          objectType: "RETURN",
+          objectId: updated.id,
+          type: "UPDATED",
+          changes,
+          data: this.snapshot(updated),
+        });
+      }
+    }
+    return updated;
   }
 
   async delete(ctx: RequestContext, id: ID): Promise<boolean> {
@@ -346,6 +381,7 @@ export class ConsignmentReturnService {
       ctx,
       ConsignmentQuotation,
     );
+    const beforeReturn = await this.findOne(ctx, id);
 
     const ret = await repo.findOne({
       where: {
@@ -393,6 +429,36 @@ export class ConsignmentReturnService {
     }
 
     await repo.remove(ret);
+    if (beforeReturn) {
+      await this.historyService.record(ctx, {
+        storeId: beforeReturn.storeId,
+        objectType: "RETURN",
+        objectId: beforeReturn.id,
+        type: "DELETED",
+        data: this.snapshot(beforeReturn),
+      });
+    }
     return true;
+  }
+
+  private snapshot(
+    consignmentReturn: ConsignmentReturn,
+  ): ConsignmentHistoryData {
+    return {
+      storeId: this.historyService.toHistoryValue(consignmentReturn.storeId),
+      returnedDate: this.historyService.toHistoryValue(
+        consignmentReturn.returnedDate,
+      ),
+      reason: this.historyService.toHistoryValue(consignmentReturn.reason),
+      total: this.historyService.toHistoryValue(consignmentReturn.total),
+      items: this.historyService.toHistoryValue(
+        (consignmentReturn.items ?? []).map((item) => ({
+          quotationId: item.quotationId,
+          quantity: item.quantity,
+          consignmentPriceSnapshot: item.consignmentPriceSnapshot,
+          currency: item.currency,
+        })),
+      ),
+    };
   }
 }

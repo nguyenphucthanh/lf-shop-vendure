@@ -8,11 +8,16 @@ import {
 } from "@nestjs/graphql";
 import { Allow, Ctx, Permission, RequestContext } from "@vendure/core";
 
+import {
+  ConsignmentHistoryEntry,
+  ConsignmentHistoryObjectType,
+} from "../entities/consignment-history-entry.entity";
 import { ConsignmentIntake } from "../entities/consignment-intake.entity";
 import { ConsignmentPayment } from "../entities/consignment-payment.entity";
 import { ConsignmentQuotation } from "../entities/consignment-quotation.entity";
 import { ConsignmentReturn } from "../entities/consignment-return.entity";
 import { ConsignmentSold } from "../entities/consignment-sold.entity";
+import { ConsignmentHistoryService } from "../services/consignment-history.service";
 import {
   ConsignmentIntakeService,
   CreateIntakeInput,
@@ -56,6 +61,7 @@ function normalizeDateTime(value: Date | string | null | undefined): string {
 @Resolver()
 export class ConsignmentResolver {
   constructor(
+    private historyService: ConsignmentHistoryService,
     private quotationService: ConsignmentQuotationService,
     private intakeService: ConsignmentIntakeService,
     private soldService: ConsignmentSoldService,
@@ -63,6 +69,27 @@ export class ConsignmentResolver {
     private returnService: ConsignmentReturnService,
     private reportService: ConsignmentReportService,
   ) {}
+
+  @Query()
+  @Allow(Permission.ReadCustomer)
+  consignmentHistory(
+    @Ctx() ctx: RequestContext,
+    @Args("objectType") objectType: ConsignmentHistoryObjectType,
+    @Args("objectId") objectId: string,
+  ) {
+    return this.historyService.getHistoryForObject(ctx, objectType, objectId);
+  }
+
+  @Mutation()
+  @Allow(Permission.UpdateCustomer)
+  addConsignmentHistoryNote(
+    @Ctx() ctx: RequestContext,
+    @Args("objectType") objectType: ConsignmentHistoryObjectType,
+    @Args("objectId") objectId: string,
+    @Args("note") note: string,
+  ) {
+    return this.historyService.addNote(ctx, objectType, objectId, note);
+  }
 
   @Query()
   @Allow(Permission.ReadCustomer)
@@ -278,8 +305,18 @@ export class ConsignmentResolver {
   }
 }
 
+@Resolver("ConsignmentHistoryEntry")
+export class ConsignmentHistoryFieldResolver {
+  @ResolveField()
+  changes(@Parent() entry: ConsignmentHistoryEntry) {
+    return entry.changes ?? [];
+  }
+}
+
 @Resolver("ConsignmentQuotation")
 export class ConsignmentQuotationFieldResolver {
+  constructor(private readonly historyService: ConsignmentHistoryService) {}
+
   @ResolveField()
   productVariantName(@Parent() quotation: ConsignmentQuotation): string {
     const variant = quotation.productVariant;
@@ -308,36 +345,83 @@ export class ConsignmentQuotationFieldResolver {
   productVariantFeaturedAsset(@Parent() quotation: ConsignmentQuotation) {
     return quotation.productVariant?.featuredAsset ?? null;
   }
+
+  @ResolveField()
+  history(
+    @Ctx() ctx: RequestContext,
+    @Parent() quotation: ConsignmentQuotation,
+  ) {
+    return this.historyService.getHistoryForObject(
+      ctx,
+      "QUOTATION",
+      quotation.id,
+    );
+  }
 }
 
 @Resolver("ConsignmentIntake")
 export class ConsignmentIntakeFieldResolver {
+  constructor(private readonly historyService: ConsignmentHistoryService) {}
+
   @ResolveField()
   intakeDate(@Parent() intake: ConsignmentIntake): string {
     return normalizeDateTime(intake.intakeDate);
+  }
+
+  @ResolveField()
+  history(@Ctx() ctx: RequestContext, @Parent() intake: ConsignmentIntake) {
+    return this.historyService.getHistoryForObject(ctx, "INTAKE", intake.id);
   }
 }
 
 @Resolver("ConsignmentSold")
 export class ConsignmentSoldFieldResolver {
+  constructor(private readonly historyService: ConsignmentHistoryService) {}
+
   @ResolveField()
   soldDate(@Parent() sold: ConsignmentSold): string {
     return normalizeDateTime(sold.soldDate);
+  }
+
+  @ResolveField()
+  history(@Ctx() ctx: RequestContext, @Parent() sold: ConsignmentSold) {
+    return this.historyService.getHistoryForObject(ctx, "SOLD", sold.id);
   }
 }
 
 @Resolver("ConsignmentPayment")
 export class ConsignmentPaymentFieldResolver {
+  constructor(private readonly historyService: ConsignmentHistoryService) {}
+
   @ResolveField()
   paymentDate(@Parent() payment: ConsignmentPayment): string {
     return normalizeDateTime(payment.paymentDate);
+  }
+
+  @ResolveField()
+  history(@Ctx() ctx: RequestContext, @Parent() payment: ConsignmentPayment) {
+    return this.historyService.getHistoryForObject(ctx, "PAYMENT", payment.id);
   }
 }
 
 @Resolver("ConsignmentReturn")
 export class ConsignmentReturnFieldResolver {
+  constructor(private readonly historyService: ConsignmentHistoryService) {}
+
   @ResolveField()
   returnedDate(@Parent() consignmentReturn: ConsignmentReturn): string {
     return normalizeDateTime(consignmentReturn.returnedDate);
+  }
+
+  @ResolveField()
+  history(
+    @Ctx() ctx: RequestContext,
+    @Parent() consignmentReturn: ConsignmentReturn,
+  ) {
+    return this.historyService.getHistoryForObject(
+      ctx,
+      "RETURN",
+      consignmentReturn.id,
+    );
   }
 }

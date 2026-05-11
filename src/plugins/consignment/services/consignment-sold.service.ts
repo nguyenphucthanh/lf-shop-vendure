@@ -7,11 +7,13 @@ import {
 } from "@vendure/core";
 import { IsNull, Not } from "typeorm";
 
+import { ConsignmentHistoryData } from "../entities/consignment-history-entry.entity";
 import { ConsignmentIntakeItem } from "../entities/consignment-intake-item.entity";
 import { ConsignmentQuotation } from "../entities/consignment-quotation.entity";
 import { ConsignmentReturnItem } from "../entities/consignment-return-item.entity";
 import { ConsignmentSoldItem } from "../entities/consignment-sold-item.entity";
 import { ConsignmentSold } from "../entities/consignment-sold.entity";
+import { ConsignmentHistoryService } from "./consignment-history.service";
 
 export interface SoldItemInput {
   quotationId: ID;
@@ -33,7 +35,10 @@ export interface UpdateSoldInput extends Partial<
 
 @Injectable()
 export class ConsignmentSoldService {
-  constructor(private connection: TransactionalConnection) {}
+  constructor(
+    private connection: TransactionalConnection,
+    private historyService: ConsignmentHistoryService,
+  ) {}
 
   async findAll(ctx: RequestContext, storeId: ID): Promise<ConsignmentSold[]> {
     return this.connection.getRepository(ctx, ConsignmentSold).find({
@@ -222,7 +227,18 @@ export class ConsignmentSoldService {
 
     saved.total = total;
     await repo.save(saved);
-    return (await this.findOne(ctx, saved.id))!;
+    const created = await this.findOne(ctx, saved.id);
+    if (!created) {
+      throw new UserInputError(`Sold ${saved.id} not found`);
+    }
+    await this.historyService.record(ctx, {
+      storeId: created.storeId,
+      objectType: "SOLD",
+      objectId: created.id,
+      type: "CREATED",
+      data: this.snapshot(created),
+    });
+    return created;
   }
 
   async update(
@@ -231,6 +247,7 @@ export class ConsignmentSoldService {
   ): Promise<ConsignmentSold> {
     const repo = this.connection.getRepository(ctx, ConsignmentSold);
     const itemRepo = this.connection.getRepository(ctx, ConsignmentSoldItem);
+    const beforeSold = await this.findOne(ctx, input.id);
 
     const sold = await repo.findOne({
       where: {
@@ -290,11 +307,32 @@ export class ConsignmentSoldService {
     }
 
     await repo.save(sold);
-    return (await this.findOne(ctx, sold.id))!;
+    const updated = await this.findOne(ctx, sold.id);
+    if (!updated) {
+      throw new UserInputError(`Sold ${sold.id} not found`);
+    }
+    if (beforeSold) {
+      const changes = this.historyService.buildChanges(
+        this.snapshot(beforeSold),
+        this.snapshot(updated),
+      );
+      if (changes.length > 0) {
+        await this.historyService.record(ctx, {
+          storeId: updated.storeId,
+          objectType: "SOLD",
+          objectId: updated.id,
+          type: "UPDATED",
+          changes,
+          data: this.snapshot(updated),
+        });
+      }
+    }
+    return updated;
   }
 
   async delete(ctx: RequestContext, id: ID): Promise<boolean> {
     const repo = this.connection.getRepository(ctx, ConsignmentSold);
+    const beforeSold = await this.findOne(ctx, id);
     const sold = await repo.findOne({
       where: {
         id,
@@ -303,6 +341,31 @@ export class ConsignmentSoldService {
     });
     if (!sold) return false;
     await repo.remove(sold);
+    if (beforeSold) {
+      await this.historyService.record(ctx, {
+        storeId: beforeSold.storeId,
+        objectType: "SOLD",
+        objectId: beforeSold.id,
+        type: "DELETED",
+        data: this.snapshot(beforeSold),
+      });
+    }
     return true;
+  }
+
+  private snapshot(sold: ConsignmentSold): ConsignmentHistoryData {
+    return {
+      storeId: this.historyService.toHistoryValue(sold.storeId),
+      soldDate: this.historyService.toHistoryValue(sold.soldDate),
+      total: this.historyService.toHistoryValue(sold.total),
+      items: this.historyService.toHistoryValue(
+        (sold.items ?? []).map((item) => ({
+          quotationId: item.quotationId,
+          quantity: item.quantity,
+          consignmentPriceSnapshot: item.consignmentPriceSnapshot,
+          currency: item.currency,
+        })),
+      ),
+    };
   }
 }

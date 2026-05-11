@@ -9,7 +9,9 @@ import {
 } from "@vendure/core";
 import { IsNull, Not } from "typeorm";
 
+import { ConsignmentHistoryData } from "../entities/consignment-history-entry.entity";
 import { ConsignmentQuotation } from "../entities/consignment-quotation.entity";
+import { ConsignmentHistoryService } from "./consignment-history.service";
 
 export interface UpsertQuotationInput {
   storeId: ID;
@@ -20,7 +22,10 @@ export interface UpsertQuotationInput {
 
 @Injectable()
 export class ConsignmentQuotationService {
-  constructor(private connection: TransactionalConnection) {}
+  constructor(
+    private connection: TransactionalConnection,
+    private historyService: ConsignmentHistoryService,
+  ) {}
 
   async findAll(
     ctx: RequestContext,
@@ -92,7 +97,19 @@ export class ConsignmentQuotationService {
       currency,
       note: input.note ?? null,
     });
-    return repo.save(quotation);
+    const saved = await repo.save(quotation);
+    const created = await this.findOne(ctx, saved.id);
+    if (!created) {
+      throw new UserInputError(`Quotation ${saved.id} not found`);
+    }
+    await this.historyService.record(ctx, {
+      storeId: created.storeId,
+      objectType: "QUOTATION",
+      objectId: created.id,
+      type: "CREATED",
+      data: this.snapshot(created),
+    });
+    return created;
   }
 
   async update(
@@ -101,6 +118,7 @@ export class ConsignmentQuotationService {
     input: Partial<UpsertQuotationInput>,
   ): Promise<ConsignmentQuotation> {
     const repo = this.connection.getRepository(ctx, ConsignmentQuotation);
+    const beforeEntity = await this.findOne(ctx, id);
     const quotation = await repo.findOne({
       where: {
         id,
@@ -113,11 +131,33 @@ export class ConsignmentQuotationService {
     if (input.consignmentPrice !== undefined)
       quotation.consignmentPrice = input.consignmentPrice;
     if (input.note !== undefined) quotation.note = input.note ?? null;
-    return repo.save(quotation);
+    await repo.save(quotation);
+    const updated = await this.findOne(ctx, quotation.id);
+    if (!updated) {
+      throw new UserInputError(`Quotation ${quotation.id} not found`);
+    }
+    if (beforeEntity) {
+      const changes = this.historyService.buildChanges(
+        this.snapshot(beforeEntity),
+        this.snapshot(updated),
+      );
+      if (changes.length > 0) {
+        await this.historyService.record(ctx, {
+          storeId: updated.storeId,
+          objectType: "QUOTATION",
+          objectId: updated.id,
+          type: "UPDATED",
+          changes,
+          data: this.snapshot(updated),
+        });
+      }
+    }
+    return updated;
   }
 
   async delete(ctx: RequestContext, id: ID): Promise<boolean> {
     const repo = this.connection.getRepository(ctx, ConsignmentQuotation);
+    const beforeEntity = await this.findOne(ctx, id);
     const quotation = await repo.findOne({
       where: {
         id,
@@ -126,6 +166,29 @@ export class ConsignmentQuotationService {
     });
     if (!quotation) return false;
     await repo.remove(quotation);
+    if (beforeEntity) {
+      await this.historyService.record(ctx, {
+        storeId: beforeEntity.storeId,
+        objectType: "QUOTATION",
+        objectId: beforeEntity.id,
+        type: "DELETED",
+        data: this.snapshot(beforeEntity),
+      });
+    }
     return true;
+  }
+
+  private snapshot(quotation: ConsignmentQuotation): ConsignmentHistoryData {
+    return {
+      storeId: this.historyService.toHistoryValue(quotation.storeId),
+      productVariantId: this.historyService.toHistoryValue(
+        quotation.productVariantId,
+      ),
+      consignmentPrice: this.historyService.toHistoryValue(
+        quotation.consignmentPrice,
+      ),
+      currency: this.historyService.toHistoryValue(quotation.currency),
+      note: this.historyService.toHistoryValue(quotation.note),
+    };
   }
 }

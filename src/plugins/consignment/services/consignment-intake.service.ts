@@ -10,9 +10,11 @@ import {
 } from "@vendure/core";
 import { Not, IsNull } from "typeorm";
 
+import { ConsignmentHistoryData } from "../entities/consignment-history-entry.entity";
 import { ConsignmentIntake } from "../entities/consignment-intake.entity";
 import { ConsignmentIntakeItem } from "../entities/consignment-intake-item.entity";
 import { ConsignmentQuotation } from "../entities/consignment-quotation.entity";
+import { ConsignmentHistoryService } from "./consignment-history.service";
 
 const loggerCtx = "ConsignmentIntakeService";
 
@@ -44,6 +46,7 @@ export class ConsignmentIntakeService {
     private connection: TransactionalConnection,
     private stockLevelService: StockLevelService,
     private stockLocationService: StockLocationService,
+    private historyService: ConsignmentHistoryService,
   ) {}
 
   async findAll(
@@ -151,8 +154,19 @@ export class ConsignmentIntakeService {
 
     saved.total = itemsSubtotal;
     await repo.save(saved);
+    const created = await this.findOne(ctx, saved.id);
+    if (!created) {
+      throw new UserInputError(`Intake ${saved.id} not found`);
+    }
+    await this.historyService.record(ctx, {
+      storeId: created.storeId,
+      objectType: "INTAKE",
+      objectId: created.id,
+      type: "CREATED",
+      data: this.snapshot(created),
+    });
 
-    return (await this.findOne(ctx, saved.id))!;
+    return created;
   }
 
   async update(
@@ -165,6 +179,7 @@ export class ConsignmentIntakeService {
       ctx,
       ConsignmentQuotation,
     );
+    const beforeIntake = await this.findOne(ctx, input.id);
 
     const intake = await repo.findOne({
       where: {
@@ -262,7 +277,27 @@ export class ConsignmentIntakeService {
     }
 
     await repo.save(intake);
-    return (await this.findOne(ctx, intake.id))!;
+    const updated = await this.findOne(ctx, intake.id);
+    if (!updated) {
+      throw new UserInputError(`Intake ${intake.id} not found`);
+    }
+    if (beforeIntake) {
+      const changes = this.historyService.buildChanges(
+        this.snapshot(beforeIntake),
+        this.snapshot(updated),
+      );
+      if (changes.length > 0) {
+        await this.historyService.record(ctx, {
+          storeId: updated.storeId,
+          objectType: "INTAKE",
+          objectId: updated.id,
+          type: "UPDATED",
+          changes,
+          data: this.snapshot(updated),
+        });
+      }
+    }
+    return updated;
   }
 
   async delete(ctx: RequestContext, id: ID): Promise<boolean> {
@@ -271,6 +306,7 @@ export class ConsignmentIntakeService {
       ctx,
       ConsignmentQuotation,
     );
+    const beforeIntake = await this.findOne(ctx, id);
 
     const intake = await repo.findOne({
       where: {
@@ -318,6 +354,37 @@ export class ConsignmentIntakeService {
     }
 
     await repo.remove(intake);
+    if (beforeIntake) {
+      await this.historyService.record(ctx, {
+        storeId: beforeIntake.storeId,
+        objectType: "INTAKE",
+        objectId: beforeIntake.id,
+        type: "DELETED",
+        data: this.snapshot(beforeIntake),
+      });
+    }
     return true;
+  }
+
+  private snapshot(intake: ConsignmentIntake): ConsignmentHistoryData {
+    return {
+      storeId: this.historyService.toHistoryValue(intake.storeId),
+      intakeDate: this.historyService.toHistoryValue(intake.intakeDate),
+      paymentPolicy: this.historyService.toHistoryValue(intake.paymentPolicy),
+      deliveryMethod: this.historyService.toHistoryValue(intake.deliveryMethod),
+      deliveryTrackingCode: this.historyService.toHistoryValue(
+        intake.deliveryTrackingCode,
+      ),
+      deliveryCost: this.historyService.toHistoryValue(intake.deliveryCost),
+      total: this.historyService.toHistoryValue(intake.total),
+      items: this.historyService.toHistoryValue(
+        (intake.items ?? []).map((item) => ({
+          quotationId: item.quotationId,
+          quantity: item.quantity,
+          consignmentPriceSnapshot: item.consignmentPriceSnapshot,
+          currency: item.currency,
+        })),
+      ),
+    };
   }
 }

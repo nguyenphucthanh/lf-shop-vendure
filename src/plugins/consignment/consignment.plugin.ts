@@ -2,6 +2,7 @@ import { PluginCommonModule, VendurePlugin } from "@vendure/core";
 
 import { adminApiExtensions } from "./api/api-extensions";
 import {
+  ConsignmentHistoryFieldResolver,
   ConsignmentIntakeFieldResolver,
   ConsignmentPaymentFieldResolver,
   ConsignmentQuotationFieldResolver,
@@ -9,6 +10,7 @@ import {
   ConsignmentSoldFieldResolver,
   ConsignmentReturnFieldResolver,
 } from "./api/consignment.resolver";
+import { ConsignmentHistoryEntry } from "./entities/consignment-history-entry.entity";
 import { ConsignmentQuotation } from "./entities/consignment-quotation.entity";
 import { ConsignmentIntake } from "./entities/consignment-intake.entity";
 import { ConsignmentIntakeItem } from "./entities/consignment-intake-item.entity";
@@ -23,10 +25,12 @@ import { ConsignmentPaymentService } from "./services/consignment-payment.servic
 import { ConsignmentSoldService } from "./services/consignment-sold.service";
 import { ConsignmentReturnService } from "./services/consignment-return.service";
 import { ConsignmentReportService } from "./services/consignment-report.service";
+import { ConsignmentHistoryService } from "./services/consignment-history.service";
 
 @VendurePlugin({
   imports: [PluginCommonModule],
   entities: [
+    ConsignmentHistoryEntry,
     ConsignmentQuotation,
     ConsignmentIntake,
     ConsignmentIntakeItem,
@@ -37,6 +41,7 @@ import { ConsignmentReportService } from "./services/consignment-report.service"
     ConsignmentReturnItem,
   ],
   providers: [
+    ConsignmentHistoryService,
     ConsignmentQuotationService,
     ConsignmentIntakeService,
     ConsignmentSoldService,
@@ -48,6 +53,7 @@ import { ConsignmentReportService } from "./services/consignment-report.service"
     schema: adminApiExtensions,
     resolvers: [
       ConsignmentResolver,
+      ConsignmentHistoryFieldResolver,
       ConsignmentQuotationFieldResolver,
       ConsignmentIntakeFieldResolver,
       ConsignmentSoldFieldResolver,

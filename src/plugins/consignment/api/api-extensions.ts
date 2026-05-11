@@ -1,6 +1,42 @@
 import { gql } from "graphql-tag";
 
 export const adminApiExtensions = gql`
+  enum ConsignmentHistoryObjectType {
+    QUOTATION
+    INTAKE
+    RETURN
+    SOLD
+    PAYMENT
+  }
+
+  enum ConsignmentHistoryEntryType {
+    CREATED
+    UPDATED
+    DELETED
+    NOTE_ADDED
+  }
+
+  type ConsignmentHistoryChange {
+    field: String!
+    before: JSON
+    after: JSON
+  }
+
+  type ConsignmentHistoryEntry implements Node {
+    id: ID!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    storeId: ID!
+    objectType: ConsignmentHistoryObjectType!
+    objectId: ID!
+    type: ConsignmentHistoryEntryType!
+    actorUserId: ID
+    actorIdentifier: String
+    changes: [ConsignmentHistoryChange!]!
+    note: String
+    data: JSON
+  }
+
   type ConsignmentQuotation implements Node {
     id: ID!
     createdAt: DateTime!
@@ -13,6 +49,7 @@ export const adminApiExtensions = gql`
     consignmentPrice: Money!
     currency: String!
     note: String
+    history: [ConsignmentHistoryEntry!]!
   }
 
   type ConsignmentIntakeItem implements Node {
@@ -40,6 +77,7 @@ export const adminApiExtensions = gql`
     deliveryCost: Money!
     total: Money!
     items: [ConsignmentIntakeItem!]!
+    history: [ConsignmentHistoryEntry!]!
   }
 
   type ConsignmentSold implements Node {
@@ -50,6 +88,7 @@ export const adminApiExtensions = gql`
     soldDate: DateTime!
     items: [ConsignmentSoldItem!]!
     total: Money!
+    history: [ConsignmentHistoryEntry!]!
   }
 
   type ConsignmentSoldItem implements Node {
@@ -79,6 +118,7 @@ export const adminApiExtensions = gql`
     total: Money!
     soldId: ID
     sold: ConsignmentSold
+    history: [ConsignmentHistoryEntry!]!
   }
 
   type ConsignmentReturnItem implements Node {
@@ -103,6 +143,7 @@ export const adminApiExtensions = gql`
     reason: String
     total: Money!
     items: [ConsignmentReturnItem!]!
+    history: [ConsignmentHistoryEntry!]!
   }
 
   type ConsignmentReportRow {
@@ -212,6 +253,10 @@ export const adminApiExtensions = gql`
   }
 
   extend type Query {
+    consignmentHistory(
+      objectType: ConsignmentHistoryObjectType!
+      objectId: ID!
+    ): [ConsignmentHistoryEntry!]!
     consignmentQuotations(storeId: ID!): [ConsignmentQuotation!]!
     consignmentQuotation(id: ID!): ConsignmentQuotation
     consignmentIntakes(storeId: ID!): [ConsignmentIntake!]!
@@ -249,6 +294,11 @@ export const adminApiExtensions = gql`
   }
 
   extend type Mutation {
+    addConsignmentHistoryNote(
+      objectType: ConsignmentHistoryObjectType!
+      objectId: ID!
+      note: String!
+    ): ConsignmentHistoryEntry!
     createConsignmentQuotation(
       input: CreateConsignmentQuotationInput!
     ): ConsignmentQuotation!
