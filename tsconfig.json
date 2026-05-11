@@ -12,6 +12,7 @@
     "strict": true,
     "sourceMap": false,
     "skipLibCheck": true,
+    "rootDir": "./src",
     "outDir": "./dist",
     "paths": {
       "~/*": ["./src/*"],
@@ -22,6 +23,7 @@
   "exclude": [
     "node_modules",
     "migration.ts",
+    "src/components/dashboard/**",
     "src/plugins/**/dashboard/**",
     "src/plugins/**/ui/**",
     "admin-ui",

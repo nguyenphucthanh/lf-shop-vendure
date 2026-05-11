@@ -1,0 +1,155 @@
+services:
+  database:
+    image: postgres:16-alpine
+    container_name: vendure-db
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DB_NAME:-vendure}
+      POSTGRES_USER: ${DB_USERNAME:-vendure}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "-c timezone=UTC"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-vendure}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vendure-network
+    # Don't expose database port to host in production
+    # Only allow internal container communication
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vendure-server
+    restart: always
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      # App Configuration
+      APP_ENV: prod
+      NODE_ENV: production
+
+      # Database Configuration
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-vendure}
+      DB_USERNAME: ${DB_USERNAME:-vendure}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_SCHEMA: public
+
+      # API Configuration
+      PORT: 3000
+      ADMIN_API_PATH: admin-api
+      SHOP_API_PATH: shop-api
+
+      # Authentication
+      SUPERADMIN_USERNAME: ${SUPERADMIN_USERNAME}
+      SUPERADMIN_PASSWORD: ${SUPERADMIN_PASSWORD}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+
+      # Asset Server
+      ASSET_UPLOAD_DIR: /usr/src/app/static/assets
+
+      # Email Configuration
+      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-localhost}
+      EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
+      EMAIL_SMTP_USER: ${EMAIL_SMTP_USER}
+      EMAIL_SMTP_PASSWORD: ${EMAIL_SMTP_PASSWORD}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS}
+
+      # API Settings
+      TRUST_PROXY: 1
+
+      # Logging
+      LOG_LEVEL: info
+      VIRTUAL_HOST: lfpos.thanhnp.info
+
+    command: ["npm", "run", "start:server"]
+
+    volumes:
+      - ./static:/usr/src/app/static
+      - /usr/src/app/node_modules
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+    networks:
+      - vendure-network
+      - nginx-proxy
+
+    labels:
+      - "com.vendure.service=server"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vendure-worker
+    restart: always
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      # App Configuration
+      APP_ENV: prod
+      NODE_ENV: production
+
+      # Database Configuration
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-vendure}
+      DB_USERNAME: ${DB_USERNAME:-vendure}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_SCHEMA: public
+
+      # Authentication
+      SUPERADMIN_USERNAME: ${SUPERADMIN_USERNAME}
+      SUPERADMIN_PASSWORD: ${SUPERADMIN_PASSWORD}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+
+      # Asset Server
+      ASSET_UPLOAD_DIR: /usr/src/app/static/assets
+
+      # Email Configuration
+      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-localhost}
+      EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
+      EMAIL_SMTP_USER: ${EMAIL_SMTP_USER}
+      EMAIL_SMTP_PASSWORD: ${EMAIL_SMTP_PASSWORD}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS}
+
+      # Logging
+      LOG_LEVEL: info
+
+    command: ["npm", "run", "start:worker"]
+
+    volumes:
+      - ./static:/usr/src/app/static
+      - /usr/src/app/node_modules
+
+    networks:
+      - vendure-network
+
+    labels:
+      - "com.vendure.service=worker"
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  vendure-network:
+    driver: bridge
+  nginx-proxy:
+    external: true
+    # Create with: docker network create nginx-proxy

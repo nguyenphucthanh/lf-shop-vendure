@@ -22,7 +22,7 @@ import { PosPlugin } from "./plugins/pos/pos.plugin";
 import { ConditionalStockAllocationStrategy } from "./plugins/stock-allocation/strategies/conditional-stock-allocation.strategy";
 
 const IS_DEV = process.env.APP_ENV === "dev";
-const serverPort = +process.env.PORT || 3003;
+const serverPort = +process.env.PORT || 3000;
 
 export const config: VendureConfig = {
   apiOptions: {
