@@ -15,6 +15,7 @@ import { ConsignmentReturn } from "../src/plugins/consignment/entities/consignme
 import { ConsignmentReturnItem } from "../src/plugins/consignment/entities/consignment-return-item.entity";
 import { ConsignmentSoldItem } from "../src/plugins/consignment/entities/consignment-sold-item.entity";
 import { ConsignmentSold } from "../src/plugins/consignment/entities/consignment-sold.entity";
+import { ConsignmentHistoryService } from "../src/plugins/consignment/services/consignment-history.service";
 import { ConsignmentIntakeService } from "../src/plugins/consignment/services/consignment-intake.service";
 import { ConsignmentPaymentService } from "../src/plugins/consignment/services/consignment-payment.service";
 import { ConsignmentReportService } from "../src/plugins/consignment/services/consignment-report.service";
@@ -87,6 +88,40 @@ function getLast<T>(values: T[]): T | undefined {
   return values[values.length - 1];
 }
 
+function createHistoryServiceStub(): Pick<
+  ConsignmentHistoryService,
+  "record" | "buildChanges" | "toHistoryValue"
+> {
+  return {
+    record: async () => ({ id: "history-1" }) as never,
+    buildChanges: () => [],
+    toHistoryValue: (value: unknown) => {
+      if (value === undefined) {
+        return null;
+      }
+      if (value instanceof Date) {
+        return value.toISOString();
+      }
+      if (Array.isArray(value)) {
+        return value.map((item) => item as never) as never;
+      }
+      return value as never;
+    },
+  };
+}
+
+function createStockLevelServiceStub() {
+  return {
+    updateStockOnHandForLocation: async () => undefined,
+  };
+}
+
+function createStockLocationServiceStub() {
+  return {
+    defaultStockLocation: async () => ({ id: "location-1" }),
+  };
+}
+
 const ctx = {} as RequestContext;
 
 test("intake create should keep total as item subtotal only", async () => {
@@ -126,6 +161,9 @@ test("intake create should keep total as item subtotal only", async () => {
         [ConsignmentQuotation, quotationRepo],
       ]),
     ) as never,
+    createStockLevelServiceStub() as never,
+    createStockLocationServiceStub() as never,
+    createHistoryServiceStub() as never,
   );
   service.findOne = async () => ({ id: "1" }) as ConsignmentIntake;
 
@@ -164,6 +202,9 @@ test("intake update should not change total when only delivery cost changes", as
       ]),
       new Map<Function, (id: string) => Promise<unknown>>(),
     ) as never,
+    createStockLevelServiceStub() as never,
+    createStockLocationServiceStub() as never,
+    createHistoryServiceStub() as never,
   );
   service.findOne = async () => ({ id: "intake-1" }) as ConsignmentIntake;
 
@@ -173,6 +214,90 @@ test("intake update should not change total when only delivery cost changes", as
   });
 
   assert.equal(getLast(savedIntakes)?.total, 1100);
+});
+
+test("intake update should replace items without saving stale item relations", async () => {
+  const savedIntakes: Array<Record<string, unknown>> = [];
+  const savedItems: Array<Record<string, unknown>> = [];
+
+  const intakeRepo: RepoStub = {
+    findOne: async () => ({
+      id: "intake-1",
+      storeId: "store-1",
+      deliveryCost: 100,
+      total: 1100,
+    }),
+    save: async (input) => {
+      savedIntakes.push({ ...input });
+      assert.equal("items" in input, false);
+      return input;
+    },
+  };
+
+  const itemRepo: RepoStub = {
+    find: async () => [
+      {
+        id: "item-old-1",
+        intakeId: "intake-1",
+        quotationId: "quotation-1",
+        quantity: 1,
+      },
+    ],
+    delete: async () => undefined,
+    create: (input) => ({ ...input }),
+    save: async (input) => {
+      savedItems.push({ ...input });
+      return input;
+    },
+  };
+
+  const quotationRepo: RepoStub = {
+    findOne: async () => ({
+      id: "quotation-1",
+      storeId: "store-1",
+      currency: "USD",
+      consignmentPrice: 500,
+      productVariant: { id: "variant-1", priceWithTax: 1200 },
+    }),
+  };
+
+  const service = new ConsignmentIntakeService(
+    new FakeConnection(
+      createRepoMap([
+        [ConsignmentIntake, intakeRepo],
+        [ConsignmentIntakeItem, itemRepo],
+        [ConsignmentQuotation, quotationRepo],
+      ]),
+    ) as never,
+    createStockLevelServiceStub() as never,
+    createStockLocationServiceStub() as never,
+    createHistoryServiceStub() as never,
+  );
+  service.findOne = async () =>
+    ({
+      id: "intake-1",
+      storeId: "store-1",
+      intakeDate: new Date("2026-01-01T00:00:00.000Z"),
+      deliveryCost: 100,
+      total: 1500,
+      items: [
+        {
+          quotationId: "quotation-1",
+          quantity: 2,
+          consignmentPriceSnapshot: 500,
+          currency: "USD",
+        },
+      ],
+    }) as ConsignmentIntake;
+
+  await service.update(ctx, {
+    id: "intake-1",
+    items: [{ quotationId: "quotation-1", quantity: 3 }],
+  });
+
+  assert.equal(savedItems.length, 1);
+  assert.equal(savedItems[0]?.intakeId, "intake-1");
+  assert.equal(getLast(savedIntakes)?.total, 1500);
 });
 
 test("sold create should reject quantity that exceeds available aggregate", async () => {
@@ -216,6 +341,7 @@ test("sold create should reject quantity that exceeds available aggregate", asyn
         ],
       ]),
     ) as never,
+    createHistoryServiceStub() as never,
   );
   service.findOne = async () => ({ id: "sold-1" }) as ConsignmentSold;
 
@@ -269,6 +395,9 @@ test("return create should reject duplicate quotation rows that exceed available
         ],
       ]),
     ) as never,
+    createStockLevelServiceStub() as never,
+    createStockLocationServiceStub() as never,
+    createHistoryServiceStub() as never,
   );
   service.findOne = async () => ({ id: "return-1" }) as ConsignmentReturn;
 
@@ -283,6 +412,100 @@ test("return create should reject duplicate quotation rows that exceed available
     }),
     UserInputError,
   );
+});
+
+test("return update should replace items without saving stale item relations", async () => {
+  const savedReturns: Array<Record<string, unknown>> = [];
+  const savedItems: Array<Record<string, unknown>> = [];
+
+  const returnRepo: RepoStub = {
+    findOne: async () => ({
+      id: "return-1",
+      storeId: "store-1",
+      returnedDate: new Date("2026-01-01T00:00:00.000Z"),
+      reason: null,
+      total: 1000,
+    }),
+    save: async (input) => {
+      savedReturns.push({ ...input });
+      assert.equal("items" in input, false);
+      return input;
+    },
+  };
+
+  const itemRepo: RepoStub = {
+    find: async () => [
+      {
+        id: "return-item-old-1",
+        consignmentReturnId: "return-1",
+        quotationId: "quotation-1",
+        quantity: 1,
+      },
+    ],
+    createQueryBuilder: () => createSumQueryBuilder(0),
+    delete: async () => undefined,
+    create: (input) => ({ ...input }),
+    save: async (input) => {
+      savedItems.push({ ...input });
+      return input;
+    },
+  };
+
+  const quotationRepo: RepoStub = {
+    findOne: async () => ({
+      id: "quotation-1",
+      storeId: "store-1",
+      currency: "USD",
+      consignmentPrice: 500,
+      productVariant: { id: "variant-1", priceWithTax: 1200 },
+    }),
+  };
+
+  const service = new ConsignmentReturnService(
+    new FakeConnection(
+      createRepoMap([
+        [ConsignmentReturn, returnRepo],
+        [ConsignmentReturnItem, itemRepo],
+        [
+          ConsignmentIntakeItem,
+          { createQueryBuilder: () => createSumQueryBuilder(5) },
+        ],
+        [
+          ConsignmentSoldItem,
+          { createQueryBuilder: () => createSumQueryBuilder(0) },
+        ],
+        [ConsignmentQuotation, quotationRepo],
+      ]),
+    ) as never,
+    createStockLevelServiceStub() as never,
+    createStockLocationServiceStub() as never,
+    createHistoryServiceStub() as never,
+  );
+  service.findOne = async () =>
+    ({
+      id: "return-1",
+      storeId: "store-1",
+      returnedDate: new Date("2026-01-01T00:00:00.000Z"),
+      reason: null,
+      total: 1500,
+      items: [
+        {
+          quotationId: "quotation-1",
+          quantity: 2,
+          consignmentPriceSnapshot: 500,
+          currency: "USD",
+        },
+      ],
+    }) as ConsignmentReturn;
+
+  await service.update(ctx, {
+    id: "return-1",
+    items: [{ quotationId: "quotation-1", quantity: 3 }],
+  });
+
+  assert.equal(savedItems.length, 1);
+  assert.equal(savedItems[0]?.consignmentReturnId, "return-1");
+  assert.equal(getLast(savedReturns)?.total, 1500);
 });
 
 test("consignment services should not rely on id-only record lookups for store-scoped resources", () => {
@@ -353,6 +576,61 @@ test("report service should not issue aggregate queries per quotation row", asyn
     aggregateQueryCount <= 3,
     `expected at most 3 aggregate queries per report, received ${aggregateQueryCount}`,
   );
+});
+
+test("history service should build changes only for modified fields", () => {
+  const service = new ConsignmentHistoryService({} as never);
+
+  const changes = service.buildChanges(
+    {
+      paymentPolicy: "Pay later",
+      total: 1000,
+      items: [{ quotationId: "quotation-1", quantity: 2 }],
+    },
+    {
+      paymentPolicy: "Pay now",
+      total: 1000,
+      items: [{ quotationId: "quotation-1", quantity: 3 }],
+    },
+  );
+
+  assert.deepEqual(changes, [
+    {
+      field: "paymentPolicy",
+      before: "Pay later",
+      after: "Pay now",
+    },
+    {
+      field: "items",
+      before: [{ quotationId: "quotation-1", quantity: 2 }],
+      after: [{ quotationId: "quotation-1", quantity: 3 }],
+    },
+  ]);
+});
+
+test("history service should normalize nested values into history-safe data", () => {
+  const service = new ConsignmentHistoryService({} as never);
+  const normalized = service.toHistoryValue({
+    intakeDate: new Date("2026-01-02T00:00:00.000Z"),
+    items: [
+      {
+        quotationId: "quotation-1",
+        quantity: 2,
+      },
+    ],
+    optionalField: undefined,
+  });
+
+  assert.deepEqual(normalized, {
+    intakeDate: "2026-01-02T00:00:00.000Z",
+    items: [
+      {
+        quotationId: "quotation-1",
+        quantity: 2,
+      },
+    ],
+    optionalField: null,
+  });
 });
 
 function createSumQueryBuilder(total: number): QueryBuilderStub {

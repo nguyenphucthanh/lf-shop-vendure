@@ -28,6 +28,7 @@ import {
   PageTitle,
   Textarea,
   useLocalFormat,
+  toast,
 } from "@vendure/dashboard";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
@@ -486,6 +487,61 @@ function formatHistoryType(type: string): string {
     .join(" ");
 }
 
+function formatHistoryField(field: string): string {
+  return field
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .replace(/^./, (value) => value.toUpperCase());
+}
+
+function renderHistoryValue(value: unknown): React.ReactNode {
+  if (value === null || value === undefined) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+  if (typeof value === "string" || typeof value === "number") {
+    return <span>{String(value)}</span>;
+  }
+  if (typeof value === "boolean") {
+    return <span>{value ? "Yes" : "No"}</span>;
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return <span className="text-muted-foreground">Empty list</span>;
+    }
+    return (
+      <div className="space-y-2">
+        {value.map((item, index) => (
+          <div
+            key={index}
+            className="rounded border border-border/70 bg-background/80 p-2"
+          >
+            {renderHistoryValue(item)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value);
+    if (entries.length === 0) {
+      return <span className="text-muted-foreground">Empty object</span>;
+    }
+    return (
+      <div className="space-y-1">
+        {entries.map(([key, nestedValue]) => (
+          <div key={key} className="grid grid-cols-[120px_1fr] gap-2">
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">
+              {formatHistoryField(key)}
+            </span>
+            <div className="break-all">{renderHistoryValue(nestedValue)}</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return <span>{formatHistoryValue(value)}</span>;
+}
+
 export function ConsignmentHistoryPanel(props: {
   objectType: ConsignmentHistoryObjectType;
   objectId: string;
@@ -507,6 +563,7 @@ export function ConsignmentHistoryPanel(props: {
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(10);
 
   const loadHistory = useCallback(() => {
     if (!props.objectId) {
@@ -521,6 +578,7 @@ export function ConsignmentHistoryPanel(props: {
       })
       .then((result) => {
         setEntries(result.consignmentHistory ?? []);
+        setVisibleCount(10);
       })
       .catch(() => {
         setEntries([]);
@@ -555,6 +613,9 @@ export function ConsignmentHistoryPanel(props: {
       setSavingNote(false);
     }
   }
+
+  const visibleEntries = entries.slice(0, visibleCount);
+  const hasMoreEntries = visibleCount < entries.length;
 
   return (
     <Card className="space-y-4 p-4">
@@ -603,7 +664,7 @@ export function ConsignmentHistoryPanel(props: {
             No history entries yet.
           </div>
         ) : null}
-        {entries.map((entry) => (
+        {visibleEntries.map((entry) => (
           <div key={entry.id} className="rounded-md border p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -632,13 +693,15 @@ export function ConsignmentHistoryPanel(props: {
                     key={`${entry.id}-${change.field}-${index}`}
                     className="grid gap-2 rounded-md bg-muted/30 p-3 md:grid-cols-[140px_1fr_1fr]"
                   >
-                    <div className="font-medium">{change.field}</div>
+                    <div className="font-medium">
+                      {formatHistoryField(change.field)}
+                    </div>
                     <div>
                       <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
                         Before
                       </div>
                       <div className="break-all text-muted-foreground">
-                        {formatHistoryValue(change.before)}
+                        {renderHistoryValue(change.before)}
                       </div>
                     </div>
                     <div>
@@ -646,7 +709,7 @@ export function ConsignmentHistoryPanel(props: {
                         After
                       </div>
                       <div className="break-all">
-                        {formatHistoryValue(change.after)}
+                        {renderHistoryValue(change.after)}
                       </div>
                     </div>
                   </div>
@@ -655,6 +718,16 @@ export function ConsignmentHistoryPanel(props: {
             ) : null}
           </div>
         ))}
+        {hasMoreEntries ? (
+          <div className="flex justify-center">
+            <Button
+              variant="secondary"
+              onClick={() => setVisibleCount((count) => count + 10)}
+            >
+              Show 10 more entries
+            </Button>
+          </div>
+        ) : null}
       </div>
     </Card>
   );

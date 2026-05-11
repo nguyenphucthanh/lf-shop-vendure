@@ -261,7 +261,6 @@ export class ConsignmentReturnService {
         id: input.id,
         storeId: Not(IsNull()),
       },
-      relations: ["items"],
     });
     if (!ret) {
       throw new UserInputError(`Return ${input.id} not found`);
@@ -282,9 +281,13 @@ export class ConsignmentReturnService {
         ret.id,
       );
 
+      const existingItems = await itemRepo.find({
+        where: { consignmentReturnId: ret.id },
+      });
+
       // Map old quantities by quotationId
       const oldQuantityMap = new Map<ID, number>();
-      for (const item of ret.items) {
+      for (const item of existingItems) {
         oldQuantityMap.set(item.quotationId, item.quantity);
       }
 

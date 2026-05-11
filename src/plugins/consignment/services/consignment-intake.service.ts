@@ -186,7 +186,6 @@ export class ConsignmentIntakeService {
         id: input.id,
         storeId: Not(IsNull()),
       },
-      relations: ["items"],
     });
     if (!intake) {
       throw new UserInputError(`Intake ${input.id} not found`);
@@ -210,9 +209,13 @@ export class ConsignmentIntakeService {
       intake.deliveryCost = input.deliveryCost;
 
     if (input.items !== undefined) {
+      const existingItems = await itemRepo.find({
+        where: { intakeId: intake.id },
+      });
+
       // Map old quantities by quotationId
       const oldQuantityMap = new Map<ID, number>();
-      for (const item of intake.items) {
+      for (const item of existingItems) {
         oldQuantityMap.set(item.quotationId, item.quantity);
       }
 
