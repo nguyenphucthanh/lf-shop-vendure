@@ -452,6 +452,19 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
     }
   }
 
+  function handleSelectSold(soldIdValue: string) {
+    setSoldId(soldIdValue);
+
+    // If subtotal is empty or zero, auto-populate with sold total
+    const currentSubtotal = Number(subtotal || 0);
+    if (currentSubtotal === 0) {
+      const sold = soldOptions.find((option) => option.id === soldIdValue);
+      if (sold) {
+        setSubtotal(String(sold.total / 100));
+      }
+    }
+  }
+
   const subtotalValue = Math.round(Number(subtotal || 0) * 100);
   const discountValue = Math.round(Number(discount || 0) * 100);
   const totalValue = subtotalValue - discountValue;
@@ -752,7 +765,7 @@ export function PaymentDetailPage({ route }: { route: AnyRoute }) {
                       title="Linked sold"
                       className="w-full rounded-md border px-3 py-2 text-sm"
                       value={soldId}
-                      onChange={(event) => setSoldId(event.target.value)}
+                      onChange={(event) => handleSelectSold(event.target.value)}
                     >
                       <option value="">Not linked</option>
                       {soldOptions.map((option) => (
