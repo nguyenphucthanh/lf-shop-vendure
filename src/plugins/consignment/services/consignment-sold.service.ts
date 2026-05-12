@@ -178,106 +178,29 @@ export class ConsignmentSoldService {
     ctx: RequestContext,
     input: CreateSoldInput,
   ): Promise<ConsignmentSold> {
-    const repo = this.connection.getRepository(ctx, ConsignmentSold);
-    const itemRepo = this.connection.getRepository(ctx, ConsignmentSoldItem);
+    this.validateSoldItems(input.items);
 
-    if (input.items.length === 0) {
-      throw new UserInputError("Sold requires at least one item");
-    }
-
-    const quotationById = await this.validateItemsBelongToStore(
-      ctx,
-      input.storeId,
-      input.items,
-    );
-    await this.validateQuantityConstraint(ctx, input.storeId, input.items);
-
-    const sold = repo.create({
-      storeId: input.storeId,
-      soldDate: input.soldDate,
-      total: 0,
-    });
-
-    const saved = await repo.save(sold);
-
-    let total = 0;
-    for (const itemInput of input.items) {
-      const quotation = quotationById.get(itemInput.quotationId);
-      if (!quotation) {
-        throw new UserInputError(
-          `Quotation ${itemInput.quotationId} not found`,
-        );
-      }
-      const consignmentPriceSnapshot =
-        itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
-      const subtotal = consignmentPriceSnapshot * itemInput.quantity;
-      await itemRepo.save(
-        itemRepo.create({
-          soldId: saved.id,
-          quotationId: quotation.id,
-          currency: quotation.currency,
-          productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
-          consignmentPriceSnapshot,
-          quantity: itemInput.quantity,
-          subtotal,
-        }),
+    return this.connection.withTransaction(ctx, async (txCtx) => {
+      const repo = this.connection.getRepository(txCtx, ConsignmentSold);
+      const itemRepo = this.connection.getRepository(
+        txCtx,
+        ConsignmentSoldItem,
       );
-      total += subtotal;
-    }
 
-    saved.total = total;
-    await repo.save(saved);
-    const created = await this.findOne(ctx, saved.id);
-    if (!created) {
-      throw new UserInputError(`Sold ${saved.id} not found`);
-    }
-    await this.historyService.record(ctx, {
-      storeId: created.storeId,
-      objectType: "SOLD",
-      objectId: created.id,
-      type: "CREATED",
-      data: this.snapshot(created),
-    });
-    return created;
-  }
-
-  async update(
-    ctx: RequestContext,
-    input: UpdateSoldInput,
-  ): Promise<ConsignmentSold> {
-    const repo = this.connection.getRepository(ctx, ConsignmentSold);
-    const itemRepo = this.connection.getRepository(ctx, ConsignmentSoldItem);
-    const beforeSold = await this.findOne(ctx, input.id);
-
-    const sold = await repo.findOne({
-      where: {
-        id: input.id,
-        storeId: Not(IsNull()),
-      },
-    });
-    if (!sold) {
-      throw new UserInputError(`Sold ${input.id} not found`);
-    }
-
-    if (input.soldDate !== undefined) sold.soldDate = input.soldDate;
-
-    if (input.items !== undefined) {
-      if (input.items.length === 0) {
-        throw new UserInputError("Sold requires at least one item");
-      }
       const quotationById = await this.validateItemsBelongToStore(
-        ctx,
-        sold.storeId,
+        txCtx,
+        input.storeId,
         input.items,
       );
-      await this.validateQuantityConstraint(
-        ctx,
-        sold.storeId,
-        input.items,
-        sold.id,
-      );
+      await this.validateQuantityConstraint(txCtx, input.storeId, input.items);
 
-      await itemRepo.delete({ soldId: sold.id });
+      const sold = repo.create({
+        storeId: input.storeId,
+        soldDate: input.soldDate,
+        total: 0,
+      });
+
+      const saved = await repo.save(sold);
 
       let total = 0;
       for (const itemInput of input.items) {
@@ -292,7 +215,7 @@ export class ConsignmentSoldService {
         const subtotal = consignmentPriceSnapshot * itemInput.quantity;
         await itemRepo.save(
           itemRepo.create({
-            soldId: sold.id,
+            soldId: saved.id,
             quotationId: quotation.id,
             currency: quotation.currency,
             productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
@@ -303,54 +226,165 @@ export class ConsignmentSoldService {
         );
         total += subtotal;
       }
-      sold.total = total;
+
+      saved.total = total;
+      await repo.save(saved);
+      const created = await this.findOne(txCtx, saved.id);
+      if (!created) {
+        throw new UserInputError(`Sold ${saved.id} not found`);
+      }
+      await this.historyService.record(txCtx, {
+        storeId: created.storeId,
+        objectType: "SOLD",
+        objectId: created.id,
+        type: "CREATED",
+        data: this.snapshot(created),
+      });
+      return created;
+    });
+  }
+
+  async update(
+    ctx: RequestContext,
+    input: UpdateSoldInput,
+  ): Promise<ConsignmentSold> {
+    if (input.items !== undefined) {
+      this.validateSoldItems(input.items);
     }
 
-    await repo.save(sold);
-    const updated = await this.findOne(ctx, sold.id);
-    if (!updated) {
-      throw new UserInputError(`Sold ${sold.id} not found`);
-    }
-    if (beforeSold) {
-      const changes = this.historyService.buildChanges(
-        this.snapshot(beforeSold),
-        this.snapshot(updated),
+    const beforeSold = await this.findOne(ctx, input.id);
+
+    return this.connection.withTransaction(ctx, async (txCtx) => {
+      const repo = this.connection.getRepository(txCtx, ConsignmentSold);
+      const itemRepo = this.connection.getRepository(
+        txCtx,
+        ConsignmentSoldItem,
       );
-      if (changes.length > 0) {
-        await this.historyService.record(ctx, {
-          storeId: updated.storeId,
-          objectType: "SOLD",
-          objectId: updated.id,
-          type: "UPDATED",
-          changes,
-          data: this.snapshot(updated),
-        });
+
+      const sold = await repo.findOne({
+        where: {
+          id: input.id,
+          storeId: Not(IsNull()),
+        },
+      });
+      if (!sold) {
+        throw new UserInputError(`Sold ${input.id} not found`);
       }
-    }
-    return updated;
+
+      if (input.soldDate !== undefined) sold.soldDate = input.soldDate;
+
+      if (input.items !== undefined) {
+        const quotationById = await this.validateItemsBelongToStore(
+          txCtx,
+          sold.storeId,
+          input.items,
+        );
+        await this.validateQuantityConstraint(
+          txCtx,
+          sold.storeId,
+          input.items,
+          sold.id,
+        );
+
+        await itemRepo.delete({ soldId: sold.id });
+
+        let total = 0;
+        for (const itemInput of input.items) {
+          const quotation = quotationById.get(itemInput.quotationId);
+          if (!quotation) {
+            throw new UserInputError(
+              `Quotation ${itemInput.quotationId} not found`,
+            );
+          }
+          const consignmentPriceSnapshot =
+            itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
+          const subtotal = consignmentPriceSnapshot * itemInput.quantity;
+          await itemRepo.save(
+            itemRepo.create({
+              soldId: sold.id,
+              quotationId: quotation.id,
+              currency: quotation.currency,
+              productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
+              consignmentPriceSnapshot,
+              quantity: itemInput.quantity,
+              subtotal,
+            }),
+          );
+          total += subtotal;
+        }
+        sold.total = total;
+      }
+
+      await repo.save(sold);
+      const updated = await this.findOne(txCtx, sold.id);
+      if (!updated) {
+        throw new UserInputError(`Sold ${sold.id} not found`);
+      }
+      if (beforeSold) {
+        const changes = this.historyService.buildChanges(
+          this.snapshot(beforeSold),
+          this.snapshot(updated),
+        );
+        if (changes.length > 0) {
+          await this.historyService.record(txCtx, {
+            storeId: updated.storeId,
+            objectType: "SOLD",
+            objectId: updated.id,
+            type: "UPDATED",
+            changes,
+            data: this.snapshot(updated),
+          });
+        }
+      }
+      return updated;
+    });
   }
 
   async delete(ctx: RequestContext, id: ID): Promise<boolean> {
-    const repo = this.connection.getRepository(ctx, ConsignmentSold);
     const beforeSold = await this.findOne(ctx, id);
-    const sold = await repo.findOne({
-      where: {
-        id,
-        storeId: Not(IsNull()),
-      },
-    });
-    if (!sold) return false;
-    await repo.remove(sold);
-    if (beforeSold) {
-      await this.historyService.record(ctx, {
-        storeId: beforeSold.storeId,
-        objectType: "SOLD",
-        objectId: beforeSold.id,
-        type: "DELETED",
-        data: this.snapshot(beforeSold),
+    return this.connection.withTransaction(ctx, async (txCtx) => {
+      const repo = this.connection.getRepository(txCtx, ConsignmentSold);
+      const sold = await repo.findOne({
+        where: {
+          id,
+          storeId: Not(IsNull()),
+        },
       });
+      if (!sold) return false;
+      await repo.remove(sold);
+      if (beforeSold) {
+        await this.historyService.record(txCtx, {
+          storeId: beforeSold.storeId,
+          objectType: "SOLD",
+          objectId: beforeSold.id,
+          type: "DELETED",
+          data: this.snapshot(beforeSold),
+        });
+      }
+      return true;
+    });
+  }
+
+  private validateSoldItems(items: SoldItemInput[]): void {
+    if (items.length === 0) {
+      throw new UserInputError("Sold requires at least one item");
     }
-    return true;
+
+    for (const item of items) {
+      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+        throw new UserInputError(
+          `Quotation ${item.quotationId}: quantity must be a positive integer`,
+        );
+      }
+      if (
+        item.consignmentPriceSnapshot !== undefined &&
+        item.consignmentPriceSnapshot < 0
+      ) {
+        throw new UserInputError(
+          `Quotation ${item.quotationId}: consignmentPriceSnapshot cannot be negative`,
+        );
+      }
+    }
   }
 
   private snapshot(sold: ConsignmentSold): ConsignmentHistoryData {

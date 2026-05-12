@@ -17,6 +17,7 @@ import { ConsignmentPayment } from "../entities/consignment-payment.entity";
 import { ConsignmentQuotation } from "../entities/consignment-quotation.entity";
 import { ConsignmentReturn } from "../entities/consignment-return.entity";
 import { ConsignmentSold } from "../entities/consignment-sold.entity";
+import { ConsignmentSettlement } from "../entities/consignment-settlement.entity";
 import { ConsignmentHistoryService } from "../services/consignment-history.service";
 import {
   ConsignmentIntakeService,
@@ -40,6 +41,10 @@ import {
   CreateSoldInput,
   UpdateSoldInput,
 } from "../services/consignment-sold.service";
+import {
+  ConsignmentSettlementService,
+  CreateSettlementInput,
+} from "../services/consignment-settlement.service";
 
 function normalizeDateTime(value: Date | string | null | undefined): string {
   if (!value) {
@@ -68,6 +73,7 @@ export class ConsignmentResolver {
     private paymentService: ConsignmentPaymentService,
     private returnService: ConsignmentReturnService,
     private reportService: ConsignmentReportService,
+    private settlementService: ConsignmentSettlementService,
   ) {}
 
   @Query()
@@ -303,6 +309,66 @@ export class ConsignmentResolver {
   consignmentTotalReport(@Ctx() ctx: RequestContext) {
     return this.reportService.getTotalReport(ctx);
   }
+
+  @Query()
+  @Allow(Permission.ReadCustomer)
+  consignmentSettlements(
+    @Ctx() ctx: RequestContext,
+    @Args("storeId") storeId: string,
+  ) {
+    return this.settlementService.findAll(ctx, storeId);
+  }
+
+  @Query()
+  @Allow(Permission.ReadCustomer)
+  consignmentSettlement(@Ctx() ctx: RequestContext, @Args("id") id: string) {
+    return this.settlementService.findOne(ctx, id);
+  }
+
+  @Query()
+  @Allow(Permission.ReadCustomer)
+  consignmentActiveSettlement(
+    @Ctx() ctx: RequestContext,
+    @Args("storeId") storeId: string,
+  ) {
+    return this.settlementService.findActive(ctx, storeId);
+  }
+
+  @Mutation()
+  @Allow(Permission.UpdateCustomer)
+  createConsignmentSettlement(
+    @Ctx() ctx: RequestContext,
+    @Args("input") input: CreateSettlementInput,
+  ) {
+    return this.settlementService.create(ctx, input);
+  }
+
+  @Mutation()
+  @Allow(Permission.UpdateCustomer)
+  approveConsignmentSettlement(
+    @Ctx() ctx: RequestContext,
+    @Args("id") id: string,
+  ) {
+    return this.settlementService.approve(ctx, id);
+  }
+
+  @Mutation()
+  @Allow(Permission.UpdateCustomer)
+  markConsignmentSettlementAsPaid(
+    @Ctx() ctx: RequestContext,
+    @Args("id") id: string,
+  ) {
+    return this.settlementService.markAsPaid(ctx, id);
+  }
+
+  @Mutation()
+  @Allow(Permission.UpdateCustomer)
+  closeConsignmentSettlement(
+    @Ctx() ctx: RequestContext,
+    @Args("id") id: string,
+  ) {
+    return this.settlementService.close(ctx, id);
+  }
 }
 
 @Resolver("ConsignmentHistoryEntry")
@@ -423,5 +489,44 @@ export class ConsignmentReturnFieldResolver {
       "RETURN",
       consignmentReturn.id,
     );
+  }
+}
+
+@Resolver("ConsignmentSettlement")
+export class ConsignmentSettlementFieldResolver {
+  constructor(private readonly historyService: ConsignmentHistoryService) {}
+
+  @ResolveField()
+  settlementDate(@Parent() settlement: ConsignmentSettlement): string {
+    return normalizeDateTime(settlement.settlementDate);
+  }
+
+  @ResolveField()
+  history(
+    @Ctx() ctx: RequestContext,
+    @Parent() settlement: ConsignmentSettlement,
+  ) {
+    return this.historyService.getHistoryForObject(
+      ctx,
+      "SETTLEMENT",
+      settlement.id,
+    );
+  }
+
+  @ResolveField()
+  approvedAt(@Parent() settlement: ConsignmentSettlement): string | null {
+    return settlement.approvedAt
+      ? normalizeDateTime(settlement.approvedAt)
+      : null;
+  }
+
+  @ResolveField()
+  paidAt(@Parent() settlement: ConsignmentSettlement): string | null {
+    return settlement.paidAt ? normalizeDateTime(settlement.paidAt) : null;
+  }
+
+  @ResolveField()
+  closedAt(@Parent() settlement: ConsignmentSettlement): string | null {
+    return settlement.closedAt ? normalizeDateTime(settlement.closedAt) : null;
   }
 }

@@ -219,7 +219,8 @@ export type ConsignmentHistoryObjectType =
   | "INTAKE"
   | "RETURN"
   | "SOLD"
-  | "PAYMENT";
+  | "PAYMENT"
+  | "SETTLEMENT";
 
 export const GET_CONSIGNMENT_HISTORY = graphql(`
   query ConsignmentHistoryPanel(

@@ -151,160 +151,49 @@ export class ConsignmentReturnService {
     ctx: RequestContext,
     input: CreateReturnInput,
   ): Promise<ConsignmentReturn> {
-    await this.validateQuantityConstraint(ctx, input.storeId, input.items);
+    this.validateReturnItems(input.items);
 
-    const repo = this.connection.getRepository(ctx, ConsignmentReturn);
-    const itemRepo = this.connection.getRepository(ctx, ConsignmentReturnItem);
-    const quotationRepo = this.connection.getRepository(
-      ctx,
-      ConsignmentQuotation,
-    );
+    return this.connection.withTransaction(ctx, async (txCtx) => {
+      await this.validateQuantityConstraint(txCtx, input.storeId, input.items);
 
-    // Get primary stock location
-    const primaryLocation =
-      await this.stockLocationService.defaultStockLocation(ctx);
-    if (!primaryLocation) {
-      throw new Error("No default stock location found");
-    }
-
-    const ret = repo.create({
-      storeId: input.storeId,
-      returnedDate: input.returnedDate,
-      reason: input.reason ?? null,
-      total: 0,
-    });
-    const saved = await repo.save(ret);
-
-    let total = 0;
-    for (const itemInput of input.items) {
-      const quotation = await quotationRepo.findOne({
-        where: { id: itemInput.quotationId },
-        relations: ["productVariant"],
-      });
-      if (!quotation)
-        throw new UserInputError(
-          `Quotation ${itemInput.quotationId} not found`,
-        );
-      if (quotation.storeId !== input.storeId) {
-        throw new UserInputError(
-          `Quotation ${itemInput.quotationId} does not belong to store ${input.storeId}`,
-        );
-      }
-      const consignmentPriceSnapshot =
-        itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
-      const itemSubtotal = consignmentPriceSnapshot * itemInput.quantity;
-      await itemRepo.save(
-        itemRepo.create({
-          consignmentReturnId: saved.id,
-          quotationId: quotation.id,
-          currency: quotation.currency,
-          productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
-          consignmentPriceSnapshot,
-          quantity: itemInput.quantity,
-          subtotal: itemSubtotal,
-        }),
+      const repo = this.connection.getRepository(txCtx, ConsignmentReturn);
+      const itemRepo = this.connection.getRepository(
+        txCtx,
+        ConsignmentReturnItem,
       );
-      total += itemSubtotal;
-
-      // Increase stock: consignor returns items
-      try {
-        await this.stockLevelService.updateStockOnHandForLocation(
-          ctx,
-          quotation.productVariant.id,
-          primaryLocation.id,
-          itemInput.quantity, // positive = increase
-        );
-        Logger.info(
-          `Return ${saved.id}: increased stock for variant ${quotation.productVariant.id} by ${itemInput.quantity}`,
-          loggerCtx,
-        );
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        Logger.error(
-          `Failed to adjust stock for variant ${quotation.productVariant.id}: ${message}`,
-          loggerCtx,
-        );
-        throw err;
-      }
-    }
-
-    saved.total = total;
-    await repo.save(saved);
-    const created = await this.findOne(ctx, saved.id);
-    if (!created) {
-      throw new UserInputError(`Return ${saved.id} not found`);
-    }
-    await this.historyService.record(ctx, {
-      storeId: created.storeId,
-      objectType: "RETURN",
-      objectId: created.id,
-      type: "CREATED",
-      data: this.snapshot(created),
-    });
-    return created;
-  }
-
-  async update(
-    ctx: RequestContext,
-    input: UpdateReturnInput,
-  ): Promise<ConsignmentReturn> {
-    const repo = this.connection.getRepository(ctx, ConsignmentReturn);
-    const itemRepo = this.connection.getRepository(ctx, ConsignmentReturnItem);
-    const quotationRepo = this.connection.getRepository(
-      ctx,
-      ConsignmentQuotation,
-    );
-    const beforeReturn = await this.findOne(ctx, input.id);
-
-    const ret = await repo.findOne({
-      where: {
-        id: input.id,
-        storeId: Not(IsNull()),
-      },
-    });
-    if (!ret) {
-      throw new UserInputError(`Return ${input.id} not found`);
-    }
-
-    // Get primary stock location
-    const primaryLocation =
-      await this.stockLocationService.defaultStockLocation(ctx);
-    if (!primaryLocation) {
-      throw new Error("No default stock location found");
-    }
-
-    if (input.items !== undefined) {
-      await this.validateQuantityConstraint(
-        ctx,
-        ret.storeId,
-        input.items,
-        ret.id,
+      const quotationRepo = this.connection.getRepository(
+        txCtx,
+        ConsignmentQuotation,
       );
 
-      const existingItems = await itemRepo.find({
-        where: { consignmentReturnId: ret.id },
-      });
-
-      // Map old quantities by quotationId
-      const oldQuantityMap = new Map<ID, number>();
-      for (const item of existingItems) {
-        oldQuantityMap.set(item.quotationId, item.quantity);
+      const primaryLocation =
+        await this.stockLocationService.defaultStockLocation(txCtx);
+      if (!primaryLocation) {
+        throw new UserInputError("No default stock location found");
       }
 
-      await itemRepo.delete({ consignmentReturnId: ret.id });
+      const ret = repo.create({
+        storeId: input.storeId,
+        returnedDate: input.returnedDate,
+        reason: input.reason ?? null,
+        total: 0,
+      });
+      const saved = await repo.save(ret);
+
       let total = 0;
       for (const itemInput of input.items) {
         const quotation = await quotationRepo.findOne({
           where: { id: itemInput.quotationId },
           relations: ["productVariant"],
         });
-        if (!quotation)
+        if (!quotation) {
           throw new UserInputError(
             `Quotation ${itemInput.quotationId} not found`,
           );
-        if (quotation.storeId !== ret.storeId) {
+        }
+        if (quotation.storeId !== input.storeId) {
           throw new UserInputError(
-            `Quotation ${itemInput.quotationId} does not belong to store ${ret.storeId}`,
+            `Quotation ${itemInput.quotationId} does not belong to store ${input.storeId}`,
           );
         }
         const consignmentPriceSnapshot =
@@ -312,7 +201,7 @@ export class ConsignmentReturnService {
         const itemSubtotal = consignmentPriceSnapshot * itemInput.quantity;
         await itemRepo.save(
           itemRepo.create({
-            consignmentReturnId: ret.id,
+            consignmentReturnId: saved.id,
             quotationId: quotation.id,
             currency: quotation.currency,
             productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
@@ -323,125 +212,278 @@ export class ConsignmentReturnService {
         );
         total += itemSubtotal;
 
-        // Calculate quantity delta and adjust stock
-        const oldQuantity = oldQuantityMap.get(quotation.id) ?? 0;
-        const delta = itemInput.quantity - oldQuantity;
-        if (delta !== 0) {
+        // Increase stock: consignor returns items
+        try {
+          await this.stockLevelService.updateStockOnHandForLocation(
+            txCtx,
+            quotation.productVariant.id,
+            primaryLocation.id,
+            itemInput.quantity, // positive = increase
+          );
+          Logger.info(
+            `Return ${saved.id}: increased stock for variant ${quotation.productVariant.id} by ${itemInput.quantity}`,
+            loggerCtx,
+          );
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          Logger.error(
+            `Failed to adjust stock for variant ${quotation.productVariant.id}: ${message}`,
+            loggerCtx,
+          );
+          throw err;
+        }
+      }
+
+      saved.total = total;
+      await repo.save(saved);
+      const created = await this.findOne(txCtx, saved.id);
+      if (!created) {
+        throw new UserInputError(`Return ${saved.id} not found`);
+      }
+      await this.historyService.record(txCtx, {
+        storeId: created.storeId,
+        objectType: "RETURN",
+        objectId: created.id,
+        type: "CREATED",
+        data: this.snapshot(created),
+      });
+      return created;
+    });
+  }
+
+  async update(
+    ctx: RequestContext,
+    input: UpdateReturnInput,
+  ): Promise<ConsignmentReturn> {
+    if (input.items !== undefined) {
+      this.validateReturnItems(input.items);
+    }
+
+    const beforeReturn = await this.findOne(ctx, input.id);
+
+    return this.connection.withTransaction(ctx, async (txCtx) => {
+      const repo = this.connection.getRepository(txCtx, ConsignmentReturn);
+      const itemRepo = this.connection.getRepository(
+        txCtx,
+        ConsignmentReturnItem,
+      );
+      const quotationRepo = this.connection.getRepository(
+        txCtx,
+        ConsignmentQuotation,
+      );
+
+      const ret = await repo.findOne({
+        where: {
+          id: input.id,
+          storeId: Not(IsNull()),
+        },
+      });
+      if (!ret) {
+        throw new UserInputError(`Return ${input.id} not found`);
+      }
+
+      const primaryLocation =
+        await this.stockLocationService.defaultStockLocation(txCtx);
+      if (!primaryLocation) {
+        throw new UserInputError("No default stock location found");
+      }
+
+      if (input.items !== undefined) {
+        await this.validateQuantityConstraint(
+          txCtx,
+          ret.storeId,
+          input.items,
+          ret.id,
+        );
+
+        const existingItems = await itemRepo.find({
+          where: { consignmentReturnId: ret.id },
+        });
+
+        // Map old quantities by quotationId
+        const oldQuantityMap = new Map<ID, number>();
+        for (const item of existingItems) {
+          oldQuantityMap.set(item.quotationId, item.quantity);
+        }
+
+        await itemRepo.delete({ consignmentReturnId: ret.id });
+        let total = 0;
+        for (const itemInput of input.items) {
+          const quotation = await quotationRepo.findOne({
+            where: { id: itemInput.quotationId },
+            relations: ["productVariant"],
+          });
+          if (!quotation) {
+            throw new UserInputError(
+              `Quotation ${itemInput.quotationId} not found`,
+            );
+          }
+          if (quotation.storeId !== ret.storeId) {
+            throw new UserInputError(
+              `Quotation ${itemInput.quotationId} does not belong to store ${ret.storeId}`,
+            );
+          }
+          const consignmentPriceSnapshot =
+            itemInput.consignmentPriceSnapshot ?? quotation.consignmentPrice;
+          const itemSubtotal = consignmentPriceSnapshot * itemInput.quantity;
+          await itemRepo.save(
+            itemRepo.create({
+              consignmentReturnId: ret.id,
+              quotationId: quotation.id,
+              currency: quotation.currency,
+              productPriceSnapshot: quotation.productVariant?.priceWithTax ?? 0,
+              consignmentPriceSnapshot,
+              quantity: itemInput.quantity,
+              subtotal: itemSubtotal,
+            }),
+          );
+          total += itemSubtotal;
+
+          // Calculate quantity delta and adjust stock
+          const oldQuantity = oldQuantityMap.get(quotation.id) ?? 0;
+          const delta = itemInput.quantity - oldQuantity;
+          if (delta !== 0) {
+            try {
+              await this.stockLevelService.updateStockOnHandForLocation(
+                txCtx,
+                quotation.productVariant.id,
+                primaryLocation.id,
+                delta, // positive delta = more returned = more stock increase
+              );
+              Logger.info(
+                `Return ${ret.id}: adjusted stock for variant ${quotation.productVariant.id} by ${delta}`,
+                loggerCtx,
+              );
+            } catch (err: unknown) {
+              const message = err instanceof Error ? err.message : String(err);
+              Logger.error(
+                `Failed to adjust stock for variant ${quotation.productVariant.id}: ${message}`,
+                loggerCtx,
+              );
+              throw err;
+            }
+          }
+        }
+        ret.total = total;
+      }
+
+      if (input.returnedDate !== undefined)
+        ret.returnedDate = input.returnedDate;
+      if (input.reason !== undefined) ret.reason = input.reason ?? null;
+
+      await repo.save(ret);
+      const updated = await this.findOne(txCtx, ret.id);
+      if (!updated) {
+        throw new UserInputError(`Return ${ret.id} not found`);
+      }
+      if (beforeReturn) {
+        const changes = this.historyService.buildChanges(
+          this.snapshot(beforeReturn),
+          this.snapshot(updated),
+        );
+        if (changes.length > 0) {
+          await this.historyService.record(txCtx, {
+            storeId: updated.storeId,
+            objectType: "RETURN",
+            objectId: updated.id,
+            type: "UPDATED",
+            changes,
+            data: this.snapshot(updated),
+          });
+        }
+      }
+      return updated;
+    });
+  }
+
+  async delete(ctx: RequestContext, id: ID): Promise<boolean> {
+    const beforeReturn = await this.findOne(ctx, id);
+
+    return this.connection.withTransaction(ctx, async (txCtx) => {
+      const repo = this.connection.getRepository(txCtx, ConsignmentReturn);
+      const quotationRepo = this.connection.getRepository(
+        txCtx,
+        ConsignmentQuotation,
+      );
+
+      const ret = await repo.findOne({
+        where: {
+          id,
+          storeId: Not(IsNull()),
+        },
+        relations: ["items"],
+      });
+      if (!ret) return false;
+
+      const primaryLocation =
+        await this.stockLocationService.defaultStockLocation(txCtx);
+      if (!primaryLocation) {
+        throw new UserInputError("No default stock location found");
+      }
+
+      // Reverse stock adjustments for all items
+      for (const item of ret.items) {
+        const quotation = await quotationRepo.findOne({
+          where: { id: item.quotationId },
+          relations: ["productVariant"],
+        });
+        if (quotation) {
           try {
             await this.stockLevelService.updateStockOnHandForLocation(
-              ctx,
+              txCtx,
               quotation.productVariant.id,
               primaryLocation.id,
-              delta, // positive delta = more returned = more stock increase
+              -item.quantity, // negative = decrease (items go back to consignor)
             );
             Logger.info(
-              `Return ${ret.id}: adjusted stock for variant ${quotation.productVariant.id} by ${delta}`,
+              `Return ${id}: reversed stock for variant ${quotation.productVariant.id} by ${item.quantity}`,
               loggerCtx,
             );
           } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
             Logger.error(
-              `Failed to adjust stock for variant ${quotation.productVariant.id}: ${message}`,
+              `Failed to reverse stock for variant ${quotation.productVariant.id}: ${message}`,
               loggerCtx,
             );
             throw err;
           }
         }
       }
-      ret.total = total;
-    }
 
-    if (input.returnedDate !== undefined) ret.returnedDate = input.returnedDate;
-    if (input.reason !== undefined) ret.reason = input.reason ?? null;
-
-    await repo.save(ret);
-    const updated = await this.findOne(ctx, ret.id);
-    if (!updated) {
-      throw new UserInputError(`Return ${ret.id} not found`);
-    }
-    if (beforeReturn) {
-      const changes = this.historyService.buildChanges(
-        this.snapshot(beforeReturn),
-        this.snapshot(updated),
-      );
-      if (changes.length > 0) {
-        await this.historyService.record(ctx, {
-          storeId: updated.storeId,
+      await repo.remove(ret);
+      if (beforeReturn) {
+        await this.historyService.record(txCtx, {
+          storeId: beforeReturn.storeId,
           objectType: "RETURN",
-          objectId: updated.id,
-          type: "UPDATED",
-          changes,
-          data: this.snapshot(updated),
+          objectId: beforeReturn.id,
+          type: "DELETED",
+          data: this.snapshot(beforeReturn),
         });
       }
-    }
-    return updated;
+      return true;
+    });
   }
 
-  async delete(ctx: RequestContext, id: ID): Promise<boolean> {
-    const repo = this.connection.getRepository(ctx, ConsignmentReturn);
-    const quotationRepo = this.connection.getRepository(
-      ctx,
-      ConsignmentQuotation,
-    );
-    const beforeReturn = await this.findOne(ctx, id);
-
-    const ret = await repo.findOne({
-      where: {
-        id,
-        storeId: Not(IsNull()),
-      },
-      relations: ["items"],
-    });
-    if (!ret) return false;
-
-    // Get primary stock location
-    const primaryLocation =
-      await this.stockLocationService.defaultStockLocation(ctx);
-    if (!primaryLocation) {
-      throw new Error("No default stock location found");
+  private validateReturnItems(items: ReturnItemInput[]): void {
+    if (items.length === 0) {
+      throw new UserInputError("Return requires at least one item");
     }
 
-    // Reverse stock adjustments for all items
-    for (const item of ret.items) {
-      const quotation = await quotationRepo.findOne({
-        where: { id: item.quotationId },
-        relations: ["productVariant"],
-      });
-      if (quotation) {
-        try {
-          await this.stockLevelService.updateStockOnHandForLocation(
-            ctx,
-            quotation.productVariant.id,
-            primaryLocation.id,
-            -item.quantity, // negative = decrease (items go back to consignor)
-          );
-          Logger.info(
-            `Return ${id}: reversed stock for variant ${quotation.productVariant.id} by ${item.quantity}`,
-            loggerCtx,
-          );
-        } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : String(err);
-          Logger.error(
-            `Failed to reverse stock for variant ${quotation.productVariant.id}: ${message}`,
-            loggerCtx,
-          );
-          throw err;
-        }
+    for (const item of items) {
+      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+        throw new UserInputError(
+          `Quotation ${item.quotationId}: quantity must be a positive integer`,
+        );
+      }
+      if (
+        item.consignmentPriceSnapshot !== undefined &&
+        item.consignmentPriceSnapshot < 0
+      ) {
+        throw new UserInputError(
+          `Quotation ${item.quotationId}: consignmentPriceSnapshot cannot be negative`,
+        );
       }
     }
-
-    await repo.remove(ret);
-    if (beforeReturn) {
-      await this.historyService.record(ctx, {
-        storeId: beforeReturn.storeId,
-        objectType: "RETURN",
-        objectId: beforeReturn.id,
-        type: "DELETED",
-        data: this.snapshot(beforeReturn),
-      });
-    }
-    return true;
   }
 
   private snapshot(

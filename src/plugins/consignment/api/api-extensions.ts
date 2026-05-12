@@ -7,6 +7,7 @@ export const adminApiExtensions = gql`
     RETURN
     SOLD
     PAYMENT
+    SETTLEMENT
   }
 
   enum ConsignmentHistoryEntryType {
@@ -146,6 +147,27 @@ export const adminApiExtensions = gql`
     history: [ConsignmentHistoryEntry!]!
   }
 
+  enum SettlementStatus {
+    OPEN
+    APPROVED
+    PAID
+    CLOSED
+  }
+
+  type ConsignmentSettlement implements Node {
+    id: ID!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    storeId: ID!
+    settlementDate: DateTime!
+    status: SettlementStatus!
+    description: String
+    approvedAt: DateTime
+    paidAt: DateTime
+    closedAt: DateTime
+    history: [ConsignmentHistoryEntry!]!
+  }
+
   type ConsignmentReportRow {
     quotationId: ID!
     productVariantId: ID!
@@ -252,6 +274,12 @@ export const adminApiExtensions = gql`
     items: [ConsignmentLineItemInput!]
   }
 
+  input CreateConsignmentSettlementInput {
+    storeId: ID!
+    settlementDate: DateTime!
+    description: String
+  }
+
   extend type Query {
     consignmentHistory(
       objectType: ConsignmentHistoryObjectType!
@@ -267,6 +295,9 @@ export const adminApiExtensions = gql`
     consignmentPayment(id: ID!): ConsignmentPayment
     consignmentReturns(storeId: ID!): [ConsignmentReturn!]!
     consignmentReturn(id: ID!): ConsignmentReturn
+    consignmentSettlements(storeId: ID!): [ConsignmentSettlement!]!
+    consignmentSettlement(id: ID!): ConsignmentSettlement
+    consignmentActiveSettlement(storeId: ID!): ConsignmentSettlement
     consignmentReport(storeId: ID!): [ConsignmentReportRow!]!
     consignmentTotalReport: ConsignmentTotalReport!
   }
@@ -334,5 +365,12 @@ export const adminApiExtensions = gql`
       input: UpdateConsignmentReturnInput!
     ): ConsignmentReturn!
     deleteConsignmentReturn(id: ID!): Boolean!
+
+    createConsignmentSettlement(
+      input: CreateConsignmentSettlementInput!
+    ): ConsignmentSettlement!
+    approveConsignmentSettlement(id: ID!): ConsignmentSettlement!
+    markConsignmentSettlementAsPaid(id: ID!): ConsignmentSettlement!
+    closeConsignmentSettlement(id: ID!): ConsignmentSettlement!
   }
 `;

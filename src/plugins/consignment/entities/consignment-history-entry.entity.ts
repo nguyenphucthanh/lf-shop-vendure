@@ -8,10 +8,16 @@ export const consignmentHistoryObjectTypes = [
   "RETURN",
   "SOLD",
   "PAYMENT",
+  "SETTLEMENT",
 ] as const;
 
 export type ConsignmentHistoryObjectType =
-  (typeof consignmentHistoryObjectTypes)[number];
+  | "QUOTATION"
+  | "INTAKE"
+  | "RETURN"
+  | "SOLD"
+  | "PAYMENT"
+  | "SETTLEMENT";
 
 export const consignmentHistoryEntryTypes = [
   "CREATED",

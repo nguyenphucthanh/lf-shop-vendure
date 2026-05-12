@@ -9,6 +9,7 @@ import {
   ConsignmentResolver,
   ConsignmentSoldFieldResolver,
   ConsignmentReturnFieldResolver,
+  ConsignmentSettlementFieldResolver,
 } from "./api/consignment.resolver";
 import { ConsignmentHistoryEntry } from "./entities/consignment-history-entry.entity";
 import { ConsignmentQuotation } from "./entities/consignment-quotation.entity";
@@ -19,6 +20,7 @@ import { ConsignmentSoldItem } from "./entities/consignment-sold-item.entity";
 import { ConsignmentSold } from "./entities/consignment-sold.entity";
 import { ConsignmentReturn } from "./entities/consignment-return.entity";
 import { ConsignmentReturnItem } from "./entities/consignment-return-item.entity";
+import { ConsignmentSettlement } from "./entities/consignment-settlement.entity";
 import { ConsignmentQuotationService } from "./services/consignment-quotation.service";
 import { ConsignmentIntakeService } from "./services/consignment-intake.service";
 import { ConsignmentPaymentService } from "./services/consignment-payment.service";
@@ -26,6 +28,8 @@ import { ConsignmentSoldService } from "./services/consignment-sold.service";
 import { ConsignmentReturnService } from "./services/consignment-return.service";
 import { ConsignmentReportService } from "./services/consignment-report.service";
 import { ConsignmentHistoryService } from "./services/consignment-history.service";
+import { ConsignmentReconciliationService } from "./services/consignment-reconciliation.service";
+import { ConsignmentSettlementService } from "./services/consignment-settlement.service";
 
 @VendurePlugin({
   imports: [PluginCommonModule],
@@ -39,6 +43,7 @@ import { ConsignmentHistoryService } from "./services/consignment-history.servic
     ConsignmentSoldItem,
     ConsignmentReturn,
     ConsignmentReturnItem,
+    ConsignmentSettlement,
   ],
   providers: [
     ConsignmentHistoryService,
@@ -48,6 +53,8 @@ import { ConsignmentHistoryService } from "./services/consignment-history.servic
     ConsignmentPaymentService,
     ConsignmentReturnService,
     ConsignmentReportService,
+    ConsignmentReconciliationService,
+    ConsignmentSettlementService,
   ],
   adminApiExtensions: {
     schema: adminApiExtensions,
@@ -59,6 +66,7 @@ import { ConsignmentHistoryService } from "./services/consignment-history.servic
       ConsignmentSoldFieldResolver,
       ConsignmentPaymentFieldResolver,
       ConsignmentReturnFieldResolver,
+      ConsignmentSettlementFieldResolver,
     ],
   },
   dashboard: "./dashboard/index.tsx",

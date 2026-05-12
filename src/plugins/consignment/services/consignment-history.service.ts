@@ -20,6 +20,7 @@ import { ConsignmentPayment } from "../entities/consignment-payment.entity";
 import { ConsignmentQuotation } from "../entities/consignment-quotation.entity";
 import { ConsignmentReturn } from "../entities/consignment-return.entity";
 import { ConsignmentSold } from "../entities/consignment-sold.entity";
+import { ConsignmentSettlement } from "../entities/consignment-settlement.entity";
 
 export interface RecordConsignmentHistoryInput {
   storeId: ID;
@@ -203,6 +204,15 @@ export class ConsignmentHistoryService {
       case "PAYMENT": {
         const entity = await this.connection
           .getRepository(ctx, ConsignmentPayment)
+          .findOne({ where: { id: objectId } });
+        if (!entity) {
+          break;
+        }
+        return entity.storeId;
+      }
+      case "SETTLEMENT": {
+        const entity = await this.connection
+          .getRepository(ctx, ConsignmentSettlement)
           .findOne({ where: { id: objectId } });
         if (!entity) {
           break;
